@@ -1,5 +1,6 @@
 """References: ephemeral text extraction and episode splitting."""
 from .episode_splitter import Episode, SplitEpisodes, split_episodes
+from .import_pipeline import ImportResult, import_reference_file
 from .basic_statistics import (
     TextStatistics, EpisodeStatistics, ReferenceStatistics, measure_text, measure_reference,
 )
@@ -8,6 +9,7 @@ from .pdf_parser import ParsedPdfReference, parse_pdf_bytes, parse_pdf_file
 from .plaintext_parser import ParsedBlock, ParsedReference, ReferenceParseError, parse_reference_file, parse_text
 
 __all__ = [
+    "ImportResult", "import_reference_file",
     "TextStatistics", "EpisodeStatistics", "ReferenceStatistics", "measure_text", "measure_reference",
     "Episode", "SplitEpisodes", "split_episodes",
     "ParsedBlock", "ParsedReference", "ReferenceParseError",
