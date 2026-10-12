@@ -1,3 +1,11 @@
+# AI Novel Factory — 25단계 클리프행어 유형 후보 분석
+
+- 회차 말미의 어휘·문장부호 단서만 분석합니다. 실제 서사적 클리프행어로 확정하지 않습니다.
+- 원문·매칭 문구 비보관, 완전 오프라인, 7개 고정 후보 유형.
+- 상세: `docs/stage25_cliffhanger_types.md`; 테스트: `tests/test_cliffhanger_analysis.py`.
+
+---
+
 # 23단계 — 사건 시점 후보(정량 지표)
 
 - `src/ai_novel_factory/references/event_timing.py` — 22단계 키워드 위치별 출현 분포
