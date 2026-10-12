@@ -9,6 +9,10 @@ from .dialogue_statistics import (
     DialogueCounts, EpisodeDialogue, ReferenceDialogue,
     measure_dialogue_text, measure_dialogue_reference,
 )
+from .episode_structure import (
+    CueCounts, SectionMetrics, EpisodeStructure, ReferenceStructure,
+    analyze_structure_text, analyze_reference_structure,
+)
 from .docx_parser import parse_docx_bytes, parse_docx_file
 from .pdf_parser import ParsedPdfReference, parse_pdf_bytes, parse_pdf_file
 from .plaintext_parser import (
@@ -20,6 +24,8 @@ from .plaintext_parser import (
 )
 
 __all__ = [
+    "CueCounts", "SectionMetrics", "EpisodeStructure", "ReferenceStructure",
+    "analyze_structure_text", "analyze_reference_structure",
     "ImportResult", "import_reference_file",
     "DialogueCounts", "EpisodeDialogue", "ReferenceDialogue",
     "measure_dialogue_text", "measure_dialogue_reference",
