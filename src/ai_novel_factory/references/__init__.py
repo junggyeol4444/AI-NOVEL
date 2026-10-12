@@ -21,6 +21,11 @@ from .event_pacing import (
     GapMetrics, EpisodePacing, ReferencePacing,
     analyze_pacing_text, analyze_reference_pacing,
 )
+from .cliffhanger_analysis import (
+    LEXICAL_TYPES, PUNCTUATION_TYPES, TYPE_PRIORITY, LexicalSignals,
+    EpisodeCliffhanger, ReferenceCliffhangers,
+    analyze_cliffhanger_text, analyze_reference_cliffhangers,
+)
 from .docx_parser import parse_docx_bytes, parse_docx_file
 from .pdf_parser import ParsedPdfReference, parse_pdf_bytes, parse_pdf_file
 from .plaintext_parser import (
@@ -32,6 +37,9 @@ from .plaintext_parser import (
 )
 
 __all__ = [
+    "LEXICAL_TYPES", "PUNCTUATION_TYPES", "TYPE_PRIORITY",
+    "LexicalSignals", "EpisodeCliffhanger", "ReferenceCliffhangers",
+    "analyze_cliffhanger_text", "analyze_reference_cliffhangers",
     "GapMetrics", "EpisodePacing", "ReferencePacing",
     "analyze_pacing_text", "analyze_reference_pacing",
     "MAX_EVENT_MARKERS", "EventCuePosition", "EpisodeEventTiming", "ReferenceEventTiming",
