@@ -69,7 +69,6 @@ __all__ = [
     "parse_pdf_file",
 ]
 
-
 # Stage 26: deterministic character prominence and explicit role-hint candidates.
 from .character_roles import (
     CharacterSpec, CharacterRoleCandidate, EpisodeCharacterRoles, ReferenceCharacterRoles,
