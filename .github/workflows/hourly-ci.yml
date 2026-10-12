@@ -1,8 +1,6 @@
-name: AI Novel Factory hourly verification
+name: AI Novel Factory CI (manual and commit)
 
 on:
-  schedule:
-    - cron: "0 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -50,5 +48,5 @@ jobs:
       - name: Clarify scheduling scope
         if: always()
         run: |
-          echo "This scheduled workflow checks existing GitHub source only." >> "$GITHUB_STEP_SUMMARY"
+          echo "This workflow runs only on push, PR, or manual dispatch; there is no hourly schedule." >> "$GITHUB_STEP_SUMMARY"
           echo "It does not independently generate or commit new code." >> "$GITHUB_STEP_SUMMARY"
