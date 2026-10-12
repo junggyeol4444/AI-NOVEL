@@ -130,7 +130,7 @@ class ReferenceCliffhangerTests(unittest.TestCase):
         self.assertEqual(result.episodes[0].primary_type,'none')
 
     def test_markdown_code_and_heading_excluded(self):
-        doc=parse_text('## 1화\n\n평범했다.\n\n~~~\n사실은 위기?\n~~~',format='markdown')
+        doc=parse_text('## 1화\n\n평범했다.\n\n```\n사실은 위기?\n```',format='markdown')
         result=analyze_reference_cliffhangers(doc)
         self.assertEqual(result.episodes[0].primary_type,'none')
 
