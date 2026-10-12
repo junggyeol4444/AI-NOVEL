@@ -1,0 +1,752 @@
+{
+  "project": "AI Novel Factory",
+  "target": "Windows EXE",
+  "stage": 1,
+  "stage_title": "요구사항 목록화",
+  "baseline": "2026-10-11T21:00:00+09:00",
+  "status": "SPECIFICATION_ONLY",
+  "source": "AI 장편소설 자동 제작·출판 시스템 개발 기획안",
+  "note": "단계 1의 요구사항 정의 자료. 제품 기능 구현이나 Windows 실행 검증을 의미하지 않음.",
+  "requirements": [
+    {
+      "id": "ANF-REQ-001",
+      "category": "제품",
+      "stage": 97,
+      "source_section": "3, 48, 52",
+      "priority": "MUST",
+      "requirement": "Windows에서 실행 가능한 AI Novel Factory 데스크톱 EXE를 제공한다.",
+      "acceptance": "Windows 대상 빌드 산출물이 생성되고 실행·종료 테스트를 통과한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-002",
+      "category": "제품",
+      "stage": 8,
+      "source_section": "48",
+      "priority": "MUST",
+      "requirement": "작품·설정·인물·회차·참고작·출판을 탐색하는 관리자 UI를 제공한다.",
+      "acceptance": "주요 메뉴를 이동할 수 있고 데이터가 없는 경우도 오류 없이 표시된다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-003",
+      "category": "제품",
+      "stage": 9,
+      "source_section": "52-54",
+      "priority": "MUST",
+      "requirement": "데스크톱 UI와 백엔드 기능을 연결한다.",
+      "acceptance": "상태 확인 호출이 정상 응답 또는 명시적 오류를 반환한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-004",
+      "category": "제품",
+      "stage": 68,
+      "source_section": "42, 48",
+      "priority": "MUST",
+      "requirement": "작업 진행 상태·일시정지·취소를 제공한다.",
+      "acceptance": "장기 작업의 상태 변경이 화면에 반영되고 취소 후 재개 규칙을 지킨다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-005",
+      "category": "참고입력",
+      "stage": 11,
+      "source_section": "5, 49",
+      "priority": "MUST",
+      "requirement": "참고소설을 여러 개 등록한다.",
+      "acceptance": "2개 이상 파일을 등록하고 목록에서 각각 구분할 수 있다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-006",
+      "category": "참고입력",
+      "stage": 13,
+      "source_section": "5-6",
+      "priority": "MUST",
+      "requirement": "TXT와 Markdown을 읽는다.",
+      "acceptance": "한국어 테스트 문서의 본문과 줄바꿈을 추출한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-007",
+      "category": "참고입력",
+      "stage": 14,
+      "source_section": "5-6",
+      "priority": "MUST",
+      "requirement": "EPUB 파일을 읽는다.",
+      "acceptance": "EPUB 샘플의 장 순서대로 본문을 추출한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-008",
+      "category": "참고입력",
+      "stage": 15,
+      "source_section": "5-6",
+      "priority": "MUST",
+      "requirement": "DOCX 파일을 읽는다.",
+      "acceptance": "DOCX 샘플의 문단 순서대로 본문을 추출한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-009",
+      "category": "참고입력",
+      "stage": 16,
+      "source_section": "5-6",
+      "priority": "MUST",
+      "requirement": "PDF 파일을 읽는다.",
+      "acceptance": "텍스트형 PDF의 페이지 순서대로 본문을 추출하고 스캔본 한계를 안내한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-010",
+      "category": "참고입력",
+      "stage": 12,
+      "source_section": "5-6",
+      "priority": "MUST",
+      "requirement": "입력 파일 형식·크기·인코딩을 검증한다.",
+      "acceptance": "손상·미지원 파일을 안전하게 거절하고 원본을 변경하지 않는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-011",
+      "category": "참고입력",
+      "stage": 17,
+      "source_section": "6",
+      "priority": "MUST",
+      "requirement": "참고소설을 장/회차로 분리한다.",
+      "acceptance": "명시적 회차 표기가 있는 테스트 자료를 기대 개수로 분할한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-012",
+      "category": "참고분석",
+      "stage": 18,
+      "source_section": "7",
+      "priority": "MUST",
+      "requirement": "총 글자 수·회차 수·평균 문장·문단 길이를 계산한다.",
+      "acceptance": "고정 샘플에서 기대 통계값과 일치한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-013",
+      "category": "참고분석",
+      "stage": 21,
+      "source_section": "7, 18",
+      "priority": "MUST",
+      "requirement": "대사·서술·행동·내면 묘사 비율을 분석한다.",
+      "acceptance": "각 비율이 0~1 범위이며 계산 기준을 기록한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-014",
+      "category": "참고분석",
+      "stage": 22,
+      "source_section": "7",
+      "priority": "MUST",
+      "requirement": "도입·갈등·전개·보상·반전·클리프행어 구조를 분석한다.",
+      "acceptance": "회차별 구조 레이블과 근거 구간을 출력한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-015",
+      "category": "참고분석",
+      "stage": 23,
+      "source_section": "7",
+      "priority": "MUST",
+      "requirement": "첫 사건·갈등·보상·반전·클라이맥스 위치를 추정한다.",
+      "acceptance": "샘플 분석 결과에 위치와 신뢰도 또는 검토 필요 상태가 남는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-016",
+      "category": "참고분석",
+      "stage": 24,
+      "source_section": "7",
+      "priority": "MUST",
+      "requirement": "중소형·대형 사건 간격과 전개 속도를 분석한다.",
+      "acceptance": "이벤트 간격 통계와 산정 기준을 표시한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-017",
+      "category": "참고분석",
+      "stage": 25,
+      "source_section": "8",
+      "priority": "MUST",
+      "requirement": "회차 말 클리프행어 유형·사용률을 분석한다.",
+      "acceptance": "유형별 건수와 사용률을 프로필에 기록한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-018",
+      "category": "참고분석",
+      "stage": 26,
+      "source_section": "9",
+      "priority": "MUST",
+      "requirement": "등장인물 역할·등장 빈도를 분석한다.",
+      "acceptance": "인물별 등장 횟수와 역할 추정치를 출력한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-019",
+      "category": "참고분석",
+      "stage": 27,
+      "source_section": "10",
+      "priority": "MUST",
+      "requirement": "등장인물 간 관계 변화 흐름을 분석한다.",
+      "acceptance": "관계 단계와 해당 회차를 연결해 저장한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-020",
+      "category": "참고분석",
+      "stage": 28,
+      "source_section": "11-12",
+      "priority": "MUST",
+      "requirement": "복선 설치·회수 및 감정곡선을 분석한다.",
+      "acceptance": "회차별 복선 상태와 감정 추정치를 저장한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-021",
+      "category": "참고분석",
+      "stage": 29,
+      "source_section": "18",
+      "priority": "MUST",
+      "requirement": "문장 길이·대사 비율·시점 등 문체 통계를 계산한다.",
+      "acceptance": "분석 결과가 특정 원문 문장을 재생성하는 프롬프트가 되지 않는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-022",
+      "category": "참고분석",
+      "stage": 30,
+      "source_section": "14",
+      "priority": "MUST",
+      "requirement": "작품별 Reference Profile을 생성·저장한다.",
+      "acceptance": "프로필을 다시 열어 동일 데이터로 복원한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-023",
+      "category": "참고분석",
+      "stage": 31,
+      "source_section": "15",
+      "priority": "MUST",
+      "requirement": "복수 참고작의 공통·개별 패턴을 구분한다.",
+      "acceptance": "2개 이상의 프로필에서 공통·고유 항목을 별도 출력한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-024",
+      "category": "참고분석",
+      "stage": 32,
+      "source_section": "13",
+      "priority": "MUST",
+      "requirement": "장르 공통 패턴을 통계적으로 집계한다.",
+      "acceptance": "장르 프로필에 표본 수와 집계 근거를 포함한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-025",
+      "category": "참고분석",
+      "stage": 33,
+      "source_section": "19",
+      "priority": "MUST",
+      "requirement": "재사용 가능한 Reference Pattern Library를 제공한다.",
+      "acceptance": "패턴 검색·조회가 가능하고 원문 복제 대신 추상적 구조를 저장한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-026",
+      "category": "참고분석",
+      "stage": 34,
+      "source_section": "16",
+      "priority": "MUST",
+      "requirement": "참고 작품별 참고 강도를 설정한다.",
+      "acceptance": "작품별 가중치를 저장·재로드할 수 있다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-027",
+      "category": "참고분석",
+      "stage": 35,
+      "source_section": "17",
+      "priority": "MUST",
+      "requirement": "전개·복선·관계·문체 등 참고 요소를 선택한다.",
+      "acceptance": "선택 해제한 요소는 생성 컨텍스트에 포함되지 않는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-028",
+      "category": "독창성",
+      "stage": 38,
+      "source_section": "20, 56",
+      "priority": "MUST",
+      "requirement": "참고소설 원문·고유명사·고유 설정을 새 작품에 그대로 복제하지 않는다.",
+      "acceptance": "금지된 직접 복제 테스트에서 차단 또는 수정 대상으로 표시한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-029",
+      "category": "독창성",
+      "stage": 39,
+      "source_section": "20, 36",
+      "priority": "MUST",
+      "requirement": "문장·장면·캐릭터·사건 순서 유사성을 검사한다.",
+      "acceptance": "고의로 유사하게 만든 테스트 원고에 위험 플래그를 남긴다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-030",
+      "category": "독창성",
+      "stage": 78,
+      "source_section": "20, 36",
+      "priority": "MUST",
+      "requirement": "참고작 등록 시 유사성 검사를 집필 검수에 포함한다.",
+      "acceptance": "참고작이 있는 회차는 검사 기록 없이 최종 확정되지 않는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-031",
+      "category": "기억DB",
+      "stage": 41,
+      "source_section": "21",
+      "priority": "MUST",
+      "requirement": "Novel Bible을 작품의 최우선 설정 기준으로 저장한다.",
+      "acceptance": "참고 패턴과 충돌 시 Novel Bible이 우선됨을 검증한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-032",
+      "category": "기억DB",
+      "stage": 42,
+      "source_section": "22",
+      "priority": "MUST",
+      "requirement": "인물의 성격·목표·말투·비밀을 저장한다.",
+      "acceptance": "인물 데이터 생성·수정·조회가 가능하다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-033",
+      "category": "기억DB",
+      "stage": 43,
+      "source_section": "23",
+      "priority": "MUST",
+      "requirement": "인물별 지식 범위를 회차별로 관리한다.",
+      "acceptance": "인물이 모르는 정보를 사용한 예시를 오류로 표시한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-034",
+      "category": "기억DB",
+      "stage": 44,
+      "source_section": "25",
+      "priority": "MUST",
+      "requirement": "세계관·조직·지역·능력·아이템을 저장한다.",
+      "acceptance": "세계관 항목을 식별자 기반으로 조회할 수 있다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-035",
+      "category": "기억DB",
+      "stage": 45,
+      "source_section": "24",
+      "priority": "MUST",
+      "requirement": "인물 관계 변화를 시간에 따라 저장한다.",
+      "acceptance": "같은 인물 쌍의 서로 다른 회차 관계를 조회할 수 있다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-036",
+      "category": "기억DB",
+      "stage": 46,
+      "source_section": "26",
+      "priority": "MUST",
+      "requirement": "주요 사건의 날짜·상대시간을 관리한다.",
+      "acceptance": "상충되는 사건 순서를 검출한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-037",
+      "category": "기억DB",
+      "stage": 47,
+      "source_section": "27",
+      "priority": "MUST",
+      "requirement": "복선 설치·재언급·회수·폐기 상태를 관리한다.",
+      "acceptance": "OPEN/DEVELOPING/RESOLVED/ABANDONED 상태를 추적한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-038",
+      "category": "기억DB",
+      "stage": 48,
+      "source_section": "32",
+      "priority": "MUST",
+      "requirement": "작품 고유 문체 규칙을 Style Bible에 저장한다.",
+      "acceptance": "문체 설정을 생성 컨텍스트에 반영한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-039",
+      "category": "기억DB",
+      "stage": 49,
+      "source_section": "40",
+      "priority": "MUST",
+      "requirement": "회차별 플롯·장면·초고·확정본·요약·검사 기록을 저장한다.",
+      "acceptance": "회차 데이터를 재시작 후 복원할 수 있다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-040",
+      "category": "기억DB",
+      "stage": 56,
+      "source_section": "41",
+      "priority": "MUST",
+      "requirement": "장기 기억을 위한 의미 검색을 제공한다.",
+      "acceptance": "과거 관련 장면 검색 결과에 출처 회차를 표시한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-041",
+      "category": "기획집필",
+      "stage": 51,
+      "source_section": "2, 21",
+      "priority": "MUST",
+      "requirement": "장르·소재·분량·분위기·참고작으로 작품 기획을 생성한다.",
+      "acceptance": "입력값으로 제목·로그라인·세계관 초안을 생성한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-042",
+      "category": "기획집필",
+      "stage": 52,
+      "source_section": "28",
+      "priority": "MUST",
+      "requirement": "전체 회차를 여러 Story Arc로 계획한다.",
+      "acceptance": "Arc 범위가 전체 회차를 빠짐없이 포함한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-043",
+      "category": "기획집필",
+      "stage": 53,
+      "source_section": "29",
+      "priority": "MUST",
+      "requirement": "회차별 목적·사건·감정·복선·후킹을 계획한다.",
+      "acceptance": "회차 계획에 필수 필드가 존재한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-044",
+      "category": "기획집필",
+      "stage": 54,
+      "source_section": "30",
+      "priority": "MUST",
+      "requirement": "회차를 여러 Scene으로 분리해 계획한다.",
+      "acceptance": "장면별 장소·인물·목표·갈등이 저장된다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-045",
+      "category": "기획집필",
+      "stage": 55,
+      "source_section": "3, 31",
+      "priority": "MUST",
+      "requirement": "집필 전 필요한 설정·기억·참고 패턴만 검색한다.",
+      "acceptance": "전체 원문을 무조건 프롬프트에 넣지 않는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-046",
+      "category": "기획집필",
+      "stage": 61,
+      "source_section": "31, 52",
+      "priority": "MUST",
+      "requirement": "AI 모델 호출을 통해 장면 초고를 생성한다.",
+      "acceptance": "모의 모델로 초고 생성 계약을 검증하고 실제 호출은 별도 승인 후 시험한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-047",
+      "category": "기획집필",
+      "stage": 66,
+      "source_section": "4, 31",
+      "priority": "MUST",
+      "requirement": "계획→집필→검수→수정→기억 업데이트를 순서대로 조정한다.",
+      "acceptance": "모의 작업에서 단계별 상태 전이가 기록된다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-048",
+      "category": "기획집필",
+      "stage": 69,
+      "source_section": "38-40",
+      "priority": "MUST",
+      "requirement": "실패 작업을 재시도하고 마지막 성공 지점에서 재개한다.",
+      "acceptance": "중간 실패 후 확정본을 중복 저장하지 않고 재개한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-049",
+      "category": "기획집필",
+      "stage": 84,
+      "source_section": "42",
+      "priority": "MUST",
+      "requirement": "한 회차 확정 후 다음 회차를 자동 시작한다.",
+      "acceptance": "설정된 종료 회차에서 작업이 멈춘다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-050",
+      "category": "기획집필",
+      "stage": 85,
+      "source_section": "42",
+      "priority": "MUST",
+      "requirement": "자동 집필 일정과 작업 실행 이력을 관리한다.",
+      "acceptance": "설정 시간의 작업 실행·실패·재시도 기록을 조회한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-051",
+      "category": "검수",
+      "stage": 71,
+      "source_section": "34",
+      "priority": "MUST",
+      "requirement": "이름·나이·직업·능력·장소 등 설정 연속성을 검사한다.",
+      "acceptance": "기존 설정과 충돌하는 원고에서 경고를 생성한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-052",
+      "category": "검수",
+      "stage": 75,
+      "source_section": "35",
+      "priority": "MUST",
+      "requirement": "인물 동기·우연·능력 사용·사건 해결 논리를 검사한다.",
+      "acceptance": "논리적 모순을 근거 구간과 함께 보고한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-053",
+      "category": "검수",
+      "stage": 76,
+      "source_section": "32",
+      "priority": "MUST",
+      "requirement": "Style Bible과 원고 문체의 일관성을 검사한다.",
+      "acceptance": "금지 규칙 위반 시 경고를 출력한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-054",
+      "category": "검수",
+      "stage": 77,
+      "source_section": "33",
+      "priority": "MUST",
+      "requirement": "반복 표현을 감지하고 제한한다.",
+      "acceptance": "반복 문구 테스트에서 지정 횟수 초과를 탐지한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-055",
+      "category": "검수",
+      "stage": 79,
+      "source_section": "37",
+      "priority": "MUST",
+      "requirement": "가상 독자 관점의 몰입·전개·후킹 평가를 제공한다.",
+      "acceptance": "평가 결과를 참고용 지표로 저장하며 객관적 품질 보증으로 표시하지 않는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-056",
+      "category": "검수",
+      "stage": 80,
+      "source_section": "38",
+      "priority": "MUST",
+      "requirement": "문제가 있는 Scene만 재작성하고 재검사한다.",
+      "acceptance": "문제 없는 Scene은 변경되지 않음을 검증한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-057",
+      "category": "검수",
+      "stage": 81,
+      "source_section": "39",
+      "priority": "MUST",
+      "requirement": "확정본에서 새 사실·관계·복선을 추출한다.",
+      "acceptance": "추출 내역을 검토 가능한 변경 목록으로 저장한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-058",
+      "category": "검수",
+      "stage": 82,
+      "source_section": "39",
+      "priority": "MUST",
+      "requirement": "확정된 기억 변경 사항을 DB에 반영한다.",
+      "acceptance": "동일 변경 재적용 시 중복 기록이 생기지 않는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-059",
+      "category": "검수",
+      "stage": 86,
+      "source_section": "55",
+      "priority": "MUST",
+      "requirement": "30화 연속 생성 시험을 수행한다.",
+      "acceptance": "30화 테스트 실행 보고서와 오류 건수를 남긴다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-060",
+      "category": "검수",
+      "stage": 87,
+      "source_section": "55",
+      "priority": "MUST",
+      "requirement": "100화 이상 장기 기억 안정성 시험을 수행한다.",
+      "acceptance": "100화 이상 테스트 실행 보고서와 설정 충돌 건수를 남긴다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-061",
+      "category": "검수",
+      "stage": 88,
+      "source_section": "47",
+      "priority": "MUST",
+      "requirement": "완결 후 미회수 복선·미해결 갈등·시간선 오류를 검사한다.",
+      "acceptance": "완결 검사 실패 시 확정 상태로 전환하지 않는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-062",
+      "category": "출판",
+      "stage": 91,
+      "source_section": "43",
+      "priority": "MUST",
+      "requirement": "새 작품의 표지·썸네일을 생성한다.",
+      "acceptance": "cover.jpg와 thumbnail.jpg를 생성하고 참고 표지 복제를 금지한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-063",
+      "category": "출판",
+      "stage": 92,
+      "source_section": "46",
+      "priority": "MUST",
+      "requirement": "작품 설명·키워드·카테고리 등 메타데이터를 작성한다.",
+      "acceptance": "필수 메타데이터 필드를 검증한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-064",
+      "category": "출판",
+      "stage": 93,
+      "source_section": "44",
+      "priority": "MUST",
+      "requirement": "EPUB3 전자책을 제작한다.",
+      "acceptance": "EPUB 파일을 생성하고 구조 검증을 통과한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-065",
+      "category": "출판",
+      "stage": 94,
+      "source_section": "45",
+      "priority": "MUST",
+      "requirement": "플랫폼 업로드용 회차 제목·본문·작가의 말 파일을 만든다.",
+      "acceptance": "파일을 생성하고 내용 인코딩을 검증한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-066",
+      "category": "출판",
+      "stage": 95,
+      "source_section": "45",
+      "priority": "MUST",
+      "requirement": "공식 API가 있는 플랫폼에 한해 Publisher Adapter를 지원한다.",
+      "acceptance": "공식 연동 규격을 확인한 대상에서 테스트 환경 업로드를 검증한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-067",
+      "category": "출판",
+      "stage": 89,
+      "source_section": "45-47",
+      "priority": "MUST",
+      "requirement": "실제 외부 출판 전 사용자 승인을 받는다.",
+      "acceptance": "승인하지 않은 상태에서는 외부 게시 요청이 실행되지 않는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-068",
+      "category": "운영",
+      "stage": 62,
+      "source_section": "52",
+      "priority": "MUST",
+      "requirement": "API 키·토큰을 원고 및 로그와 분리해 안전하게 관리한다.",
+      "acceptance": "로그·설정 내 평문 비밀키 노출 테스트를 통과한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-069",
+      "category": "운영",
+      "stage": 90,
+      "source_section": "42",
+      "priority": "MUST",
+      "requirement": "작업 로그·오류·비용을 추적한다.",
+      "acceptance": "작업 ID로 실행 내역과 오류 원인을 조회할 수 있다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-070",
+      "category": "운영",
+      "stage": 98,
+      "source_section": "52",
+      "priority": "MUST",
+      "requirement": "EXE 실행에 필요한 외부 구성요소를 명시한다.",
+      "acceptance": "설치 안내에서 필수·선택·유료 요소를 구분한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-071",
+      "category": "운영",
+      "stage": 99,
+      "source_section": "55",
+      "priority": "MUST",
+      "requirement": "Windows 환경에서 종합 회귀 테스트를 수행한다.",
+      "acceptance": "Windows 테스트 보고서에 통과·실패·미검증을 구분한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-072",
+      "category": "운영",
+      "stage": 100,
+      "source_section": "57",
+      "priority": "MUST",
+      "requirement": "최종 릴리스·사용설명서·제약 사항을 제공한다.",
+      "acceptance": "산출물 목록·설치 방법·알려진 문제를 포함한다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-073",
+      "category": "운영",
+      "stage": 6,
+      "source_section": "사용자 후속 지시",
+      "priority": "MUST",
+      "requirement": "사용자 설치·계정 연결·유료 사용은 사전 승인 대상으로 관리한다.",
+      "acceptance": "승인 상태가 없으면 해당 작업을 실행하지 않는다.",
+      "status": "SPECIFIED"
+    },
+    {
+      "id": "ANF-REQ-074",
+      "category": "운영",
+      "stage": 98,
+      "source_section": "사용자 후속 지시",
+      "priority": "MUST",
+      "requirement": "PC가 꺼진 동안 로컬 PC 작업 완료를 주장하지 않는다.",
+      "acceptance": "작업 보고서에 원격 초안과 로컬 검증 상태를 분리한다.",
+      "status": "SPECIFIED"
+    }
+  ]
+}

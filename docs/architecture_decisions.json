@@ -1,0 +1,197 @@
+{
+  "project": "AI Novel Factory",
+  "stage": 3,
+  "stage_title": "기술 스택·아키텍처 확정",
+  "status": "PROVISIONAL_ARCHITECTURE_SPECIFICATION",
+  "baseline": "2026-10-11T23:00:00+09:00",
+  "stage_1_reference": "docs/requirements.json",
+  "stage_2_status": "NOT_AVAILABLE_IN_CURRENT_WORKSPACE",
+  "platform": {
+    "target": "Windows 64-bit EXE",
+    "packaging": "PyInstaller",
+    "supported_windows_versions": "USER_APPROVAL_PENDING"
+  },
+  "stack": {
+    "language": "Python",
+    "desktop_ui": "PySide6",
+    "api": "FastAPI",
+    "validation": "Pydantic",
+    "database": "PostgreSQL",
+    "semantic_search": "pgvector",
+    "task_queue": "Celery",
+    "queue_broker": "Redis",
+    "tests": "pytest + unittest",
+    "ebook": "EPUB3",
+    "document_parsers": [
+      "TXT",
+      "Markdown",
+      "EPUB",
+      "DOCX",
+      "PDF"
+    ],
+    "build": "PyInstaller",
+    "model_provider": "ADAPTER_UNDECIDED"
+  },
+  "deployment": {
+    "desktop": "USER_WINDOWS_PC",
+    "api_host": "UNDECIDED_APPROVAL_REQUIRED",
+    "postgresql_host": "UNDECIDED_APPROVAL_REQUIRED",
+    "redis_host": "UNDECIDED_APPROVAL_REQUIRED",
+    "worker_host": "UNDECIDED_APPROVAL_REQUIRED",
+    "remote_repository": "NOT_CONNECTED",
+    "offline_behavior": "UI_VIEW_OR_EXPLICIT_ERROR_ONLY_UNTIL_DEPLOYMENT_DECIDED",
+    "pc_off_execution": "NOT_SUPPORTED_WITHOUT_APPROVED_REMOTE_WORKER_AND_STORAGE"
+  },
+  "components": [
+    {
+      "id": "desktop",
+      "zone": "local",
+      "tech": "PySide6",
+      "role": "GUI, progress, approval screens"
+    },
+    {
+      "id": "api",
+      "zone": "deployment_pending",
+      "tech": "FastAPI",
+      "role": "Authenticated application boundary"
+    },
+    {
+      "id": "orchestrator",
+      "zone": "backend",
+      "tech": "Python",
+      "role": "Plan, write, review, memory-update workflow"
+    },
+    {
+      "id": "reference_analyzer",
+      "zone": "backend",
+      "tech": "Python parsers",
+      "role": "Extract only structural profiles from permitted reference works"
+    },
+    {
+      "id": "planner",
+      "zone": "backend",
+      "tech": "Python",
+      "role": "Novel Bible first; reference patterns second"
+    },
+    {
+      "id": "writer",
+      "zone": "backend",
+      "tech": "AI adapter",
+      "role": "Generate original scenes from approved context"
+    },
+    {
+      "id": "quality",
+      "zone": "backend",
+      "tech": "Python checkers",
+      "role": "Continuity, logic, style, repetition, similarity checks"
+    },
+    {
+      "id": "memory",
+      "zone": "backend",
+      "tech": "PostgreSQL + pgvector",
+      "role": "Canonical facts and retrieval"
+    },
+    {
+      "id": "queue",
+      "zone": "infrastructure",
+      "tech": "Celery + Redis",
+      "role": "Async long-running jobs"
+    },
+    {
+      "id": "publishing",
+      "zone": "backend",
+      "tech": "EPUB3 + platform adapters",
+      "role": "Generate files; external publication requires approval"
+    },
+    {
+      "id": "provider",
+      "zone": "external",
+      "tech": "TBD AI API",
+      "role": "AI inference only with user-approved account and budget"
+    }
+  ],
+  "connections": [
+    {
+      "from": "desktop",
+      "to": "api",
+      "via": "HTTP(S) JSON; loopback only if local"
+    },
+    {
+      "from": "api",
+      "to": "orchestrator",
+      "via": "Python service"
+    },
+    {
+      "from": "orchestrator",
+      "to": "reference_analyzer",
+      "via": "Python service"
+    },
+    {
+      "from": "reference_analyzer",
+      "to": "memory",
+      "via": "Reference Profile persistence"
+    },
+    {
+      "from": "orchestrator",
+      "to": "planner",
+      "via": "Python service"
+    },
+    {
+      "from": "planner",
+      "to": "memory",
+      "via": "Novel Bible + profile retrieval"
+    },
+    {
+      "from": "orchestrator",
+      "to": "writer",
+      "via": "Scene plan and filtered context"
+    },
+    {
+      "from": "writer",
+      "to": "provider",
+      "via": "Approved AI adapter"
+    },
+    {
+      "from": "orchestrator",
+      "to": "quality",
+      "via": "Draft quality gate"
+    },
+    {
+      "from": "quality",
+      "to": "memory",
+      "via": "Read canonical facts; persist reports"
+    },
+    {
+      "from": "orchestrator",
+      "to": "memory",
+      "via": "Commit accepted manuscript + memory delta"
+    },
+    {
+      "from": "orchestrator",
+      "to": "queue",
+      "via": "Celery task submission"
+    },
+    {
+      "from": "orchestrator",
+      "to": "publishing",
+      "via": "Approved manuscript only"
+    }
+  ],
+  "nonnegotiable_controls": [
+    "NO_REFERENCE_RAW_TEXT_TO_WRITER",
+    "NOVEL_BIBLE_OVERRIDES_REFERENCE_PROFILE",
+    "SIMILARITY_CHECK_BEFORE_EPISODE_FINALIZATION",
+    "NO_PUBLICATION_WITHOUT_EXPLICIT_USER_APPROVAL",
+    "NO_PAID_API_OR_INSTALL_WITHOUT_APPROVAL",
+    "NO_CLAIM_OF_PC_OFF_LOCAL_BUILD",
+    "SECRETS_NEVER_IN_SOURCE_OR_LOGS"
+  ],
+  "pending_approvals": [
+    "Windows version and hardware target",
+    "Local versus remote API/DB/queue/worker",
+    "Remote repository and CI permissions",
+    "AI provider, key and cost cap",
+    "Reference storage location and retention",
+    "Publication target and account connection"
+  ]
+}
