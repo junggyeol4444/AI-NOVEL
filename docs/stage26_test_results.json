@@ -1,0 +1,14 @@
+{
+  "stage": 26,
+  "title": "캐릭터 역할 후보 분석",
+  "local_python": "3.13",
+  "tests_run": 367,
+  "passed": 364,
+  "skipped": 3,
+  "failed": 0,
+  "new_tests": 37,
+  "smoke": "required_checks_passed",
+  "windows_exe": "not_tested",
+  "local_ai_semantics": "not_implemented",
+  "database_warning": "ResourceWarning: unclosed sqlite3.Connection observed"
+}
