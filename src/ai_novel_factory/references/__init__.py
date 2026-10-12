@@ -13,6 +13,10 @@ from .episode_structure import (
     CueCounts, SectionMetrics, EpisodeStructure, ReferenceStructure,
     analyze_structure_text, analyze_reference_structure,
 )
+from .event_timing import (
+    MAX_EVENT_MARKERS, EventCuePosition, EpisodeEventTiming, ReferenceEventTiming,
+    analyze_event_timing_text, analyze_reference_event_timing,
+)
 from .docx_parser import parse_docx_bytes, parse_docx_file
 from .pdf_parser import ParsedPdfReference, parse_pdf_bytes, parse_pdf_file
 from .plaintext_parser import (
@@ -24,6 +28,8 @@ from .plaintext_parser import (
 )
 
 __all__ = [
+    "MAX_EVENT_MARKERS", "EventCuePosition", "EpisodeEventTiming", "ReferenceEventTiming",
+    "analyze_event_timing_text", "analyze_reference_event_timing",
     "CueCounts", "SectionMetrics", "EpisodeStructure", "ReferenceStructure",
     "analyze_structure_text", "analyze_reference_structure",
     "ImportResult", "import_reference_file",
