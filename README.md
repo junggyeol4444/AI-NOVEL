@@ -1,3 +1,12 @@
+# 23단계 — 사건 시점 후보(정량 지표)
+
+- `src/ai_novel_factory/references/event_timing.py` — 22단계 키워드 위치별 출현 분포
+- `tests/test_event_timing.py` — 후보 위치·정보 보호·연동 테스트
+- `docs/stage23_event_timing.md` — 분석 한계 및 실행 방법
+- 예약은 사용자가 별도 요청 전까지 비활성 상태
+
+---
+
 # AI Novel Factory
 
 Windows EXE 기반 AI 장편소설 자동 제작·출판 시스템 개발 프로젝트입니다.
