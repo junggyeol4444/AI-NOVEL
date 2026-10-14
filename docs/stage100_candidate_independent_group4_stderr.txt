@@ -1,0 +1,52 @@
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368f5b0>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368f4c0>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368ef20>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368eb60>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368f100>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368f010>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368ee30>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368c7c0>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368df30>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368dc60>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368e2f0>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368e110>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/local_models.py:77: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe3833fbc40>
+  if sum(len(getattr(request, f)) for f in
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368f100>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/database/episodes.py:202: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe38368df30>
+  self._db.execute("""CREATE TABLE IF NOT EXISTS bible_episode_scenes (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/database/episodes.py:202: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe3843786d0>
+  self._db.execute("""CREATE TABLE IF NOT EXISTS bible_episode_scenes (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 350 tests in 7.340s
+
+OK

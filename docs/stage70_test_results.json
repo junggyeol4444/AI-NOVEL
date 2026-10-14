@@ -1,0 +1,121 @@
+{
+  "stage": 70,
+  "scope": "single-episode offline mock integration; no full checker, publication or real LLM",
+  "direct_requirement_id": null,
+  "roadmap_task": "한 회차 자동 집필 통합 테스트",
+  "new_tests": 25,
+  "worktree": {
+    "total": 2186,
+    "passed": 2169,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0,
+    "elapsed_seconds": 29.918
+  },
+  "python": "3.13.5",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "smoke": {
+    "provider": "offline-mock-v1",
+    "scene_count": 2,
+    "task_status": "COMPLETED",
+    "workflow_status": "AWAITING_HUMAN_REVIEW",
+    "approved": false,
+    "manuscript_saved": false,
+    "published": false
+  },
+  "warnings": [
+    "preexisting SQLite connection ResourceWarning"
+  ],
+  "not_tested": [
+    "real local LLM inference quality",
+    "full Continuity/Logic/Style/Similarity checks",
+    "automatic final-save idempotency",
+    "Windows EXE",
+    "Windows GUI/PySide6",
+    "live Redis/Celery",
+    "real PostgreSQL/pgvector",
+    "remote API (prohibited)"
+  ],
+  "zip_verification": "release candidate extracted and passed all tests in 3 groups; after final documentation packaging, rerun from final zip",
+  "fresh_zip_verification": {
+    "method": "separate extraction then non-overlapping unittest groups",
+    "batches": [
+      {
+        "name": "stage6_7",
+        "total": 282,
+        "passed": 279,
+        "skipped": 3,
+        "exit_code": 0,
+        "elapsed_seconds": 8.962
+      },
+      {
+        "name": "stage_other",
+        "total": 916,
+        "passed": 913,
+        "skipped": 3,
+        "exit_code": 0,
+        "elapsed_seconds": 10.47
+      },
+      {
+        "name": "base",
+        "total": 988,
+        "passed": 977,
+        "skipped": 11,
+        "exit_code": 0,
+        "elapsed_seconds": 12.673
+      }
+    ],
+    "total": 2186,
+    "passed": 2169,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0
+  },
+  "old_zip_file_count": 370,
+  "old_zip_files_preserved": 370,
+  "old_modified_files": [
+    "README.md"
+  ],
+  "hidden_files": [
+    ".editorconfig",
+    ".env.example",
+    ".gitignore",
+    ".python-version"
+  ],
+  "release_zip_verification": {
+    "method": "release-candidate ZIP extracted into separate clean folder; 3 nonoverlapping test groups",
+    "batches": [
+      {
+        "name": "stage6_7",
+        "total": 282,
+        "passed": 279,
+        "skipped": 3,
+        "exit_code": 0,
+        "elapsed_seconds": 8.236
+      },
+      {
+        "name": "stage_other",
+        "total": 916,
+        "passed": 913,
+        "skipped": 3,
+        "exit_code": 0,
+        "elapsed_seconds": 10.653
+      },
+      {
+        "name": "base",
+        "total": 988,
+        "passed": 977,
+        "skipped": 11,
+        "exit_code": 0,
+        "elapsed_seconds": 12.0
+      }
+    ],
+    "total": 2186,
+    "passed": 2169,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0
+  },
+  "cumulative_zip_files": 390
+}

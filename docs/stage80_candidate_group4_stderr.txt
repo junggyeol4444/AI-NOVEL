@@ -1,0 +1,61 @@
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f67963e0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f67962f0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6795f30>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6796110>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f67947c0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f747c040>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6521b70>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f65217b0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6521990>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f65218a0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f65215d0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6796980>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6521210>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6796b60>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6521a80>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6520d60>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f65214e0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6520f40>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf80_candidate_extract/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f64f6521030>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 239 tests in 0.546s
+
+OK

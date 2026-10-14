@@ -1,0 +1,49 @@
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cb87cd60>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cb87c8b0>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cb87c4f0>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cb87c9a0>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cb87c7c0>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cbb17b50>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cbb176a0>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cbb17880>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cbb16200>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cbb17c40>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cbaa8c70>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cbaa8310>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/event_timeline.py:280: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cbe5f880>
+  tuple(uid for uid in sorted(events) if intervals[uid] is None), len(checked))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cbb17c40>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage98_candidate_independent/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f29cb87ea70>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 390 tests in 7.177s
+
+OK (skipped=2)

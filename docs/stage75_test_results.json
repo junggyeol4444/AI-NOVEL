@@ -1,0 +1,64 @@
+{
+  "stage": 75,
+  "roadmap_task": "Logic Checker — 사건과 행동의 논리 검사",
+  "requirement": "ANF-REQ-052",
+  "baseline_zip": "AI_Novel_Factory_stage74_local.zip",
+  "baseline_files": 437,
+  "baseline_files_missing": 0,
+  "baseline_files_changed": [
+    "README.md"
+  ],
+  "new_tests": 42,
+  "worktree": {
+    "total": 2373,
+    "passed": 2356,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  "runtime": {
+    "python": "3.13.5",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+  },
+  "hidden_files": [
+    ".gitignore",
+    ".env.example",
+    ".python-version",
+    ".editorconfig"
+  ],
+  "limitations": [
+    "Structured reviewer-labelled evidence only, not free-text natural-language logic detection",
+    "Coincidence flag is human review, not automatic objective quality judgment",
+    "No Windows EXE/GUI, live Redis/Celery or real local AI model inference tested",
+    "Existing SQLite ResourceWarning persists"
+  ],
+  "validation_commands": [
+    "PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage75*.py' -v",
+    "PYTHONPATH=src python -m unittest discover -s tests -q"
+  ],
+  "candidate_extracted": {
+    "total": 2373,
+    "passed": 2356,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0,
+    "unittest_seconds": 25.4,
+    "zip_crc": "ok",
+    "hidden_files": "ok",
+    "unpacked_file_count": 444
+  },
+  "final_extracted": {
+    "total": 2373,
+    "passed": 2356,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0,
+    "unittest_seconds": 24.241,
+    "zip_crc": "ok",
+    "hidden_files": "ok",
+    "unpacked_file_count": 446
+  }
+}

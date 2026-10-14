@@ -1,0 +1,9 @@
+Stage 95 continuation, ANF-REQ-066, PARTIAL ONLY.
+Original project TXT not verified; user roadmap and current docs/requirements.md used.
+Base archive: stage95_local.zip (1617 entries), CRC passed; previous verification logs inspected.
+20 new asset-review tests PASS. 109 modules, 8 non-overlap groups, 3184 tests: 3163 PASS, 21 SKIP, 0 FAIL, 0 ERROR.
+Group commands/stdout/stderr/exit logs: docs/stage95_continuation_worktree_group*.
+No official API specification, sandbox upload, remote connection or publication.
+Not yet official Stage95 acceptance.
+Candidate ZIP: 1648 entries, base 1617 files preserved, README.md only old-content difference, CRC OK.
+Candidate independent extraction: 109 modules, 8 disjoint groups, 3184 tests, 3163 PASS, 21 SKIP, 0 FAIL/ERROR, all exit codes 0.

@@ -1,0 +1,117 @@
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f4de200>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47a890>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47a5c0>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47a7a0>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f479030>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47a6b0>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47a200>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f479a80>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f478e50>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f478b80>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f478c70>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f4788b0>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f4785e0>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f478130>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47b6a0>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47b2e0>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47b3d0>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47b010>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47b100>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47ac50>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47ab60>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47a980>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47aa70>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/episodes.py:223: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f478040>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_scenes
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/case.py:253: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f478220>
+  def __exit__(self, exc_type, exc_value, tb):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/case.py:253: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47b970>
+  def __exit__(self, exc_type, exc_value, tb):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/case.py:253: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47ab60>
+  def __exit__(self, exc_type, exc_value, tb):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/case.py:253: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47ba60>
+  def __exit__(self, exc_type, exc_value, tb):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/case.py:253: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f478040>
+  def __exit__(self, exc_type, exc_value, tb):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/case.py:253: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47ac50>
+  def __exit__(self, exc_type, exc_value, tb):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/case.py:253: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47a980>
+  def __exit__(self, exc_type, exc_value, tb):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/case.py:253: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47aa70>
+  def __exit__(self, exc_type, exc_value, tb):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/case.py:253: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47b100>
+  def __exit__(self, exc_type, exc_value, tb):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/case.py:253: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f47be20>
+  def __exit__(self, exc_type, exc_value, tb):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/event_timeline.py:159: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f26c040>
+  def audit(self, project_id: str) -> TimelineAudit:
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/event_timeline.py:159: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f26e4d0>
+  def audit(self, project_id: str) -> TimelineAudit:
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/event_timeline.py:159: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f26e200>
+  def audit(self, project_id: str) -> TimelineAudit:
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf76_work/src/ai_novel_factory/database/event_timeline.py:159: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb31f26ee30>
+  def audit(self, project_id: str) -> TimelineAudit:
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 2400 tests in 22.791s
+
+OK (skipped=17)

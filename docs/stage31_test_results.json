@@ -1,0 +1,36 @@
+{
+  "stage": 31,
+  "feature": "multi_reference_profile_aggregation",
+  "runtime": "local-only / offline / SQLite / no external AI or repository usage",
+  "python": "3.13.5",
+  "declared_python_range": ">=3.12,<3.13",
+  "unittest": {
+    "total": 610,
+    "passed": 605,
+    "skipped": 5,
+    "failed": 0,
+    "errors": 0,
+    "new_tests_total": 42,
+    "new_tests_passed": 41,
+    "new_tests_skipped_gui": 1
+  },
+  "smoke": {
+    "required_checks": "passed",
+    "warning": "development Python differs from 3.12"
+  },
+  "dependencies_check": "passed",
+  "warnings": [
+    "Prior SQLite ResourceWarning: unclosed database in some existing tests",
+    "PySide6 GUI validation not run in this environment",
+    "Windows EXE not built or tested"
+  ],
+  "external_services_used": false,
+  "github_calls": false,
+  "source_archived": "full stage30 cumulatives + stage31",
+  "commands": [
+    "PYTHONPATH=src python -m unittest tests.test_profile_collection -v",
+    "PYTHONPATH=src python -m unittest discover -s tests -q",
+    "PYTHONPATH=src python scripts/smoke_test.py",
+    "PYTHONPATH=src python scripts/check_dependencies.py"
+  ]
+}

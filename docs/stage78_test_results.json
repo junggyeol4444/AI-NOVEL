@@ -1,0 +1,46 @@
+{
+  "stage": 78,
+  "roadmap_task": "Reference Similarity Checker: 문장·장면·구조 유사성 검사",
+  "requirement": "ANF-REQ-030",
+  "baseline_zip": "AI_Novel_Factory_stage77_local.zip",
+  "baseline_zip_sha256": "427115d1353e603b31099ce6b47f7f2969a7fdf19991b302f6053428a5be4265",
+  "baseline_file_count": 502,
+  "original_proposal_attachment_accessible": false,
+  "new_tests": 46,
+  "new_tests_passed": 46,
+  "worktree_partitioned_regression": {
+    "method": "All 90 test_*.py modules partitioned into 8 disjoint groups using prior stage77 coverage, plus 2 new modules; rerun group 8 after last test addition",
+    "modules": 90,
+    "groups": 8,
+    "total": 2480,
+    "passed": 2463,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true,
+    "evidence": "docs/stage78_worktree_groups.json and stage78_worktree_group1..8_stderr.txt"
+  },
+  "runtime": {
+    "python": "3.13.5",
+    "platform": "Linux"
+  },
+  "limitations": [
+    "Original proposal attachment inaccessible; roadmap summary and packaged requirements used",
+    "Surface lexical sentence/scene and user-annotated abstract structure only; no semantic or legal plagiarism determination",
+    "No proof that supplied extracted reference text derives from registered source bytes, or that project-specific reference set is complete",
+    "No actual manuscript finalization endpoint; audit receipt guard cannot enforce a future approval flow until stage 89 integration",
+    "Windows EXE/GUI, real local AI inference, Redis/Celery/pgvector live integrations not tested",
+    "Pre-existing SQLite ResourceWarning persists"
+  ],
+  "candidate_extracted": {
+    "total": 2480,
+    "passed": 2463,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true,
+    "zip_crc": "ok",
+    "file_count": 534,
+    "evidence": "docs/stage78_candidate_groups.json and docs/stage78_candidate_group1..8_stderr.txt"
+  }
+}

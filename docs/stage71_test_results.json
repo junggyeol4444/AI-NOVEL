@@ -1,0 +1,57 @@
+{
+  "stage": 71,
+  "requirement": "ANF-REQ-051",
+  "environment": {
+    "python": "3.13.5",
+    "os": "Linux"
+  },
+  "new_tests": 33,
+  "worktree": {
+    "total": 2219,
+    "passed": 2202,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0
+  },
+  "fresh_candidate_zip": {
+    "total": 2219,
+    "passed": 2202,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "groups": [
+      {
+        "name": "stage6_7",
+        "total": 315,
+        "passed": 312,
+        "skipped": 3,
+        "exit_code": 0
+      },
+      {
+        "name": "stage_other",
+        "total": 916,
+        "passed": 913,
+        "skipped": 3,
+        "exit_code": 0
+      },
+      {
+        "name": "base",
+        "total": 988,
+        "passed": 977,
+        "skipped": 11,
+        "exit_code": 0
+      }
+    ]
+  },
+  "initial_single_full_run": "Interrupted, not counted as passed",
+  "limitations": [
+    "No automatic NLP claim extraction",
+    "not complete continuity validation for unmarked prose",
+    "Windows GUI and EXE not tested",
+    "actual LLM inference not tested",
+    "no live Redis/Celery integration"
+  ],
+  "known_warnings": [
+    "Pre-existing SQLite connection ResourceWarning in inherited tests"
+  ]
+}

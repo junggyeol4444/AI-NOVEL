@@ -1,0 +1,50 @@
+[
+  {
+    "group": 3,
+    "modules": [
+      "test_stage43_character_knowledge",
+      "test_copy_protection",
+      "test_related_pattern_search",
+      "test_stage71_continuity_checker",
+      "test_stage65_episode_assembler",
+      "test_stage64_scene_writer",
+      "test_stage58_pattern_application",
+      "test_stage48_release_verifier",
+      "test_stage46_release_verifier",
+      "test_stage51_planning",
+      "test_reference_profile_gui_optional"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage43_character_knowledge test_copy_protection test_related_pattern_search test_stage71_continuity_checker test_stage65_episode_assembler test_stage64_scene_writer test_stage58_pattern_application test_stage48_release_verifier test_stage46_release_verifier test_stage51_planning test_reference_profile_gui_optional -q",
+    "elapsed_seconds": 4.73,
+    "exit_code": 0,
+    "total": 303,
+    "skipped": 2,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage78_candidate_group3_stderr.txt"
+  },
+  {
+    "group": 4,
+    "modules": [
+      "test_stage44_world_canon",
+      "test_genre_patterns",
+      "test_stage73_timeline_checker",
+      "test_event_timing",
+      "test_stage62_credentials",
+      "test_stage60_planning_pipeline",
+      "test_plaintext_parser",
+      "test_stage56_scene_vectors",
+      "test_stage52_story_arcs",
+      "test_stage42_release_verifier",
+      "test_desktop_navigation"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage44_world_canon test_genre_patterns test_stage73_timeline_checker test_event_timing test_stage62_credentials test_stage60_planning_pipeline test_plaintext_parser test_stage56_scene_vectors test_stage52_story_arcs test_stage42_release_verifier test_desktop_navigation -q",
+    "elapsed_seconds": 4.06,
+    "exit_code": 0,
+    "total": 305,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage78_candidate_group4_stderr.txt"
+  }
+]

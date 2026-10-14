@@ -1,0 +1,14 @@
+{
+  "stage": 55,
+  "command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "original_stderr": "<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fd35dbea3e0>\nResourceWarning: Enable tracemalloc to get the object allocation traceback\n----------------------------------------------------------------------\nRan 1838 tests in 16.349s\n\nOK (skipped=11)\n",
+  "original_exit_code": 0,
+  "fresh_stderr": "<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5670a94310>\nResourceWarning: Enable tracemalloc to get the object allocation traceback\n----------------------------------------------------------------------\nRan 1838 tests in 16.709s\n\nOK (skipped=11)\n",
+  "fresh_exit_code": 0,
+  "file_count": 253,
+  "limitations": [
+    "Linux Python 3.13 only",
+    "No Windows EXE test",
+    "No automatic DB retrieval or vector search"
+  ]
+}

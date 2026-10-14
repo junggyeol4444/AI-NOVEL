@@ -1,0 +1,56 @@
+test_chapter_json_duplicate_fields (test_stage93_epub3.Stage93CliTests.test_chapter_json_duplicate_fields) ... ok
+test_chapter_json_not_array (test_stage93_epub3.Stage93CliTests.test_chapter_json_not_array) ... ok
+test_chapter_json_symlink (test_stage93_epub3.Stage93CliTests.test_chapter_json_symlink) ... ok
+test_chapter_json_unknown_fields (test_stage93_epub3.Stage93CliTests.test_chapter_json_unknown_fields) ... ok
+test_cli_generates_preview (test_stage93_epub3.Stage93CliTests.test_cli_generates_preview) ... ok
+test_load_user_chapters (test_stage93_epub3.Stage93CliTests.test_load_user_chapters) ... ok
+test_active_html_script_blocked (test_stage93_epub3.Stage93Epub3Tests.test_active_html_script_blocked) ... ok
+test_bad_container_path (test_stage93_epub3.Stage93Epub3Tests.test_bad_container_path) ... ok
+test_bad_hash (test_stage93_epub3.Stage93Epub3Tests.test_bad_hash) ... ok
+test_bad_mimetype (test_stage93_epub3.Stage93Epub3Tests.test_bad_mimetype) ... ok
+test_cover_integration (test_stage93_epub3.Stage93Epub3Tests.test_cover_integration) ... ok
+test_cover_invalid_format (test_stage93_epub3.Stage93Epub3Tests.test_cover_invalid_format) ... ok
+test_cover_symlink_rejected (test_stage93_epub3.Stage93Epub3Tests.test_cover_symlink_rejected) ... ok
+test_duplicate_filename (test_stage93_epub3.Stage93Epub3Tests.test_duplicate_filename) ... /usr/lib/python3.13/zipfile/__init__.py:1642: UserWarning: Duplicate name: 'EPUB/nav.xhtml'
+  return self._open_to_write(zinfo, force_zip64=force_zip64)
+ok
+test_empty_title_or_text (test_stage93_epub3.Stage93Epub3Tests.test_empty_title_or_text) ... ok
+test_epub3_generation_roundtrip (test_stage93_epub3.Stage93Epub3Tests.test_epub3_generation_roundtrip) ... ok
+test_expected_wrong_chapter_count (test_stage93_epub3.Stage93Epub3Tests.test_expected_wrong_chapter_count) ... ok
+test_expected_wrong_cover (test_stage93_epub3.Stage93Epub3Tests.test_expected_wrong_cover) ... ok
+test_invalid_checksum_form (test_stage93_epub3.Stage93Epub3Tests.test_invalid_checksum_form) ... ok
+test_invalid_metadata_rejected (test_stage93_epub3.Stage93Epub3Tests.test_invalid_metadata_rejected) ... ok
+test_invalid_zip (test_stage93_epub3.Stage93Epub3Tests.test_invalid_zip) ... ok
+test_invisible_text_rejected (test_stage93_epub3.Stage93Epub3Tests.test_invisible_text_rejected) ... ok
+test_large_chapter_rejected (test_stage93_epub3.Stage93Epub3Tests.test_large_chapter_rejected) ... ok
+test_metadata_is_serialized (test_stage93_epub3.Stage93Epub3Tests.test_metadata_is_serialized) ... ok
+test_missing_chapter (test_stage93_epub3.Stage93Epub3Tests.test_missing_chapter) ... ok
+test_missing_nav (test_stage93_epub3.Stage93Epub3Tests.test_missing_nav) ... ok
+test_missing_output_directory (test_stage93_epub3.Stage93Epub3Tests.test_missing_output_directory) ... ok
+test_multiline_paragraphs_and_breaks (test_stage93_epub3.Stage93Epub3Tests.test_multiline_paragraphs_and_breaks) ... ok
+test_nav_tamper (test_stage93_epub3.Stage93Epub3Tests.test_nav_tamper) ... ok
+test_navigation_order (test_stage93_epub3.Stage93Epub3Tests.test_navigation_order) ... ok
+test_no_follow_output_symlink (test_stage93_epub3.Stage93Epub3Tests.test_no_follow_output_symlink) ... ok
+test_no_model_network_publishing_apis (test_stage93_epub3.Stage93Epub3Tests.test_no_model_network_publishing_apis) ... ok
+test_no_overwrite (test_stage93_epub3.Stage93Epub3Tests.test_no_overwrite) ... ok
+test_opf_wrong_version (test_stage93_epub3.Stage93Epub3Tests.test_opf_wrong_version) ... ok
+test_output_directory_symlink (test_stage93_epub3.Stage93Epub3Tests.test_output_directory_symlink) ... ok
+test_remote_link_blocked (test_stage93_epub3.Stage93Epub3Tests.test_remote_link_blocked) ... ok
+test_rollback_when_verification_fails (test_stage93_epub3.Stage93Epub3Tests.test_rollback_when_verification_fails) ... ok
+test_rollback_when_zip_writestr_fails (test_stage93_epub3.Stage93Epub3Tests.test_rollback_when_zip_writestr_fails) ... ok
+test_spine_tamper (test_stage93_epub3.Stage93Epub3Tests.test_spine_tamper) ... ok
+test_stage92_metadata_file_integration (test_stage93_epub3.Stage93Epub3Tests.test_stage92_metadata_file_integration) ... ok
+test_tamper_xhtml (test_stage93_epub3.Stage93Epub3Tests.test_tamper_xhtml) ... ok
+test_too_many_chapters (test_stage93_epub3.Stage93Epub3Tests.test_too_many_chapters) ... ok
+test_traversal_asset (test_stage93_epub3.Stage93Epub3Tests.test_traversal_asset) ... ok
+test_unexpected_asset (test_stage93_epub3.Stage93Epub3Tests.test_unexpected_asset) ... ok
+test_unicode_escaped_not_markup (test_stage93_epub3.Stage93Epub3Tests.test_unicode_escaped_not_markup) ... ok
+test_valid_epub_zip_structure (test_stage93_epub3.Stage93Epub3Tests.test_valid_epub_zip_structure) ... ok
+test_wrong_chapter_type (test_stage93_epub3.Stage93Epub3Tests.test_wrong_chapter_type) ... ok
+test_xml_doctype_blocked (test_stage93_epub3.Stage93Epub3Tests.test_xml_doctype_blocked) ... ok
+test_zero_chapters (test_stage93_epub3.Stage93Epub3Tests.test_zero_chapters) ... ok
+
+----------------------------------------------------------------------
+Ran 49 tests in 0.116s
+
+OK

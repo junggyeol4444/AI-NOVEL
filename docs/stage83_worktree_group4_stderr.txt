@@ -1,0 +1,61 @@
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7ff223e0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7ff222f0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7ff21f30>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7ff22110>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7ff207c0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c80c10040>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcadb70>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcad7b0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcad990>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcad8a0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcad5d0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7ff22980>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcad210>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7ff22b60>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcada80>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcacd60>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcad4e0>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcacf40>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf83_work/src/ai_novel_factory/database/novel_bible.py:88: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f4c7fcad030>
+  or any((ord(c) < 32 and c not in "\n\t") or ord(c) == 127 for c in value)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 239 tests in 0.890s
+
+OK

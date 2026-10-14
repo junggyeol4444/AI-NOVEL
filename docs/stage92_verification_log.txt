@@ -1,0 +1,15 @@
+AI Novel Factory Stage 92 / ANF-REQ-063
+Base Stage91 zip 1365 files CRC passed. Original planning TXT not available; official user roadmap and existing docs/requirements.md used.
+New test command: PYTHONPATH=src python -m unittest discover -s tests -p test_stage92_publication_metadata.py -v
+New tests: 46 passed/0 skipped/0 failed. Logs: docs/stage92_new_tests_stdout.txt, docs/stage92_new_tests_stderr.txt, docs/stage92_new_tests_exit.txt.
+Worktree full regression: 105 unique modules / 8 disjoint groups / 3053 tests / 3032 passed / 21 skipped / 0 failed or errored; all exit codes 0.
+Commands: python scripts/stage92_partitioned_regression.py --prefix docs/stage92_worktree --start A --end B, --aggregate.
+stdout, stderr, exact group commands, module coverage, exits: docs/stage92_worktree_groupN_*.txt and docs/stage92_worktree_groups.json.
+Demo: docs/stage92_demo/publication_metadata.json (draft-only local JSON) from clearly synthetic user example.
+No cloud API, remote servers/GitHub, reference-text copying, user approval, manuscript finalization, platform upload or publication performed.
+Unverified: actual Windows EXE/GUI, local LLM, Redis/Celery/pgvector, legal originality, real platform pricing/metadata rules.
+Candidate archive CRC + file preservation and independent extraction tests follow, then final archive verification in separate extraction with external verification JSON/log ZIP.
+Candidate ZIP: 1405 files, stage91 1365 paths preserved, prior changes README.md only, CRC OK.
+Candidate independent extraction full regression: 105 modules, 8 disjoint groups, 3053 total, 3032 pass, 21 skip, 0 failures/errors. All 8 exit=0.
+Complete independent commands/stdout/stderr/exits/modules: docs/stage92_independent_groups.json and docs/stage92_independent_groupN_* files.
+Final ZIP must be independently re-extracted and tested; results in externally linked final_verification.json and final independent logs ZIP.

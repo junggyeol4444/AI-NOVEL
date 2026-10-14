@@ -1,0 +1,12 @@
+Stage 71: inspected latest stage70 ZIP (390 files), docs/requirements.md ANF-REQ-051,
+docs/stage70_test_results.json and docs/stage70_verification_log.txt.
+Added src/ai_novel_factory/continuity_checker.py and 33 new tests.
+New tests: PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage71*.py' -q => 33 OK.
+Full single-run timed out and was NOT counted as successful.
+Complete disjoint group runs in worktree: stage6_7 315 total/3 skipped; stage_other 916/3; base 988/11.
+All three exited 0: 2219 total, 2202 passed, 17 skipped, zero failures/errors.
+Candidate ZIP: unpacked to anf71_candidate_extracted; all three groups ran successfully with identical counts.
+The candidate base group's first restricted-environment run was interrupted; a normal-environment repeat exited 0.
+New checker is human-annotated fact comparison, NOT full NLP semantic consistency checking.
+No GitHub, remote repositories, external servers, cloud AI APIs, Windows EXE build, or publishing.
+Actual Windows GUI/EXE and real LLM not tested. Existing SQLite ResourceWarning remains.

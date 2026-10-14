@@ -1,0 +1,44 @@
+{
+  "stage": 68,
+  "requirement": "ANF-REQ-004",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "python": "3.13.5",
+  "source_zip": "AI_Novel_Factory_stage67_local.zip",
+  "previous_zip_files": 351,
+  "command": "PYTHONPATH=src python -m unittest discover -s tests -v",
+  "source_work_tree_tests": {
+    "total": 2127,
+    "passed": 2110,
+    "skipped": 17,
+    "failed": 0,
+    "errors": 0,
+    "seconds": 29.565,
+    "exit_code": 0
+  },
+  "fresh_zip_extraction_tests": {
+    "total": 2127,
+    "passed": 2110,
+    "skipped": 17,
+    "failed": 0,
+    "errors": 0,
+    "exit_code": 0,
+    "seconds": 29.232,
+    "fresh_folder": "anf68_fresh_from_zip"
+  },
+  "actual_gui_verified": false,
+  "py_side6_installed": false,
+  "actual_windows_exe_verified": false,
+  "actual_redis_celery_verified": false,
+  "actual_language_model_verified": false,
+  "note": "Cooperative pause/cancel; SQLite locally. GUI tests skipped; existing SQLite ResourceWarning present.",
+  "zip_validation": {
+    "crc": "passed",
+    "previous_entries_preserved": 351,
+    "files_first_zip": 359,
+    "hidden_files_verified": [
+      ".gitignore",
+      ".env.example",
+      ".python-version"
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5da9c1bf10>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5da9c1bd30>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5da9c1bc40>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5da9c1ba60>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5dab583010>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5dab5834c0>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5dab5831f0>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5dab5836a0>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5dab582f20>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5dab582c50>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/novel_bible.py:182: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5dab5835b0>
+  self._db.execute("CREATE INDEX IF NOT EXISTS ix_bible_rules_project ON bible_rules(project_id)")
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 303 tests in 2.030s
+
+OK (skipped=3)

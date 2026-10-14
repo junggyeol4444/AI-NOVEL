@@ -1,4 +1,4 @@
-"""Stage 18: numerical, source-free statistics regression tests."""
+"""Stage 18 deterministic statistics regression tests."""
 import dataclasses
 import unittest
 
@@ -40,10 +40,10 @@ class TextStatisticTests(unittest.TestCase):
             measure_text(123)
 
     def test_result_has_no_original_text(self):
-        s = measure_text("비밀 원고! 확인한다.")
-        self.assertNotIn("비밀", repr(s))
+        stats = measure_text("비밀 원고! 확인한다.")
+        self.assertNotIn("비밀", repr(stats))
         with self.assertRaises(dataclasses.FrozenInstanceError):
-            s.words = 1
+            stats.words = 1
 
 
 class ReferenceStatisticTests(unittest.TestCase):
@@ -54,10 +54,7 @@ class ReferenceStatisticTests(unittest.TestCase):
         self.assertEqual([e.number for e in s.episodes], [1, 2])
         self.assertEqual(s.total.paragraphs, 2)
         self.assertEqual(s.total.sentences, 2)
-        self.assertEqual(
-            s.total.characters_no_whitespace,
-            sum(x.statistics.characters_no_whitespace for x in s.episodes),
-        )
+        self.assertEqual(s.total.characters_no_whitespace, sum(x.statistics.characters_no_whitespace for x in s.episodes))
         self.assertNotIn("장면", repr(s))
 
     def test_preface_separate_from_episode_length(self):
@@ -66,10 +63,7 @@ class ReferenceStatisticTests(unittest.TestCase):
         self.assertEqual(s.preface.paragraphs, 1)
         self.assertEqual(s.total.paragraphs, 2)
         self.assertEqual(s.episodes[0].statistics.paragraphs, 1)
-        self.assertEqual(
-            s.average_episode_characters,
-            s.episodes[0].statistics.characters_no_whitespace,
-        )
+        self.assertEqual(s.average_episode_characters, s.episodes[0].statistics.characters_no_whitespace)
 
     def test_no_heading_single_episode(self):
         d = parse_text("첫 문단.\n\n둘째 문단.")
@@ -78,11 +72,7 @@ class ReferenceStatisticTests(unittest.TestCase):
         self.assertEqual(s.preface.paragraphs, 0)
 
     def test_markdown_code_and_headings_ignored(self):
-        fence = "~" * 3
-        d = parse_text(
-            "# 안내\n\n" + fence + "\n비공개 1화\n" + fence + "\n\n## 1화\n\n본문 한 줄.",
-            format="markdown",
-        )
+        d = parse_text("# 안내\n\n```\n비공개 1화\n```\n\n## 1화\n\n본문 한 줄.", format="markdown")
         s = measure_reference(d)
         self.assertEqual(s.episode_count, 1)
         self.assertEqual(s.total.paragraphs, 1)

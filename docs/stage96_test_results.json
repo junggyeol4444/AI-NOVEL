@@ -1,0 +1,40 @@
+{
+  "stage": 96,
+  "scope": "OFFLINE_PLATFORM_FORMAT_COMPARISON_ONLY",
+  "stage_status": "PARTIAL_OFFLINE_ONLY",
+  "assigned_anf_req": null,
+  "official_stage95_acceptance_met": false,
+  "official_platform_specification_verified": false,
+  "official_platform_upload_tested": false,
+  "actual_upload_possible": "UNKNOWN",
+  "original_project_txt_verified": false,
+  "offline_new_tests": 29,
+  "offline_new_tests_passed": 29,
+  "worktree_regression": {
+    "module_count": 110,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 3213,
+    "passed": 3192,
+    "skipped": 21,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "external_server_contacted": false,
+  "publication_executed": false,
+  "note": "User-declared limits only; no verified platform rules, no publication or upload. No dedicated stage96 ANF-REQ assigned in existing docs/requirements.md.",
+  "candidate_zip": {
+    "file_count": 1704,
+    "previous_file_count": 1673,
+    "previous_entries_preserved": true,
+    "only_previous_changed": "README.md",
+    "crc_ok": true,
+    "independent_regression_total": 3213,
+    "independent_regression_passed": 3192,
+    "independent_regression_skipped": 21,
+    "failures": 0,
+    "errors": 0,
+    "groups_all_passed": true
+  }
+}

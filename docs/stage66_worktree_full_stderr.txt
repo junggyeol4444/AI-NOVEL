@@ -1,0 +1,105 @@
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8572923e0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571baa70>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571ba7a0>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571ba980>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b9210>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571ba890>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571ba3e0>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b9c60>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b9030>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b8d60>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b8e50>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b8a90>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b87c0>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b8310>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bb880>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bb4c0>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bb5b0>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bb1f0>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bb2e0>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bae30>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bad40>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bab60>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bac50>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b8220>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf66_work/src/ai_novel_factory/database/episodes.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b8400>
+  if (size > limit or "\x00" in value or any(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/mock.py:2247: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bbb50>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/mock.py:2247: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bab60>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/mock.py:2247: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bbc40>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/mock.py:2247: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b8400>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/mock.py:2247: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bad40>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/mock.py:2247: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bac50>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/mock.py:2247: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571b8220>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/mock.py:2247: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc8571bae30>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/unittest/mock.py:2247: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc85702c040>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 2069 tests in 22.823s
+
+OK (skipped=14)

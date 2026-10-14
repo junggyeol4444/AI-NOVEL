@@ -1,0 +1,53 @@
+test_allow_selected_single_episode (test_stage94_upload_drafts.Stage94Tests.test_allow_selected_single_episode) ... ok
+test_atomic_rollback_on_verification_error (test_stage94_upload_drafts.Stage94Tests.test_atomic_rollback_on_verification_error) ... ok
+test_atomic_rollback_on_write_error (test_stage94_upload_drafts.Stage94Tests.test_atomic_rollback_on_write_error) ... ok
+test_bad_body (test_stage94_upload_drafts.Stage94Tests.test_bad_body) ... ok
+test_bad_title (test_stage94_upload_drafts.Stage94Tests.test_bad_title) ... ok
+test_basic_export (test_stage94_upload_drafts.Stage94Tests.test_basic_export) ... ok
+test_cli_duplicate_json_key (test_stage94_upload_drafts.Stage94Tests.test_cli_duplicate_json_key) ... ok
+test_cli_input_from_stage92 (test_stage94_upload_drafts.Stage94Tests.test_cli_input_from_stage92) ... ok
+test_cli_json_wrong_root (test_stage94_upload_drafts.Stage94Tests.test_cli_json_wrong_root) ... ok
+test_cli_missing_author_note (test_stage94_upload_drafts.Stage94Tests.test_cli_missing_author_note) ... ok
+test_cli_no_network_model_api (test_stage94_upload_drafts.Stage94Tests.test_cli_no_network_model_api) ... ok
+test_cli_symlink_rejected (test_stage94_upload_drafts.Stage94Tests.test_cli_symlink_rejected) ... ok
+test_existing_output_symlink_not_followed (test_stage94_upload_drafts.Stage94Tests.test_existing_output_symlink_not_followed) ... ok
+test_extra_directory (test_stage94_upload_drafts.Stage94Tests.test_extra_directory) ... ok
+test_extra_file (test_stage94_upload_drafts.Stage94Tests.test_extra_file) ... ok
+test_file_invalid_utf8 (test_stage94_upload_drafts.Stage94Tests.test_file_invalid_utf8) ... ok
+test_file_newline_not_normalized (test_stage94_upload_drafts.Stage94Tests.test_file_newline_not_normalized) ... ok
+test_invalid_manifest_digest (test_stage94_upload_drafts.Stage94Tests.test_invalid_manifest_digest) ... ok
+test_large_body (test_stage94_upload_drafts.Stage94Tests.test_large_body) ... ok
+test_large_note (test_stage94_upload_drafts.Stage94Tests.test_large_note) ... ok
+test_manifest_changed_expected_hash (test_stage94_upload_drafts.Stage94Tests.test_manifest_changed_expected_hash) ... ok
+test_manifest_duplicate_keys (test_stage94_upload_drafts.Stage94Tests.test_manifest_duplicate_keys) ... ok
+test_manifest_false_approval_required (test_stage94_upload_drafts.Stage94Tests.test_manifest_false_approval_required) ... ok
+test_manifest_invalid_utf8 (test_stage94_upload_drafts.Stage94Tests.test_manifest_invalid_utf8) ... ok
+test_manifest_provenance_without_manuscript (test_stage94_upload_drafts.Stage94Tests.test_manifest_provenance_without_manuscript) ... ok
+test_manifest_reject_extra_schema_key (test_stage94_upload_drafts.Stage94Tests.test_manifest_reject_extra_schema_key) ... ok
+test_manifest_reject_path_traversal (test_stage94_upload_drafts.Stage94Tests.test_manifest_reject_path_traversal) ... ok
+test_manifest_wrong_episode_order (test_stage94_upload_drafts.Stage94Tests.test_manifest_wrong_episode_order) ... ok
+test_missing_file (test_stage94_upload_drafts.Stage94Tests.test_missing_file) ... ok
+test_no_overwrite (test_stage94_upload_drafts.Stage94Tests.test_no_overwrite) ... ok
+test_no_overwrite_existing_folder (test_stage94_upload_drafts.Stage94Tests.test_no_overwrite_existing_folder) ... ok
+test_output_parent_missing (test_stage94_upload_drafts.Stage94Tests.test_output_parent_missing) ... ok
+test_output_parent_symlink (test_stage94_upload_drafts.Stage94Tests.test_output_parent_symlink) ... ok
+test_owner_text_preserved (test_stage94_upload_drafts.Stage94Tests.test_owner_text_preserved) ... ok
+test_reject_201_episodes (test_stage94_upload_drafts.Stage94Tests.test_reject_201_episodes) ... ok
+test_reject_bad_episode_type (test_stage94_upload_drafts.Stage94Tests.test_reject_bad_episode_type) ... ok
+test_reject_bad_number (test_stage94_upload_drafts.Stage94Tests.test_reject_bad_number) ... ok
+test_reject_duplicate_number (test_stage94_upload_drafts.Stage94Tests.test_reject_duplicate_number) ... ok
+test_reject_non_list (test_stage94_upload_drafts.Stage94Tests.test_reject_non_list) ... ok
+test_reject_tampered_metadata (test_stage94_upload_drafts.Stage94Tests.test_reject_tampered_metadata) ... ok
+test_reject_zero_episodes (test_stage94_upload_drafts.Stage94Tests.test_reject_zero_episodes) ... ok
+test_safe_error_does_not_echo_manuscript (test_stage94_upload_drafts.Stage94Tests.test_safe_error_does_not_echo_manuscript) ... ok
+test_symlink_directory_detected (test_stage94_upload_drafts.Stage94Tests.test_symlink_directory_detected) ... ok
+test_symlink_file_detected (test_stage94_upload_drafts.Stage94Tests.test_symlink_file_detected) ... ok
+test_symlink_manifest_detected (test_stage94_upload_drafts.Stage94Tests.test_symlink_manifest_detected) ... ok
+test_tamper_file_detection (test_stage94_upload_drafts.Stage94Tests.test_tamper_file_detection) ... ok
+test_tamper_file_same_length_detection (test_stage94_upload_drafts.Stage94Tests.test_tamper_file_same_length_detection) ... ok
+test_utf8_and_no_bom (test_stage94_upload_drafts.Stage94Tests.test_utf8_and_no_bom) ... ok
+
+----------------------------------------------------------------------
+Ran 48 tests in 0.083s
+
+OK

@@ -1,0 +1,50 @@
+[
+  {
+    "group": 5,
+    "modules": [
+      "test_stage49_episodes",
+      "test_pattern_library",
+      "test_relationship_changes",
+      "test_character_roles",
+      "test_stage72_knowledge_checker",
+      "test_stage67_local_queue",
+      "test_basic_statistics",
+      "test_stage55_episode_context",
+      "test_stage57_episode_retrieval",
+      "test_smoke",
+      "test_requirements"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage49_episodes test_pattern_library test_relationship_changes test_character_roles test_stage72_knowledge_checker test_stage67_local_queue test_basic_statistics test_stage55_episode_context test_stage57_episode_retrieval test_smoke test_requirements -q",
+    "elapsed_seconds": 9.67,
+    "exit_code": 0,
+    "total": 305,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage78_candidate_group5_stderr.txt"
+  },
+  {
+    "group": 6,
+    "modules": [
+      "test_stage46_event_timeline",
+      "test_similarity_baseline",
+      "test_reference_profiles",
+      "test_stage68_task_monitor",
+      "test_stage77_repetition_checker",
+      "test_stage61_local_models",
+      "test_import_pipeline",
+      "test_stage49_release_verifier",
+      "test_stage45_release_verifier",
+      "test_architecture",
+      "test_dependencies"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage46_event_timeline test_similarity_baseline test_reference_profiles test_stage68_task_monitor test_stage77_repetition_checker test_stage61_local_models test_import_pipeline test_stage49_release_verifier test_stage45_release_verifier test_architecture test_dependencies -q",
+    "elapsed_seconds": 12.44,
+    "exit_code": 0,
+    "total": 306,
+    "skipped": 3,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage78_candidate_group6_stderr.txt"
+  }
+]

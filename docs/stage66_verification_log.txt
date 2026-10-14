@@ -1,0 +1,10 @@
+Stage 66: latest stage65 zip inspected and safely extracted (331 files).
+Read docs/requirements.md ANF-REQ-047 and stage65 test results and verification log.
+New tests: PYTHONPATH=src python -m unittest discover -s tests -p "test_stage66*.py" -q => Ran 26 tests, OK.
+Full worktree: PYTHONPATH=src python -m unittest discover -s tests -q => Ran 2069 tests, OK (skipped=14), exit=0.
+Baseline: 331 prior files preserved byte-for-byte before updating README.
+Restrictions observed: no remote repo, cloud APIs, external servers.
+Known warning: unclosed sqlite3 connection ResourceWarning.
+Initial ZIP: 338 entries, CRC OK, .gitignore and .env.example confirmed.
+Fresh extraction full: PYTHONPATH=src python -m unittest discover -s tests -q -> Ran 2069 tests, OK (skipped=14), exit=0.
+Prior file check: 330 byte-identical, README.md appended only.

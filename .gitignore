@@ -1,15 +1,33 @@
-.env
-.env.*
-!.env.example
+# Python and local virtual environments
 __pycache__/
 *.py[cod]
 .venv/
+.pytest_cache/
+.ruff_cache/
 *.egg-info/
+# Secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+# Build artifacts
 build/
 dist/
-*.log
+*.spec
+!packaging/windows/AI_Novel_Factory.spec
+# User manuscripts, reference files and local DB
+user_data/
+manuscripts/
+reference_uploads/
+*.sqlite3
 *.db
-*.sqlite*
-/novels/
-/private/
-/secrets/
+# Logs, OS, IDE
+logs/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+# Retain uv.lock with local project source when generated; do not ignore it.

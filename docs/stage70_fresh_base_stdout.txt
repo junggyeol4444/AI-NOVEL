@@ -1,0 +1,1 @@
+{'status': 'ok', 'service': 'ai-novel-factory', 'api_version': 'v1'}

@@ -1,0 +1,52 @@
+[
+  {
+    "group": 7,
+    "modules": [
+      "test_stage42_characters",
+      "test_style_statistics",
+      "test_profile_collection",
+      "test_pattern_usage",
+      "test_stage40_reference_integration",
+      "test_pdf_parser",
+      "test_dialogue_statistics",
+      "test_stage40_release_verifier",
+      "test_stage50_migrations",
+      "test_api_client",
+      "test_desktop_gui_optional"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage42_characters test_style_statistics test_profile_collection test_pattern_usage test_stage40_reference_integration test_pdf_parser test_dialogue_statistics test_stage40_release_verifier test_stage50_migrations test_api_client test_desktop_gui_optional -q",
+    "elapsed_seconds": 3.22,
+    "exit_code": 0,
+    "total": 303,
+    "skipped": 3,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage78_candidate_group7_stderr.txt"
+  },
+  {
+    "group": 8,
+    "modules": [
+      "test_stage48_style_bible",
+      "test_stage41_novel_bible",
+      "test_stage75_logic_checker",
+      "test_stage69_retry_checkpoint",
+      "test_episode_structure",
+      "test_stage70_one_episode_integration",
+      "test_reference_catalog",
+      "test_stage54_scene_planner",
+      "test_settings",
+      "test_reference_selection",
+      "test_stage59_plot_editor_optional",
+      "test_stage78_reference_similarity_checker",
+      "test_stage78_reference_similarity_records"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage48_style_bible test_stage41_novel_bible test_stage75_logic_checker test_stage69_retry_checkpoint test_episode_structure test_stage70_one_episode_integration test_reference_catalog test_stage54_scene_planner test_settings test_reference_selection test_stage59_plot_editor_optional test_stage78_reference_similarity_checker test_stage78_reference_similarity_records -q",
+    "elapsed_seconds": 2.75,
+    "exit_code": 0,
+    "total": 350,
+    "skipped": 3,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage78_candidate_group8_stderr.txt"
+  }
+]

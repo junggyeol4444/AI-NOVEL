@@ -1,0 +1,18 @@
+Stage 99 / ANF-REQ-071: Windows real execution and comprehensive regression.
+Original project TXT not accessible; use user-provided roadmap and current docs/requirements.md.
+Latest source stage98_local.zip with 1851 files / CRC OK, stage98 test and verification logs reviewed.
+Actual host Linux / Python 3.13.5. Windows EXE not generated; user PC not accessed.
+Preflight command: python scripts/stage99_windows_acceptance.py --preflight-only --report docs/stage99_linux_preflight.json
+Preflight exit 2: not_windows, python_not_3_12, exe_missing; Windows execution and regression UNVERIFIED.
+New tests command: PYTHONPATH=src:tests python -m unittest -q tests/test_stage99_windows_acceptance.py
+New tests 35 passed, 0 failed/error.
+Worktree comprehensive regression commands:
+PYTHONPATH=src python scripts/stage99_partitioned_regression.py --prefix docs/stage99_worktree --start 1 --end 4
+PYTHONPATH=src python scripts/stage99_partitioned_regression.py --prefix docs/stage99_worktree --start 5 --end 8
+PYTHONPATH=src python scripts/stage99_partitioned_regression.py --prefix docs/stage99_worktree --aggregate
+Worktree 113 modules, 8 unique groups: 3303 tests, 3282 passed, 21 skipped, 0 failed/error.
+All group stdout/stderr, commands and exit codes retained in docs/stage99_worktree_groups.json and per-group logs.
+95 actual official API, 96 official platform format, 97 real Windows EXE, 99 real Windows and physical GUI UNVERIFIED.
+No external services, installation, uploads, publication or user-PC access. Evidence gates do not claim Windows success on Linux.
+Candidate ZIP: 1887 files, source stage98 1851/1851 preserved, README.md only modified, CRC pass.
+Candidate separately extracted: 113 modules 8 unique groups, 3303 total / 3282 pass / 21 skip / 0 failure/error.

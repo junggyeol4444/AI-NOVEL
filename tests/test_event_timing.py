@@ -1,186 +1,222 @@
-"""Regression coverage for stage 23 lexical event-candidate locations."""
+"""Stage 23: deterministic cue timing without source text persistence."""
 import dataclasses
 import unittest
+
 from ai_novel_factory.references import (
-    MAX_EVENT_MARKERS, ParsedBlock, ParsedReference, ReferenceParseError,
+    MAX_EVENT_MARKERS,
+    ParsedBlock, ParsedReference, ReferenceParseError,
     analyze_event_timing_text, analyze_reference_event_timing,
-    analyze_structure_text, analyze_reference_structure,
-    parse_text, split_episodes,
+    analyze_structure_text, parse_text, split_episodes,
 )
 
 
-class TextEventTimingTests(unittest.TestCase):
-    def test_empty(self):
-        r = analyze_event_timing_text(' \n\n ')
-        self.assertEqual(r.candidate_count, 0)
-        self.assertEqual(r.quintile_counts, (0, 0, 0, 0, 0))
-        self.assertIsNone(r.peak_quintile)
+class EventTimingTextTests(unittest.TestCase):
+    def test_empty_text_has_no_candidates(self):
+        result = analyze_event_timing_text('  \n\n ')
+        self.assertEqual(result.candidate_count, 0)
+        self.assertEqual(result.characters_no_whitespace, 0)
+        self.assertEqual(result.quintile_counts, (0, 0, 0, 0, 0))
+        self.assertIsNone(result.peak_quintile)
 
-    def test_no_cues(self):
-        self.assertEqual(analyze_event_timing_text('조용한 날이었다.').candidates, ())
+    def test_plain_text_has_no_candidates(self):
+        result = analyze_event_timing_text('그는 조용히 걸어갔다.\n\n집으로 돌아왔다.')
+        self.assertEqual(result.candidates, ())
+        self.assertIsNone(result.peak_quintile)
 
-    def test_first_marker(self):
-        r = analyze_event_timing_text('하지만\n\n그는 걸었다.')
-        self.assertEqual(r.candidate_count, 1)
-        m = r.candidates[0]
-        self.assertEqual((m.category, m.character_offset, m.position_percent,
-                          m.quintile, m.paragraph_number),
-                         ('conflict', 0, 0.0, 1, 1))
+    def test_single_hit_first_character(self):
+        result = analyze_event_timing_text('하지만\n\n사건은 끝났다.')
+        self.assertEqual(result.candidate_count, 1)
+        candidate = result.candidates[0]
+        self.assertEqual(candidate.category, 'conflict')
+        self.assertEqual(candidate.character_offset, 0)
+        self.assertEqual(candidate.position_percent, 0.0)
+        self.assertEqual(candidate.quintile, 1)
+        self.assertEqual(candidate.paragraph_number, 1)
+        self.assertEqual(result.peak_quintile, 1)
 
-    def test_marker_offset_ignores_whitespace(self):
-        r = analyze_event_timing_text('가나 다라 하지만 마바')
-        self.assertEqual(r.candidates[0].character_offset, 4)
-        self.assertEqual(r.candidates[0].position_percent,
-                         round(4 * 100 / len('가나다라하지만마바'), 2))
+    def test_movement_within_paragraph(self):
+        result = analyze_event_timing_text('가나 다라 하지만 마바')
+        marker = result.candidates[0]
+        self.assertEqual(marker.character_offset, 4)
+        self.assertEqual(marker.position_percent,
+                         round(100 * 4 / len('가나다라하지만마바'), 2))
+        self.assertEqual(marker.paragraph_number, 1)
 
-    def test_document_order_not_category_order(self):
-        r = analyze_event_timing_text('결국 그리고 하지만 그런데')
-        self.assertEqual([m.category for m in r.candidates],
+    def test_cues_sorted_in_source_order_not_category_order(self):
+        result = analyze_event_timing_text('결국 그리고 하지만 그런데')
+        self.assertEqual([m.category for m in result.candidates],
                          ['payoff', 'progression', 'conflict', 'reversal'])
+        offsets = [m.character_offset for m in result.candidates]
+        self.assertEqual(offsets, sorted(offsets))
 
-    def test_paragraph_offsets(self):
-        r = analyze_event_timing_text('가나다.\n\n마바사 하지만')
-        self.assertEqual(r.candidates[0].paragraph_number, 2)
-        self.assertEqual(r.candidates[0].character_offset, len('가나다.마바사'))
+    def test_hit_in_second_paragraph_has_global_offset(self):
+        text = '가나다.\n\n마바사 하지만'
+        result = analyze_event_timing_text(text)
+        candidate = result.candidates[0]
+        self.assertEqual(candidate.paragraph_number, 2)
+        self.assertEqual(candidate.character_offset, len('가나다.마바사'))
 
-    def test_whitespace_variants(self):
+    def test_newlines_and_whitespace_do_not_count(self):
         a = analyze_event_timing_text('가 나 다 하지만')
-        b = analyze_event_timing_text('가\t나  다\n하지만')
+        b = analyze_event_timing_text('가\t나   다\n하지만')
         self.assertEqual(a.candidates[0].character_offset,
                          b.candidates[0].character_offset)
 
-    def test_crlf_consistency(self):
-        self.assertEqual(analyze_event_timing_text('가\n\n하지만'),
-                         analyze_event_timing_text('가\r\n\r\n하지만'))
+    def test_crlf_normalization(self):
+        a = analyze_event_timing_text('시작.\n\n하지만 위험.')
+        b = analyze_event_timing_text('시작.\r\n\r\n하지만 위험.')
+        self.assertEqual(a, b)
 
-    def test_nonsemantic_cues(self):
-        r = analyze_event_timing_text('하지만 점심은 맛있었다.')
-        self.assertEqual(r.candidate_count, 1)
-        self.assertFalse(hasattr(r, 'confirmed_major_events'))
+    def test_hint_not_semantic_event(self):
+        result = analyze_event_timing_text('하지만 점심은 맛있었다.')
+        self.assertEqual(result.candidate_count, 1)
+        self.assertFalse(hasattr(result, 'confirmed_major_events'))
 
-    def test_inflection_missed(self):
-        self.assertEqual(analyze_event_timing_text('성공했다. 위험해졌다.').candidate_count, 0)
+    def test_keyword_inflection_limit(self):
+        r = analyze_event_timing_text('성공했다. 위험해졌다.')
+        self.assertEqual(r.candidate_count, 0)
 
-    def test_cue_categories(self):
+    def test_simultaneous_categories_in_short_episode(self):
         r = analyze_event_timing_text('하지만 결국 성공!')
-        self.assertEqual((r.cue_totals.conflict, r.cue_totals.payoff), (1, 2))
+        self.assertEqual(r.cue_totals.conflict, 1)
+        self.assertEqual(r.cue_totals.payoff, 2)
         self.assertEqual(sum(r.quintile_counts), r.candidate_count)
 
-    def test_tied_peak_none(self):
-        self.assertIsNone(analyze_event_timing_text(
-            '하지만 ' + '가' * 100 + ' 결국').peak_quintile)
+    def test_tie_peak_is_ambiguous(self):
+        r = analyze_event_timing_text('하지만 ' + '가'*100 + ' 결국')
+        self.assertEqual(r.candidate_count, 2)
+        self.assertIsNone(r.peak_quintile)
 
-    def test_unique_peak(self):
-        r = analyze_event_timing_text('하지만 그러나 ' + '가' * 100)
+    def test_peak_is_unique_when_multiple_hits_in_one_band(self):
+        r = analyze_event_timing_text('하지만 그러나 ' + '가'*100)
         self.assertEqual(r.peak_quintile, 1)
+        self.assertEqual(r.quintile_counts[0], 2)
 
-    def test_budget_exceeded(self):
-        with self.assertRaises(ReferenceParseError):
+    def test_marker_limit_enforced(self):
+        with self.assertRaisesRegex(ReferenceParseError, '허용 개수'):
             analyze_event_timing_text('하지만 그러나', max_markers=1)
 
-    def test_budget_one(self):
-        self.assertEqual(analyze_event_timing_text('하지만', max_markers=1).candidate_count, 1)
+    def test_limit_one_is_allowed(self):
+        r = analyze_event_timing_text('하지만', max_markers=1)
+        self.assertEqual(r.candidate_count, 1)
 
-    def test_invalid_budget(self):
-        for value in (None, True, False, 0, -1, 2.0, '5', MAX_EVENT_MARKERS+1):
-            with self.subTest(value=value), self.assertRaises(ReferenceParseError):
-                analyze_event_timing_text('하지만', max_markers=value)
+    def test_invalid_marker_limit_rejected(self):
+        for bad in (None, True, False, 0, -1, 2.0, '5', MAX_EVENT_MARKERS+1):
+            with self.subTest(bad=bad), self.assertRaises(ReferenceParseError):
+                analyze_event_timing_text('하지만', max_markers=bad)
 
-    def test_invalid_number(self):
-        for value in (True, False, 0, -1, 10001, '1', 1.0):
-            with self.subTest(value=value), self.assertRaises(ReferenceParseError):
-                analyze_event_timing_text('하지만', number=value)
+    def test_invalid_episode_numbers_rejected(self):
+        for number in (True, False, 0, -1, 10001, '1', 1.0):
+            with self.subTest(value=number), self.assertRaises(ReferenceParseError):
+                analyze_event_timing_text('하지만', number=number)
 
-    def test_invalid_text(self):
+    def test_text_type_rejected(self):
         with self.assertRaises(ReferenceParseError):
             analyze_event_timing_text(None)
 
-    def test_immutable_private(self):
-        r = analyze_event_timing_text('극비장면 하지만 그의 비밀.')
+    def test_record_is_immutable_and_does_not_retain_text(self):
+        secret = '극비장면 하지만 그의 비밀.'
+        r = analyze_event_timing_text(secret)
         self.assertNotIn('극비장면', repr(r))
+        self.assertNotIn('그의 비밀', str(r))
         with self.assertRaises(dataclasses.FrozenInstanceError):
-            r.candidates[0].category = 'secret'
+            r.candidates[0].category = 'private'
 
-    def test_deterministic(self):
-        text = '처음.\n\n하지만 위기.\n\n결국 해결.'
-        self.assertEqual(analyze_event_timing_text(text), analyze_event_timing_text(text))
+    def test_repeated_run_is_deterministic(self):
+        txt = '시작했다.\n\n그러나 반전.\n\n결국 성공.'
+        self.assertEqual(analyze_event_timing_text(txt), analyze_event_timing_text(txt))
 
-    def test_matches_stage22(self):
-        text = '하지만 그러나\n\n그리고 그래서\n\n결국 성공\n\n그런데 반전'
-        r = analyze_event_timing_text(text)
-        s = analyze_structure_text(text)
-        for key in ('conflict', 'progression', 'payoff', 'reversal'):
-            expected = sum(getattr(getattr(getattr(s, region), 'cues'), key)
-                           for region in ('opening', 'middle', 'ending'))
-            self.assertEqual(getattr(r.cue_totals, key), expected)
+    def test_category_totals_agree_with_stage22(self):
+        txt = '하지만 그러나\n\n그리고 그래서\n\n결국 성공\n\n그런데 반전'
+        timeline = analyze_event_timing_text(txt)
+        structure = analyze_structure_text(txt)
+        for category in ('conflict', 'progression', 'payoff', 'reversal'):
+            expected = sum(getattr(getattr(getattr(structure, s), 'cues'), category)
+                           for s in ('opening', 'middle', 'ending'))
+            self.assertEqual(getattr(timeline.cue_totals, category), expected)
 
 
-class ReferenceEventTimingTests(unittest.TestCase):
-    def test_episodes_and_preface(self):
-        d = parse_text('하지만 서문.\n\n1화\n\n그러나 시작.\n\n2화\n\n결국 해결.')
-        r = analyze_reference_event_timing(d)
+class EventTimingReferenceTests(unittest.TestCase):
+    def test_two_episodes_preface_excluded(self):
+        document = parse_text('하지만 서문.\n\n1화\n\n그러나 일이 있었다.\n\n2화\n\n결국 해결.')
+        r = analyze_reference_event_timing(document)
         self.assertEqual(r.episode_count, 2)
+        self.assertEqual([e.episode_number for e in r.episodes], [1, 2])
+        self.assertEqual([e.candidate_count for e in r.episodes], [1, 2])
         self.assertEqual(r.total_candidates, 3)
-        self.assertEqual([x.episode_number for x in r.episodes], [1, 2])
+        self.assertEqual(sum(r.quintile_counts), 3)
 
-    def test_unmarked_single_episode(self):
-        r = analyze_reference_event_timing(parse_text('그러나 위기.\n\n결국 성공.'))
-        self.assertEqual((r.episode_count, r.total_candidates), (1, 4))
+    def test_no_explicit_episode_marker(self):
+        document = parse_text('그러나 위기.\n\n결국 성공.')
+        r = analyze_reference_event_timing(document)
+        self.assertEqual(r.episode_count, 1)
+        self.assertEqual(r.total_candidates, 4)
 
-    def test_markdown_heading_and_code_excluded(self):
-        d = parse_text('# 하지만\n\n## 1화\n\n시작.\n\n' +
-                       '\x60\x60\x60\n반전 결국 그러나\n\x60\x60\x60\n\n그런데 끝.', format='markdown')
-        r = analyze_reference_event_timing(d)
-        self.assertEqual((r.episode_count, r.total_candidates), (1, 1))
+    def test_markdown_headings_and_code_are_excluded(self):
+        document = parse_text('# 하지만\n\n## 1화\n\n시작했다.\n\n```\n반전 결국 그러나\n```\n\n그런데 끝.', format='markdown')
+        r = analyze_reference_event_timing(document)
+        self.assertEqual(r.total_candidates, 1)
+        self.assertEqual(r.episodes[0].candidates[0].category, 'reversal')
 
-    def test_docx_and_pdf_blocks(self):
+    def test_docx_pdf_common_block_types(self):
         for fmt in ('docx', 'pdf'):
-            with self.subTest(format=fmt):
-                d = ParsedReference(fmt, None, '', (
+            with self.subTest(fmt=fmt):
+                doc = ParsedReference(fmt, None, '', (
                     ParsedBlock('heading', 1, 1, '1화', 1),
                     ParsedBlock('paragraph', 2, 2, '하지만 위험.'),
-                    ParsedBlock('table', 3, 3, '마침내 해결')))
-                r = analyze_reference_event_timing(d)
+                    ParsedBlock('table', 3, 3, '마침내 해결'),
+                ))
+                r = analyze_reference_event_timing(doc)
+                self.assertEqual(r.episode_count, 1)
                 self.assertEqual(r.total_candidates, 4)
                 self.assertEqual(r.episodes[0].paragraph_count, 2)
 
-    def test_empty_body(self):
-        r = analyze_reference_event_timing(parse_text('1화'))
+    def test_empty_episode_after_heading(self):
+        doc = parse_text('1화')
+        r = analyze_reference_event_timing(doc)
+        self.assertEqual(r.episode_count, 1)
         self.assertEqual(r.episodes[0].candidate_count, 0)
+        self.assertEqual(r.episodes[0].characters_no_whitespace, 0)
 
-    def test_global_limit(self):
-        d = parse_text('1화\n\n하지만\n\n2화\n\n결국')
+    def test_global_limit_is_not_per_episode(self):
+        doc = parse_text('1화\n\n하지만\n\n2화\n\n결국')
+        with self.assertRaisesRegex(ReferenceParseError, '허용 개수'):
+            analyze_reference_event_timing(doc, max_markers=1)
+
+    def test_limit_exhausted_but_no_extra_hit(self):
+        doc = parse_text('1화\n\n하지만\n\n2화\n\n한밤이었다.')
+        r = analyze_reference_event_timing(doc, max_markers=1)
+        self.assertEqual(r.total_candidates, 1)
+
+    def test_mismatching_split_rejected(self):
+        doc = parse_text('1화\n\n하지만 간다.')
+        split = split_episodes(parse_text('1화\n\n전혀 다르다.'))
         with self.assertRaises(ReferenceParseError):
-            analyze_reference_event_timing(d, max_markers=1)
+            analyze_reference_event_timing(doc, split=split)
 
-    def test_no_hits_after_budget_exhaustion(self):
-        d = parse_text('1화\n\n하지만\n\n2화\n\n걷는다.')
-        self.assertEqual(analyze_reference_event_timing(d, max_markers=1).total_candidates, 1)
-
-    def test_stale_split(self):
-        d = parse_text('1화\n\n하지만 간다.')
-        s = split_episodes(parse_text('1화\n\n전혀 다르다.'))
+    def test_wrong_document_rejected(self):
         with self.assertRaises(ReferenceParseError):
-            analyze_reference_event_timing(d, split=s)
+            analyze_reference_event_timing('잘못된 문서')
 
-    def test_invalid_document(self):
+    def test_invalid_episode_order_rejected(self):
+        doc = parse_text('2화\n\n그러나\n\n1화\n\n결국')
         with self.assertRaises(ReferenceParseError):
-            analyze_reference_event_timing('원고')
+            analyze_reference_event_timing(doc)
 
-    def test_reversed_episode_numbers(self):
-        with self.assertRaises(ReferenceParseError):
-            analyze_reference_event_timing(parse_text('2화\n\n그러나\n\n1화\n\n결국'))
+    def test_reference_result_never_exposes_source(self):
+        doc = parse_text('1화\n\n유출하면안되는비밀 하지만 누군가 말했다.')
+        r = analyze_reference_event_timing(doc)
+        self.assertNotIn('유출하면안되는비밀', repr(r))
+        self.assertNotIn('누군가 말했다', str(r))
 
-    def test_no_source_retained(self):
-        r = analyze_reference_event_timing(parse_text('1화\n\n유출금지 하지만 누가 말했다.'))
-        self.assertNotIn('유출금지', repr(r))
-
-    def test_consistent_stage22_character_counts(self):
-        d = parse_text('1화\n\n하지만 위험.\n\n2화\n\n결국 보상.')
-        r = analyze_reference_event_timing(d)
-        s = analyze_reference_structure(d)
+    def test_reference_matches_stage22_count(self):
+        doc = parse_text('1화\n\n하지만 위험.\n\n그리고 걸었다.\n\n2화\n\n결국 보상.\n\n그러나 어두워졌다.')
+        r = analyze_reference_event_timing(doc)
+        from ai_novel_factory.references import analyze_reference_structure
+        structures = analyze_reference_structure(doc)
+        self.assertEqual(r.episode_count, structures.episode_count)
         self.assertEqual([x.characters_no_whitespace for x in r.episodes],
-                         [x.characters_no_whitespace for x in s.episodes])
+                         [x.characters_no_whitespace for x in structures.episodes])
 
 
 if __name__ == '__main__':

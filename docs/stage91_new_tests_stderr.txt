@@ -1,0 +1,47 @@
+test_cli_failure_redacts_title_and_path (test_stage91_cover_art.Stage91RenderedTests.test_cli_failure_redacts_title_and_path) ... ok
+test_cli_success (test_stage91_cover_art.Stage91RenderedTests.test_cli_success) ... ok
+test_deterministic (test_stage91_cover_art.Stage91RenderedTests.test_deterministic) ... ok
+test_directory_symlink_rejected (test_stage91_cover_art.Stage91RenderedTests.test_directory_symlink_rejected) ... ok
+test_double_save_denied (test_stage91_cover_art.Stage91RenderedTests.test_double_save_denied) ... ok
+test_korean_title_generates (test_stage91_cover_art.Stage91RenderedTests.test_korean_title_generates) ... ok
+test_long_spaced_title (test_stage91_cover_art.Stage91RenderedTests.test_long_spaced_title) ... ok
+test_long_unspaced_hangul (test_stage91_cover_art.Stage91RenderedTests.test_long_unspaced_hangul) ... ok
+test_no_auto_mkdir (test_stage91_cover_art.Stage91RenderedTests.test_no_auto_mkdir) ... ok
+test_no_external_network_used (test_stage91_cover_art.Stage91RenderedTests.test_no_external_network_used) ... ok
+test_no_font_fails_closed (test_stage91_cover_art.Stage91RenderedTests.test_no_font_fails_closed) ... ok
+test_not_directory (test_stage91_cover_art.Stage91RenderedTests.test_not_directory) ... ok
+test_output_contains_no_exif (test_stage91_cover_art.Stage91RenderedTests.test_output_contains_no_exif) ... ok
+test_pair_created (test_stage91_cover_art.Stage91RenderedTests.test_pair_created) ... ok
+test_pair_does_not_mutate_input (test_stage91_cover_art.Stage91RenderedTests.test_pair_does_not_mutate_input) ... ok
+test_palettes_change_artwork (test_stage91_cover_art.Stage91RenderedTests.test_palettes_change_artwork) ... ok
+test_preexisting_cover_unmodified (test_stage91_cover_art.Stage91RenderedTests.test_preexisting_cover_unmodified) ... ok
+test_preexisting_thumbnail_unmodified (test_stage91_cover_art.Stage91RenderedTests.test_preexisting_thumbnail_unmodified) ... ok
+test_render_real_jpeg (test_stage91_cover_art.Stage91RenderedTests.test_render_real_jpeg) ... ok
+test_rollback_first_file_failure (test_stage91_cover_art.Stage91RenderedTests.test_rollback_first_file_failure) ... ok
+test_rollback_second_file_failure (test_stage91_cover_art.Stage91RenderedTests.test_rollback_second_file_failure) ... ok
+test_style_changes_artwork (test_stage91_cover_art.Stage91RenderedTests.test_style_changes_artwork) ... ok
+test_symlinked_file_not_overwritten (test_stage91_cover_art.Stage91RenderedTests.test_symlinked_file_not_overwritten) ... ok
+test_thumb_dimensions_and_bytes (test_stage91_cover_art.Stage91RenderedTests.test_thumb_dimensions_and_bytes) ... ok
+test_variation_changes_artwork (test_stage91_cover_art.Stage91RenderedTests.test_variation_changes_artwork) ... ok
+test_author_type (test_stage91_cover_art.Stage91ValidationTests.test_author_type) ... ok
+test_bidi_rejected (test_stage91_cover_art.Stage91ValidationTests.test_bidi_rejected) ... ok
+test_controls_rejected (test_stage91_cover_art.Stage91ValidationTests.test_controls_rejected) ... ok
+test_fixed_dimensions (test_stage91_cover_art.Stage91ValidationTests.test_fixed_dimensions) ... ok
+test_invalid_palette (test_stage91_cover_art.Stage91ValidationTests.test_invalid_palette) ... ok
+test_invalid_style (test_stage91_cover_art.Stage91ValidationTests.test_invalid_style) ... ok
+test_missing_title_type (test_stage91_cover_art.Stage91ValidationTests.test_missing_title_type) ... ok
+test_no_reference_cover_argument (test_stage91_cover_art.Stage91ValidationTests.test_no_reference_cover_argument) ... ok
+test_overlong_author (test_stage91_cover_art.Stage91ValidationTests.test_overlong_author) ... ok
+test_overlong_genre (test_stage91_cover_art.Stage91ValidationTests.test_overlong_genre) ... ok
+test_overlong_title (test_stage91_cover_art.Stage91ValidationTests.test_overlong_title) ... ok
+test_overlong_variation (test_stage91_cover_art.Stage91ValidationTests.test_overlong_variation) ... ok
+test_palette_bounded (test_stage91_cover_art.Stage91ValidationTests.test_palette_bounded) ... ok
+test_required_author (test_stage91_cover_art.Stage91ValidationTests.test_required_author) ... ok
+test_required_title (test_stage91_cover_art.Stage91ValidationTests.test_required_title) ... ok
+test_whitespace_normalization (test_stage91_cover_art.Stage91ValidationTests.test_whitespace_normalization) ... ok
+test_wrong_spec_type (test_stage91_cover_art.Stage91ValidationTests.test_wrong_spec_type) ... ok
+
+----------------------------------------------------------------------
+Ran 42 tests in 1.685s
+
+OK

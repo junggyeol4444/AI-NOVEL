@@ -1,0 +1,23 @@
+Stage 89 / ANF-REQ-067 — local prepublication human review/consent gate
+Original user planning TXT: NOT ACCESSIBLE; user-provided roadmap and docs/requirements.md used.
+Base ZIP: AI_Novel_Factory_stage88_local.zip (1182 entries), CRC OK.
+Environment: Linux Python; Windows EXE/GUI, real LLM, Redis/Celery, pgvector NOT VERIFIED.
+No external services, cloud APIs, Git operations, manuscript finalization, or publication.
+New tests: PYTHONPATH=src python -m unittest discover -s tests -p test_stage89_publication_approval.py -v
+  docs/stage89_new_tests_stdout.txt / stderr.txt / exit.txt
+  39 passed, 0 failed/errors, exit 0.
+Full worktree regression: python scripts/stage89_partitioned_regression.py --prefix docs/stage89_worktree --start 1 --end 8
+  orchestration timed out after groups 1-6; groups 7-8 resumed separately.
+  python scripts/stage89_partitioned_regression.py --prefix docs/stage89_worktree --start 7 --end 8
+  python scripts/stage89_partitioned_regression.py --prefix docs/stage89_worktree --aggregate
+  102 unique test modules in 8 non-overlapping groups; 2923 total, 2906 passed, 17 skipped, 0 failed/errors.
+  Each group command/stdout/stderr/exit: docs/stage89_worktree_group{1..8}_*.txt
+  Coverage proof: docs/stage89_worktree_groups.json
+Approval status is LOCAL ONLY and NOT authenticated identity or publication.
+Candidate ZIP extracted into a separate clean folder:
+  python scripts/stage89_partitioned_regression.py --prefix docs/stage89_candidate_independent --start 1 --end 4
+  python scripts/stage89_partitioned_regression.py --prefix docs/stage89_candidate_independent --start 5 --end 8
+  python scripts/stage89_partitioned_regression.py --prefix docs/stage89_candidate_independent --aggregate
+  102 modules, 2923 total, 2906 passed, 17 skipped, 0 failed/errors; all group exits zero.
+  Independent logs copied into docs/stage89_candidate_independent_group{1..8}_*.txt.
+Final ZIP is rebuilt to include candidate independent logs and will be extracted and re-tested separately.

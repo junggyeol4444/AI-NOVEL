@@ -1,0 +1,41 @@
+{
+  "stage": 82,
+  "requirement": "ANF-REQ-058",
+  "base_stage": 81,
+  "base_zip_entries": 683,
+  "new_tests": 41,
+  "worktree": {
+    "group_count": 8,
+    "total": 2649,
+    "passed": 2632,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "module_coverage_exact": true
+  },
+  "scope": [
+    "explicitly reviewed and caller-approved memory changes only",
+    "Character/World/Timeline linked facts",
+    "native relationship/foreshadow events",
+    "single-SQLite transaction and idempotency journal"
+  ],
+  "limitations": [
+    "original planning TXT not available in current conversation attachments",
+    "approval assertions not independently authenticated",
+    "fact entries are linked canon facts, not semantic field merges",
+    "no cross-database distributed transaction",
+    "Windows EXE/GUI and real AI/Redis/Celery/pgvector not tested"
+  ],
+  "candidate_independent": {
+    "module_count": 95,
+    "group_count": 8,
+    "total": 2649,
+    "passed": 2632,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "module_coverage_exact": true,
+    "all_exit_codes_zero": true
+  },
+  "final_independent": null
+}

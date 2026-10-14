@@ -1,0 +1,10 @@
+/mnt/data/anf_stage90_candidate_extracted/src/ai_novel_factory/repetition_checker.py:153: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f02e8d473d0>
+  out.append((start, end, text[start:end]))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage90_candidate_extracted/src/ai_novel_factory/repetition_checker.py:153: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f02e8d474c0>
+  out.append((start, end, text[start:end]))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 432 tests in 6.828s
+
+OK (skipped=1)

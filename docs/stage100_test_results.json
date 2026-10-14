@@ -1,0 +1,52 @@
+{
+  "stage": 100,
+  "requirement": "ANF-REQ-072",
+  "scope": "final_release_manual_and_acceptance_criteria",
+  "stage100_documentation_and_audit": "IMPLEMENTED_OFFLINE",
+  "product_release_status": "BLOCKED",
+  "windows_exe_build_and_runtime": "UNVERIFIED",
+  "stage95_official_api": "UNVERIFIED",
+  "stage96_platform_compatibility": "UNVERIFIED",
+  "stage99_real_windows_acceptance": "UNVERIFIED",
+  "original_project_txt_verified": false,
+  "new_tests": 31,
+  "new_tests_passed": 31,
+  "worktree_regression": {
+    "module_count": 114,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 3334,
+    "passed": 3313,
+    "skipped": 21,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "windows_pc_accessed": false,
+  "external_connections": false,
+  "publication_or_upload_performed": false,
+  "candidate_independent": {
+    "module_count": 114,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 3334,
+    "passed": 3313,
+    "skipped": 21,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "final_independent": "PENDING",
+  "candidate_archive_integrity": {
+    "zip_name": "AI_Novel_Factory_stage100_candidate.zip",
+    "entries": 1960,
+    "prior_entries": 1912,
+    "prior_all_preserved": true,
+    "prior_changed": [
+      "README.md"
+    ],
+    "added": 48,
+    "crc_ok": true,
+    "sha256": "50fc9115d507015dc48284432887d29d523ab5f43a42d06ccb0f739339d066c0"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "stage": 39,
+  "name": "유사성 검사 기준선",
+  "verified_at_utc": "2026-10-12T07:52:05.407929+00:00",
+  "python_version": "3.13.5",
+  "test_command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "total_tests": 988,
+  "passed": 977,
+  "skipped": 11,
+  "failures": 0,
+  "errors": 0,
+  "stage39_tests": 53,
+  "stage39_passed": 53,
+  "checks": {
+    "smoke": "passed (Python 3.12 warning)",
+    "dependency_policy": "passed",
+    "compileall": "passed"
+  },
+  "limitations": [
+    "Lexical paragraph-shingle baseline; not semantic or legal plagiarism judgment",
+    "Only selected references, requires originals at inspection time",
+    "Potential false positives and missed paraphrases/translations",
+    "Windows EXE/GUI not tested; Python 3.12 target not tested",
+    "Local AI writer/output integration not implemented",
+    "EPUB parser absent from current cumulative source"
+  ],
+  "github_remote_actions": "none",
+  "off_network_services": "none",
+  "scheduled_local_development": "reactivated on user command 예약"
+}

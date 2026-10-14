@@ -1,0 +1,42 @@
+{
+  "stage": 76,
+  "roadmap_task": "Style Checker — 문체·시점 일관성 검사",
+  "requirement": "ANF-REQ-053",
+  "baseline_zip": "AI_Novel_Factory_stage75_local.zip",
+  "baseline_files": 448,
+  "new_tests": 27,
+  "worktree": {
+    "total": 2400,
+    "passed": 2383,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  "runtime": {
+    "python": "3.13.5",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+  },
+  "limitations": [
+    "Literal rules and reviewer-labelled viewpoint only, not NLP full style QA",
+    "Freeform Style Bible directives unexamined; no text rewriting or publication",
+    "No Windows EXE/GUI, real AI inference, or Redis/Celery communication verified",
+    "Existing SQLite ResourceWarning persists"
+  ],
+  "validation_commands": [
+    "PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage76*.py' -v",
+    "PYTHONPATH=src python -m unittest discover -s tests -q"
+  ],
+  "candidate_extracted": {
+    "total": 2400,
+    "passed": 2383,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0,
+    "zip_crc": "ok",
+    "hidden_files": "ok",
+    "unpacked_file_count": 457
+  },
+  "final_extracted": null
+}

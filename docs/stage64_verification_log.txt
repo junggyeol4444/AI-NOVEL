@@ -1,0 +1,9 @@
+Stage 64: single scene draft integration.
+Input: AI_Novel_Factory_stage63_local.zip (313 files). Reviewed docs/requirements.md, docs/stage63_test_results.json and docs/stage63_verification_log.txt.
+New tests: PYTHONPATH=src python -m unittest discover -s tests -p "test_stage64*.py" -v -> Ran 21 tests; OK
+Worktree: PYTHONPATH=src python -m unittest discover -s tests -q -> Ran 2016 tests; OK (skipped=14); 2002 passed, 0 failures/errors.
+Existing SQLite ResourceWarning observed.
+Prior source SHA256 preservation: 312 unchanged, README.md updated for new stage.
+First ZIP extracted to separate folder and full suite rerun: 2016 / 2002 passed / 14 skipped / 0 failed.
+ZIP CRC, file inclusion and hidden .gitignore/.env.example/.editorconfig/.python-version passed.
+Final ZIP version (including fresh verification logs) re-extracted into anf64_final_from_zip: Ran 2016 tests; OK (skipped=14); 2002 passed, 0 failures/errors.

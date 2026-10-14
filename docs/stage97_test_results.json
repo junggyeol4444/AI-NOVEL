@@ -1,0 +1,68 @@
+{
+  "stage": 97,
+  "scope": "OFFLINE_WINDOWS_PYINSTALLER_BUILD_PREPARATION_ONLY",
+  "official_requirement": "ANF-REQ-001",
+  "acceptance_met": false,
+  "windows_exe_built": false,
+  "windows_exe_executed": false,
+  "original_project_txt_verified": false,
+  "preflight": {
+    "stage": 97,
+    "platform": "non-Windows",
+    "required_python": "3.12",
+    "preflight_permitted": false,
+    "blockers": [
+      "not_windows",
+      "python_not_3_12",
+      "missing_pyinstaller",
+      "missing_pyside6"
+    ],
+    "windows_exe_built": false,
+    "windows_runtime_verified": false,
+    "checks": {},
+    "exe_sha256": null,
+    "network_required": false,
+    "publish_executed": false
+  },
+  "new_tests": 25,
+  "new_tests_passed": 25,
+  "worktree_regression": {
+    "module_count": 111,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 3238,
+    "passed": 3217,
+    "skipped": 21,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "stage95_official_api_test_unmet": true,
+  "stage96_official_platform_format_unverified": true,
+  "external_network_used": false,
+  "publishing_executed": false,
+  "notes": "Actual Windows build unavailable (Linux/Python3.13, PyInstaller/PySide6 absent); all green test results are source/offline contract tests only.",
+  "candidate_zip": {
+    "file_count": 1766,
+    "previous_count": 1729,
+    "previous_preserved": 1729,
+    "changed_previous": [
+      ".gitignore",
+      "README.md",
+      "scripts/verify_release_bundle.py"
+    ],
+    "added_files": 37,
+    "crc_ok": true,
+    "zip_sha256": "e3b411dbf5b4a44ce62d0988915970b633f64672b4b48469f1127d26fece8a7a",
+    "independent_regression": {
+      "total": 3238,
+      "passed": 3217,
+      "skipped": 21,
+      "failures": 0,
+      "errors": 0,
+      "module_count": 111,
+      "eight_nonoverlapping_groups": true
+    }
+  },
+  "final_zip_independent_status": "pending_final_extraction_verification"
+}

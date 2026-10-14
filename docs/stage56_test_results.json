@@ -1,0 +1,21 @@
+{
+  "stage": 56,
+  "initial": {
+    "command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+    "returncode": 0,
+    "stdout": "{'status': 'ok', 'service': 'ai-novel-factory', 'api_version': 'v1'}\n",
+    "stderr": "<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe181c5a3e0>\nResourceWarning: Enable tracemalloc to get the object allocation traceback\n----------------------------------------------------------------------\nRan 1851 tests in 15.515s\n\nOK (skipped=11)\n"
+  },
+  "fresh": {
+    "command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+    "returncode": 0,
+    "stdout": "{'status': 'ok', 'service': 'ai-novel-factory', 'api_version': 'v1'}\n",
+    "stderr": "<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fda4a42a3e0>\nResourceWarning: Enable tracemalloc to get the object allocation traceback\n----------------------------------------------------------------------\nRan 1851 tests in 15.609s\n\nOK (skipped=11)\n"
+  },
+  "file_count": 258,
+  "limitations": [
+    "pgvector SQL mock tested only; no PostgreSQL server",
+    "No actual local embedding model",
+    "Linux Python runtime; Windows EXE not tested"
+  ]
+}

@@ -1,0 +1,32 @@
+test_bad_project_and_episode (test_stage76_style_checker.StyleCheckerTests.test_bad_project_and_episode) ... ok
+test_cross_project_scope (test_stage76_style_checker.StyleCheckerTests.test_cross_project_scope) ... ok
+test_duplicate_claim_rejected (test_stage76_style_checker.StyleCheckerTests.test_duplicate_claim_rejected) ... ok
+test_empty_and_invalid_manuscripts (test_stage76_style_checker.StyleCheckerTests.test_empty_and_invalid_manuscripts) ... ok
+test_episode_preview_integration (test_stage76_style_checker.StyleCheckerTests.test_episode_preview_integration) ... ok
+test_finding_capacity_fails_closed (test_stage76_style_checker.StyleCheckerTests.test_finding_capacity_fails_closed) ... ok
+test_forbidden_phrase_offsets_and_fingerprint (test_stage76_style_checker.StyleCheckerTests.test_forbidden_phrase_offsets_and_fingerprint) ... ok
+test_freeform_tone_unexamined (test_stage76_style_checker.StyleCheckerTests.test_freeform_tone_unexamined) ... ok
+test_freeform_viewpoint_is_unexamined_not_silently_passed (test_stage76_style_checker.StyleCheckerTests.test_freeform_viewpoint_is_unexamined_not_silently_passed) ... ok
+test_invalid_forbidden_phrase_rule_is_not_silently_ignored (test_stage76_style_checker.StyleCheckerTests.test_invalid_forbidden_phrase_rule_is_not_silently_ignored) ... ok
+test_invalid_numeric_rule_rejected (test_stage76_style_checker.StyleCheckerTests.test_invalid_numeric_rule_rejected) ... ok
+test_invalid_viewpoint_evidence_and_cross_boundaries (test_stage76_style_checker.StyleCheckerTests.test_invalid_viewpoint_evidence_and_cross_boundaries) ... ok
+test_missing_canon_or_style (test_stage76_style_checker.StyleCheckerTests.test_missing_canon_or_style) ... ok
+test_modified_preview_rejected (test_stage76_style_checker.StyleCheckerTests.test_modified_preview_rejected) ... ok
+test_multiline_paragraph_detection (test_stage76_style_checker.StyleCheckerTests.test_multiline_paragraph_detection) ... ok
+test_no_executable_rule_marked_unexamined (test_stage76_style_checker.StyleCheckerTests.test_no_executable_rule_marked_unexamined) ... ok
+test_no_source_or_db_mutations (test_stage76_style_checker.StyleCheckerTests.test_no_source_or_db_mutations) ... ok
+test_non_overlapping_literal_matches (test_stage76_style_checker.StyleCheckerTests.test_non_overlapping_literal_matches) ... ok
+test_novel_bible_length_override (test_stage76_style_checker.StyleCheckerTests.test_novel_bible_length_override) ... ok
+test_novel_bible_override_takes_precedence (test_stage76_style_checker.StyleCheckerTests.test_novel_bible_override_takes_precedence) ... ok
+test_paragraph_length (test_stage76_style_checker.StyleCheckerTests.test_paragraph_length) ... ok
+test_phrase_is_case_sensitive_literal (test_stage76_style_checker.StyleCheckerTests.test_phrase_is_case_sensitive_literal) ... ok
+test_sentence_length (test_stage76_style_checker.StyleCheckerTests.test_sentence_length) ... ok
+test_stale_project_revision (test_stage76_style_checker.StyleCheckerTests.test_stale_project_revision) ... ok
+test_viewpoint_claim_count_limit (test_stage76_style_checker.StyleCheckerTests.test_viewpoint_claim_count_limit) ... ok
+test_viewpoint_claim_match (test_stage76_style_checker.StyleCheckerTests.test_viewpoint_claim_match) ... ok
+test_viewpoint_mismatch_and_missing_evidence (test_stage76_style_checker.StyleCheckerTests.test_viewpoint_mismatch_and_missing_evidence) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 0.048s
+
+OK

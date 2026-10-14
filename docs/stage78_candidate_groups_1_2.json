@@ -1,0 +1,50 @@
+[
+  {
+    "group": 1,
+    "modules": [
+      "test_stage47_foreshadow",
+      "test_foreshadow_emotion",
+      "test_element_selection",
+      "test_event_pacing",
+      "test_stage66_orchestrator",
+      "test_stage59_plot_editor_model",
+      "test_episode_splitter",
+      "test_offline_runtime_policy",
+      "test_stage53_episode_planner",
+      "test_stage43_release_verifier",
+      "test_reference_picker_gui_optional"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage47_foreshadow test_foreshadow_emotion test_element_selection test_event_pacing test_stage66_orchestrator test_stage59_plot_editor_model test_episode_splitter test_offline_runtime_policy test_stage53_episode_planner test_stage43_release_verifier test_reference_picker_gui_optional -q",
+    "elapsed_seconds": 5.13,
+    "exit_code": 0,
+    "total": 304,
+    "skipped": 3,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage78_candidate_group1_stderr.txt"
+  },
+  {
+    "group": 2,
+    "modules": [
+      "test_stage45_relationships",
+      "test_pattern_strength",
+      "test_stage74_foreshadow_checker",
+      "test_cliffhanger_analysis",
+      "test_stage76_style_checker",
+      "test_stage63_writer_prompt",
+      "test_docx_parser",
+      "test_stage47_release_verifier",
+      "test_stage44_release_verifier",
+      "test_api_health",
+      "test_stage41_release_verifier"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage45_relationships test_pattern_strength test_stage74_foreshadow_checker test_cliffhanger_analysis test_stage76_style_checker test_stage63_writer_prompt test_docx_parser test_stage47_release_verifier test_stage44_release_verifier test_api_health test_stage41_release_verifier -q",
+    "elapsed_seconds": 5.71,
+    "exit_code": 0,
+    "total": 304,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage78_candidate_group2_stderr.txt"
+  }
+]

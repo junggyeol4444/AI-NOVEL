@@ -2,7 +2,7 @@
   "project": "AI Novel Factory",
   "stage": 3,
   "stage_title": "기술 스택·아키텍처 확정",
-  "status": "PROVISIONAL_ARCHITECTURE_SPECIFICATION",
+  "status": "LOCAL_ONLY_DESKTOP_RUNTIME_CONTRACT",
   "baseline": "2026-10-11T23:00:00+09:00",
   "stage_1_reference": "docs/requirements.json",
   "stage_2_status": "NOT_AVAILABLE_IN_CURRENT_WORKSPACE",
@@ -14,12 +14,12 @@
   "stack": {
     "language": "Python",
     "desktop_ui": "PySide6",
-    "api": "FastAPI",
+    "api": "OPTIONAL_LOOPBACK_ONLY_NOT_REQUIRED_FOR_ANALYSIS",
     "validation": "Pydantic",
-    "database": "PostgreSQL",
-    "semantic_search": "pgvector",
-    "task_queue": "Celery",
-    "queue_broker": "Redis",
+    "database": "SQLite_LOCAL",
+    "semantic_search": "LOCAL_INDEX_PLANNED",
+    "task_queue": "IN_PROCESS_PLANNED",
+    "queue_broker": "NONE",
     "tests": "pytest + unittest",
     "ebook": "EPUB3",
     "document_parsers": [
@@ -30,17 +30,20 @@
       "PDF"
     ],
     "build": "PyInstaller",
-    "model_provider": "ADAPTER_UNDECIDED"
+    "model_provider": "LOCAL_MODEL_ONLY_NOT_YET_IMPLEMENTED"
   },
   "deployment": {
     "desktop": "USER_WINDOWS_PC",
-    "api_host": "UNDECIDED_APPROVAL_REQUIRED",
-    "postgresql_host": "UNDECIDED_APPROVAL_REQUIRED",
-    "redis_host": "UNDECIDED_APPROVAL_REQUIRED",
-    "worker_host": "UNDECIDED_APPROVAL_REQUIRED",
-    "remote_repository": "NOT_CONNECTED",
-    "offline_behavior": "UI_VIEW_OR_EXPLICIT_ERROR_ONLY_UNTIL_DEPLOYMENT_DECIDED",
-    "pc_off_execution": "NOT_SUPPORTED_WITHOUT_APPROVED_REMOTE_WORKER_AND_STORAGE"
+    "api_host": "OPTIONAL_LOOPBACK_ONLY",
+    "postgresql_host": "NOT_USED",
+    "redis_host": "NOT_USED",
+    "worker_host": "SAME_WINDOWS_PC_IN_PROCESS",
+    "remote_repository": "NOT_USED_AT_RUNTIME",
+    "offline_behavior": "NO_NETWORK_REQUIRED_FOR_CORE_FUNCTIONS",
+    "pc_off_execution": "NOT_SUPPORTED",
+    "runtime_network": "NO_EXTERNAL_NETWORK_DEPENDENCY",
+    "ai_execution": "LOCAL_DEVICE_ONLY",
+    "data_storage": "USER_PC_SQLITE"
   },
   "components": [
     {
@@ -51,70 +54,70 @@
     },
     {
       "id": "api",
-      "zone": "deployment_pending",
-      "tech": "FastAPI",
-      "role": "Authenticated application boundary"
+      "zone": "local",
+      "tech": "Optional FastAPI loopback health only",
+      "role": "Optional local diagnostic; not mandatory for core execution"
     },
     {
       "id": "orchestrator",
-      "zone": "backend",
+      "zone": "local",
       "tech": "Python",
       "role": "Plan, write, review, memory-update workflow"
     },
     {
       "id": "reference_analyzer",
-      "zone": "backend",
+      "zone": "local",
       "tech": "Python parsers",
       "role": "Extract only structural profiles from permitted reference works"
     },
     {
       "id": "planner",
-      "zone": "backend",
+      "zone": "local",
       "tech": "Python",
       "role": "Novel Bible first; reference patterns second"
     },
     {
       "id": "writer",
-      "zone": "backend",
+      "zone": "local",
       "tech": "AI adapter",
       "role": "Generate original scenes from approved context"
     },
     {
       "id": "quality",
-      "zone": "backend",
+      "zone": "local",
       "tech": "Python checkers",
       "role": "Continuity, logic, style, repetition, similarity checks"
     },
     {
       "id": "memory",
-      "zone": "backend",
-      "tech": "PostgreSQL + pgvector",
-      "role": "Canonical facts and retrieval"
+      "zone": "local",
+      "tech": "SQLite; optional local search planned",
+      "role": "Novel Bible and local retrieval planned"
     },
     {
       "id": "queue",
-      "zone": "infrastructure",
-      "tech": "Celery + Redis",
-      "role": "Async long-running jobs"
+      "zone": "local",
+      "tech": "In-process tasks planned",
+      "role": "No Redis/Celery/service requirement"
     },
     {
       "id": "publishing",
-      "zone": "backend",
+      "zone": "local",
       "tech": "EPUB3 + platform adapters",
       "role": "Generate files; external publication requires approval"
     },
     {
       "id": "provider",
-      "zone": "external",
-      "tech": "TBD AI API",
-      "role": "AI inference only with user-approved account and budget"
+      "zone": "local",
+      "tech": "Local AI model runtime (not yet implemented)",
+      "role": "Local inference only; no API key required"
     }
   ],
   "connections": [
     {
       "from": "desktop",
-      "to": "api",
-      "via": "HTTP(S) JSON; loopback only if local"
+      "to": "orchestrator",
+      "via": "Direct Python in same local process"
     },
     {
       "from": "api",
@@ -139,7 +142,7 @@
     {
       "from": "planner",
       "to": "memory",
-      "via": "Novel Bible + profile retrieval"
+      "via": "Local SQLite Novel Bible retrieval (planned)"
     },
     {
       "from": "orchestrator",
@@ -149,7 +152,7 @@
     {
       "from": "writer",
       "to": "provider",
-      "via": "Approved AI adapter"
+      "via": "In-process local model adapter (planned)"
     },
     {
       "from": "orchestrator",
@@ -164,12 +167,12 @@
     {
       "from": "orchestrator",
       "to": "memory",
-      "via": "Commit accepted manuscript + memory delta"
+      "via": "Local SQLite transaction (planned)"
     },
     {
       "from": "orchestrator",
       "to": "queue",
-      "via": "Celery task submission"
+      "via": "Local in-process queue (planned)"
     },
     {
       "from": "orchestrator",
@@ -184,14 +187,16 @@
     "NO_PUBLICATION_WITHOUT_EXPLICIT_USER_APPROVAL",
     "NO_PAID_API_OR_INSTALL_WITHOUT_APPROVAL",
     "NO_CLAIM_OF_PC_OFF_LOCAL_BUILD",
-    "SECRETS_NEVER_IN_SOURCE_OR_LOGS"
+    "SECRETS_NEVER_IN_SOURCE_OR_LOGS",
+    "OFFLINE_CORE_FUNCTIONS",
+    "NO_EXTERNAL_AI_API",
+    "NO_GITHUB_RUNTIME_DEPENDENCY",
+    "NO_REMOTE_DATABASE_OR_JOB_SERVER"
   ],
   "pending_approvals": [
-    "Windows version and hardware target",
-    "Local versus remote API/DB/queue/worker",
-    "Remote repository and CI permissions",
-    "AI provider, key and cost cap",
+    "Windows environment for later EXE validation",
+    "Optional local model hardware and distribution",
     "Reference storage location and retention",
-    "Publication target and account connection"
+    "User-approved external publishing action"
   ]
 }

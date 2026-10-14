@@ -1,0 +1,42 @@
+{
+  "stage": 61,
+  "roadmap": "AI 모델 제공자 API 연동 (오프라인 계약)",
+  "requirement_id": "ANF-REQ-046",
+  "source_zip": "AI_Novel_Factory_stage60_local.zip",
+  "source_file_count": 286,
+  "added_tests": 23,
+  "test_environment": {
+    "python": "3.13.5",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+  },
+  "worktree_full_suite": {
+    "total": 1949,
+    "passed": 1935,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0
+  },
+  "fresh_extraction_suite": {
+    "total": 1949,
+    "passed": 1935,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0
+  },
+  "limitations": [
+    "Actual LLM inference not tested",
+    "Arbitrary local executable network access not technically blocked",
+    "Windows EXE and GUI not tested",
+    "SQLite connection ResourceWarning present"
+  ],
+  "zip_checks": {
+    "source_files_preserved_sha256": 286,
+    "hidden_files": [
+      ".gitignore",
+      ".env.example",
+      ".editorconfig",
+      ".python-version"
+    ],
+    "zip_crc": "passed"
+  }
+}

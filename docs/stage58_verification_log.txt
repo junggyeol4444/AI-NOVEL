@@ -1,0 +1,20 @@
+Stage 58: Python 3.13.5 on Linux-6.18.44-x86_64-with-glibc2.41
+
+Initial suite (exit 0):
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f3f930ee200>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 1881 tests in 16.893s
+
+OK (skipped=11)
+
+Fresh ZIP-extracted suite (exit 0):
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f65ea6363e0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 1881 tests in 16.559s
+
+OK (skipped=11)
+
+ZIP integrity passed. Hidden files present: .editorconfig, .env.example, .gitignore, .python-version
+Previous ZIP source entries preserved: 263

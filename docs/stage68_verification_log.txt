@@ -1,0 +1,11 @@
+Stage 68: original 351-file ZIP extracted and reviewed.
+Read requirements.md ANF-REQ-004 and stage67 verification records.
+Full test on work tree: 2127 total, 2110 pass, 17 skipped, 0 failures, exit 0, 29.565s.
+Previous 351 ZIP entries retained; modified local_task_queue.py and desktop/app.py; README updated.
+No GitHub, remote server, cloud AI API, or Windows EXE invocation.
+Final ZIP fresh-extraction verification to be recorded below.
+First ZIP packaged from source: 359 files; CRC OK; hidden .gitignore/.env.example/.python-version included.
+First ZIP extracted to anf68_fresh_from_zip and full tests: 2127 total, 2110 passed, 17 skipped, 0 failures/errors, exit 0, 29.232s.
+Source ZIP comparison: old 351 entries retained. Changed old entries: README.md, desktop/app.py, local_task_queue.py.
+Actual PySide6/Windows GUI not executed; 3 additional GUI checks skipped. SQLite warnings remain.
+Stage 67 actual Redis/Celery broker not started, only local SQLite monitoring exercised.

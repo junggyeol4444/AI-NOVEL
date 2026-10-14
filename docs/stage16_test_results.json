@@ -1,0 +1,30 @@
+{
+  "stage": 16,
+  "name": "PDF 파서",
+  "source_archive": "AI_Novel_Factory_stage15.zip",
+  "python": "3.13.5",
+  "pypdf_version": "5.9.0",
+  "unit_total": 113,
+  "unit_passed": 110,
+  "unit_skipped": 3,
+  "unit_failed": 0,
+  "new_unit_tests": 21,
+  "new_unit_tests_passed": 21,
+  "smoke_required_checks": 6,
+  "smoke_required_passed": 6,
+  "smoke_warning": "Python 3.12 목표, 현 실행환경 버전 차이",
+  "korean_synthetic_pdf_pages": 2,
+  "korean_synthetic_pdf_test": "pass",
+  "gui_test": "skipped: PySide6 not installed",
+  "windows_exe_tested": false,
+  "user_pc_modified": false,
+  "cloud_repo_connected": false,
+  "missing_independent_predecessor_artifacts": [
+    2,
+    4,
+    7,
+    12,
+    14
+  ],
+  "notes": "테스트는 개발 환경에서 수행. 사용자 PC에는 미반영."
+}

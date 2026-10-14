@@ -1,0 +1,10 @@
+/mnt/data/anf_stage95_continued_workspace/src/ai_novel_factory/references/similarity_baseline.py:153: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f42e0970130>
+  index[shingle].append(position)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage95_continued_workspace/src/ai_novel_factory/references/similarity_baseline.py:153: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f42e0d5b1f0>
+  index[shingle].append(position)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 529 tests in 3.364s
+
+OK (skipped=6)

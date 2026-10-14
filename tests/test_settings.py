@@ -6,7 +6,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from ai_novel_factory.settings import ConfigurationError, load_settings, parse_env_file
+from ai_novel_factory.settings import AppSettings, ConfigurationError, load_settings, parse_env_file
 
 
 class SettingsTests(unittest.TestCase):
@@ -28,12 +28,12 @@ class SettingsTests(unittest.TestCase):
 
     def test_secrets_never_appear_in_repr_or_safe_status(self):
         secret = "a-test-secret-not-for-logs"
-        settings = load_settings({
-            "ANF_AI_PROVIDER": "mock",
-            "ANF_AI_API_KEY": secret,
-            "ANF_DATABASE_URL": f"postgresql://user:{secret}@localhost:5432/novels",
-            "ANF_REDIS_URL": f"redis://:{secret}@localhost:6379/0",
-        })
+        # Legacy objects still redact secrets; runtime settings reject service URLs.
+        settings = AppSettings(
+            ai_provider="mock", ai_api_key=secret,
+            database_url=f"postgresql://user:{secret}@localhost:5432/novels",
+            redis_url=f"redis://:{secret}@localhost:6379/0",
+        )
         output = repr(settings) + repr(settings.safe_status())
         self.assertNotIn(secret, output)
         self.assertTrue(settings.safe_status()["database_configured"])

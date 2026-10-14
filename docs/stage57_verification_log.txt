@@ -1,0 +1,17 @@
+Initial suite:
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f7c9feb2200>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 1862 tests in 15.821s
+
+OK (skipped=11)
+
+Fresh extraction suite:
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fd6f4ba23e0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 1862 tests in 15.544s
+
+OK (skipped=11)
+
+ZIP integrity: passed; .gitignore present.

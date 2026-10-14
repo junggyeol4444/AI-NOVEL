@@ -1,0 +1,16 @@
+{
+  "stage": 53,
+  "tests": 1814,
+  "passed": 1803,
+  "skipped": 11,
+  "failed": 0,
+  "environment": "3.13.5 (main, Jul 15 2026, 20:25:40) [GCC 14.2.0]",
+  "first_run_exit_code": 0,
+  "limitations": [
+    "No Windows EXE validation",
+    "No AI story generation",
+    "SQLite ResourceWarning in tests"
+  ],
+  "fresh_extract_exit_code": 0,
+  "zip_files": 243
+}

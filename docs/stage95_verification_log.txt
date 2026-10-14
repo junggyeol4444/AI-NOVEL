@@ -1,0 +1,11 @@
+Stage95 ANF-REQ-066 — OFFLINE PARTIAL ONLY, official acceptance NOT MET
+Original TXT not present/verified; roadmap and stage94 docs/requirements.md used.
+Base stage94: 1561 files; CRC clean; previous verification logs inspected.
+New tests: 14/14 pass. Worktree 108 modules / 8 non-overlapping groups: 3164 total, 3143 passed, 21 skipped, 0 failures/errors.
+Worktree group command, stdout, stderr, exit logs in docs/stage95_worktree_*.
+No verified official spec, no real platform or sandbox upload, no remote service/GitHub/API calls.
+Independent ZIP extraction regression: PASSED.
+Candidate ZIP: 1592 files, all 1561 base entries preserved, only README changed, CRC OK.
+Independent candidate ZIP extracted in separate directory; all 108 modules in 8 disjoint groups: 3164 total, 3143 pass, 21 skip, 0 failures/errors, all exit codes 0.
+Final ZIP independent regression: 108 modules, 8 disjoint groups, 3164 total, 3143 passed, 21 skipped, zero failures/errors; official API test NOT PERFORMED. Official acceptance still NOT MET.
+Final ZIP contains 1617 files; CRC clean; all 1561 stage94 files preserved (only README changed).

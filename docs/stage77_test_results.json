@@ -1,0 +1,45 @@
+{
+  "stage": 77,
+  "roadmap_task": "반복 표현과 유사 문장 사용 빈도 검사",
+  "requirement": "ANF-REQ-054",
+  "baseline_zip": "AI_Novel_Factory_stage76_local.zip",
+  "baseline_file_count": 459,
+  "original_proposal_attachment_accessible": false,
+  "new_tests": 34,
+  "new_tests_passed": 34,
+  "worktree_partitioned_regression": {
+    "method": "all 88 test_*.py modules partitioned into 8 disjoint unittest module groups",
+    "total": 2434,
+    "passed": 2417,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "groups": 8,
+    "all_exit_codes_zero": true,
+    "evidence": "docs/stage77_worktree_groups.json and stage77_worktree_group{1..8}_stderr.txt"
+  },
+  "initial_monolithic_regression": {
+    "status": "timed_out_before_summary",
+    "note": "Not counted as a passing run; replaced with complete disjoint module-group coverage."
+  },
+  "runtime": {
+    "python": "3.13.5",
+    "platform": "Linux"
+  },
+  "limitations": [
+    "Surface text similarity only; no semantic plagiarism or originality determination",
+    "Budget-exceeded cases explicitly unexamined",
+    "Original proposal attachment not accessible; user-supplied roadmap and packaged requirements used",
+    "Windows EXE/GUI, real AI inference, and live Redis/Celery not tested",
+    "Existing SQLite ResourceWarning persists"
+  ],
+  "candidate_extracted": {
+    "total": 2434,
+    "passed": 2417,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true,
+    "zip_crc": "ok"
+  }
+}

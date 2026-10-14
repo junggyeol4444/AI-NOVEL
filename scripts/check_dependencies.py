@@ -5,13 +5,14 @@ from pathlib import Path
 import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
-REQUIRED_EXTRAS = {"desktop", "api", "database", "queue", "documents", "quality", "dev", "build"}
+REQUIRED_EXTRAS = {"desktop", "api", "database", "queue", "documents", "graphics", "quality", "dev", "build"}
 REQUIRED_PACKAGES = {
     "desktop": {"pyside6", "httpx"},
     "api": {"fastapi", "uvicorn", "pydantic", "pydantic-settings"},
     "database": {"sqlalchemy", "psycopg", "pgvector"},
     "queue": {"celery", "redis"},
     "documents": {"ebooklib", "python-docx", "pypdf"},
+    "graphics": {"pillow"},
     "quality": {"rapidfuzz"},
     "dev": {"pytest", "ruff"},
     "build": {"pyinstaller"},

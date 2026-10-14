@@ -1,0 +1,9 @@
+Stage 81 / ANF-REQ-057
+Source: stage80 ZIP (644 entries)
+Original planning TXT: not accessible; user-provided roadmap + docs/requirements.md used.
+Worktree regression: 94 test modules, 8 non-overlapping groups, 2608 tests, 2591 passed, 17 skipped, failures=0, errors=0.
+Full commands and stdout/stderr: stage81_worktree_group[1..8] files.
+Scope: explicitly marked finalized manuscript; caller-supplied approval assertion not independently authenticated; review-only SQLite, no canon writes.
+Candidate and final independent extraction results are recorded in the later release verification.
+Candidate ZIP independent extraction: 94 modules, 8 groups, 2608 tests, 2591 passed, 17 skipped, failures=0, errors=0.
+See stage81_candidate_groups.json and group stdout/stderr logs.

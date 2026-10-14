@@ -1,14 +1,18 @@
 {
   "stage": 26,
   "title": "캐릭터 역할 후보 분석",
-  "local_python": "3.13",
+  "python_version": "3.13.5",
+  "test_command": "PYTHONPATH=src QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -q",
   "tests_run": 367,
   "passed": 364,
   "skipped": 3,
   "failed": 0,
-  "new_tests": 37,
-  "smoke": "required_checks_passed",
+  "smoke": "passed_required_checks",
   "windows_exe": "not_tested",
   "local_ai_semantics": "not_implemented",
-  "database_warning": "ResourceWarning: unclosed sqlite3.Connection observed"
+  "notes": [
+    "회차별 인물 언급량 및 명시적 역할 표현 후보",
+    "기존 회귀 테스트 실행",
+    "데이터베이스 연결 관련 ResourceWarning 1건 관측"
+  ]
 }

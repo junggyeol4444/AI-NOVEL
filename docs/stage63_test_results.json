@@ -1,0 +1,35 @@
+{
+  "stage": 63,
+  "roadmap": "Novel Bible 우선 Writer 프롬프트 구성",
+  "prior_zip": "AI_Novel_Factory_stage62_local.zip",
+  "prior_file_count": 304,
+  "new_tests": 19,
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+  },
+  "worktree_suite": {
+    "total": 1995,
+    "passed": 1981,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0
+  },
+  "fresh_extraction_suite": {
+    "total": 1995,
+    "passed": 1981,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0
+  },
+  "previous_files_preserved_sha256": 304,
+  "limitations": [
+    "No actual LLM inference or model quality validation",
+    "Input provenance must be validated by caller; untrusted prose may masquerade as canon",
+    "Prompt injection is not completely prevented by JSON quoting and instructions",
+    "No Windows EXE or GUI validation",
+    "No Windows DPAPI runtime validation",
+    "Existing SQLite connection ResourceWarning remains",
+    "No cloud or remote services used"
+  ]
+}

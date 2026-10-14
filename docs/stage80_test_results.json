@@ -1,0 +1,45 @@
+{
+  "stage": 80,
+  "roadmap_task": "문제가 있는 Scene만 선택적 재작성 및 재검사",
+  "requirement": "ANF-REQ-056",
+  "baseline_zip": "AI_Novel_Factory_stage79_local.zip",
+  "baseline_zip_sha256": "b42e60f872b56d9af8c04779bcf1570e8c7dc92378ccc4a075adbe7f52e8bd64",
+  "baseline_file_count": 603,
+  "original_proposal_attachment_accessible": false,
+  "new_tests": 47,
+  "new_tests_passed": 47,
+  "worktree_regression": {
+    "modules": 93,
+    "covered_modules": 93,
+    "groups": 8,
+    "total": 2572,
+    "passed": 2555,
+    "skipped": 17,
+    "all_success": true
+  },
+  "worktree_evidence": "docs/stage80_worktree_groups.json and docs/stage80_worktree_group1..8_stderr.txt",
+  "runtime": {
+    "python": "3.13.5",
+    "platform": "Linux"
+  },
+  "limitations": [
+    "Reviewer-supplied replacement or separately generated stage64 preview; no automatic AI rewrite",
+    "Repetition recheck required; reference similarity and reader proxy only if fresh inputs supplied",
+    "Continuity/Logic/Style/Novel Bible rechecks remain pending and human review always required",
+    "Original planning attachment unavailable; packaged requirements and user roadmap used",
+    "Windows EXE/GUI, real LLM, Redis/Celery, pgvector not tested",
+    "Existing SQLite ResourceWarning may recur"
+  ],
+  "candidate_independent_extraction": {
+    "modules": 93,
+    "covered_modules": 93,
+    "groups": 8,
+    "total": 2572,
+    "passed": 2555,
+    "skipped": 17,
+    "all_success": true
+  },
+  "candidate_zip_files": 627,
+  "candidate_zip_crc_ok": true,
+  "candidate_evidence": "docs/stage80_candidate_groups.json and docs/stage80_candidate_group1..8_stderr.txt"
+}

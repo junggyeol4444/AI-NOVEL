@@ -1,0 +1,10 @@
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/memory_delta.py:110: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f2e42d45f30>
+  matches = tuple(MARKER.finditer(text))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage100_candidate_independent/src/ai_novel_factory/database/episodes.py:127: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f2e42af58a0>
+  def _episode(row: sqlite3.Row) -> Episode:
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 467 tests in 6.599s
+
+OK (skipped=5)

@@ -1,0 +1,16 @@
+STAGE 80 LOCAL VERIFICATION — ANF-REQ-056
+Baseline: AI_Novel_Factory_stage79_local.zip (603 ZIP members)
+Original planning attachment: not accessible in current conversation file search; packaged requirements and user-provided 100-step roadmap used.
+New tests: PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage80*.py' -q
+Result: 47 tests, OK.
+Full regression: python scripts/stage80_partitioned_regression.py --prefix docs/stage80_worktree
+Result: 93 unique modules, 8 disjoint groups, 2572 tests, 2555 passed, 17 skipped, 0 failures/errors.
+Evidence: docs/stage80_worktree_groups.json and docs/stage80_worktree_group1..8_{stdout,stderr}.txt
+Only local Python on Linux; no network, no cloud model, no GitHub. Windows EXE/GUI and real LLM/Redis/Celery/pgvector not tested.
+No manuscript finalization, publication, or automatic model rewrite.
+Independent extraction and final ZIP verification: pending.
+Candidate ZIP independently extracted; groups 1..7 and group 8 executed in separate commands due command execution time limit.
+All 93 modules disjoint; 2572 tests, 2555 passed, 17 skipped, zero failures/errors.
+Evidence: docs/stage80_candidate_groups.json and docs/stage80_candidate_group1..8_stderr.txt.
+Candidate ZIP CRC OK and 603 previous files preserved; README.md only previous file changed.
+Final release ZIP verification: pending.

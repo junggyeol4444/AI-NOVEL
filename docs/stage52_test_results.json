@@ -1,0 +1,25 @@
+{
+  "stage": 52,
+  "requirement": "ANF-REQ-042",
+  "source_zip": "AI_Novel_Factory_stage51_local.zip",
+  "source_sha256": "73c45b1d93ce179424e73a46d46f7ac2f94031b6e9e59cb5e320fb91f422e26d",
+  "previous_members": 233,
+  "new_tests": 10,
+  "command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "tests_total": 1804,
+  "passed": 1793,
+  "skipped": 11,
+  "failures": 0,
+  "errors": 0,
+  "python": "3.13.5",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "limitations": [
+    "Deterministic arc ranges, not AI narrative creation",
+    "Windows EXE not built or tested"
+  ],
+  "zip_members": 238,
+  "zip_integrity": "passed",
+  "old_members_preserved": true,
+  "gitignore_present": true,
+  "fresh_extract_full_suite": "passed"
+}

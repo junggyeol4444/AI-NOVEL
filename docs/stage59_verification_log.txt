@@ -1,0 +1,6 @@
+Stage 59, Linux-6.18.44-x86_64-with-glibc2.41
+Worktree full: Ran 1904, OK skipped=14, fail=0.
+First ZIP separate extraction: Ran 1904, OK skipped=14, fail=0.
+New test methods: 23 (20 passed + 3 PySide6 skips).
+PySide6 unavailable; no GUI or Windows EXE execution.
+SQLite resource warnings persisted.

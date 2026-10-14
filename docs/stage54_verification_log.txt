@@ -1,0 +1,15 @@
+ORIGINAL FULL TEST RUN
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f9ddbf523e0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 1826 tests in 16.098s
+
+OK (skipped=11)
+
+FRESH EXTRACT FULL TEST RUN
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f56164f63e0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 1826 tests in 16.244s
+
+OK (skipped=11)

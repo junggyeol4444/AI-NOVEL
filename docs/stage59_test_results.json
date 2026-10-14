@@ -1,0 +1,34 @@
+{
+  "stage": 59,
+  "roadmap": "회차·장면 플롯 확인 및 수동 편집 UI",
+  "source_zip": "AI_Novel_Factory_stage58_local.zip",
+  "previous_files_preserved": 268,
+  "new_tests": 23,
+  "new_passed": 20,
+  "new_skipped_pyside6": 3,
+  "test_environment": {
+    "python": "3.13.5",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+    "pyside6_installed": false
+  },
+  "worktree_full_suite": {
+    "total": 1904,
+    "passed": 1890,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0
+  },
+  "first_fresh_extraction_suite": {
+    "total": 1904,
+    "passed": 1890,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0
+  },
+  "limitations": [
+    "PySide6 not installed: GUI tests skipped",
+    "Windows GUI or EXE not executed",
+    "SQLite unclosed ResourceWarning persists",
+    "No AI-based plot generation or publication"
+  ]
+}

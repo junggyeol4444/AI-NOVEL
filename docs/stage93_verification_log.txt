@@ -1,0 +1,13 @@
+AI Novel Factory Stage93 / ANF-REQ-064
+Base stage92 ZIP CRC OK; 1430 files; source planning TXT unavailable.
+New tests 49/49 passed; docs/stage93_new_tests_stdout/stderr/exit.txt
+Worktree regression 106 unique modules, 8 disjoint groups; total 3102, passed 3081, skipped 21, failures/errors 0.
+Actual commands/outputs/exits: docs/stage93_worktree_groups.json and groupN_* logs.
+Offline demo (synthetic text) docs/stage93_demo/book.epub verified by internal subset validator.
+Independent candidate ZIP extraction and final ZIP extraction verification will be reported separately.
+No network, no remote repository, no LLM inference, no user approval or publication.
+Unverified: EPUBCheck, real readers, Windows EXE/GUI, production services.
+Candidate ZIP 1467 files: all 1430 stage92 files preserved; only README.md changed; CRC passed.
+Candidate independent unzip regression: 106 modules/8 disjoint groups/3102 total, 3081 passed, 21 skipped, 0 failed/errored.
+Commands, stdout/stderr/exit: docs/stage93_candidate_independent_* within cumulative ZIP.
+Final independent extraction and regression evidence provided in external final verification JSON/logs.

@@ -1,0 +1,43 @@
+{
+  "stage": 95,
+  "requirement": "ANF-REQ-066",
+  "iteration": "OFFLINE_ASSET_REVIEW_HARDENING",
+  "stage_status": "PARTIAL_OFFLINE_ONLY",
+  "official_acceptance_met": false,
+  "official_api_spec_verified": false,
+  "official_sandbox_upload_verified": false,
+  "external_network_calls": 0,
+  "original_txt_verified": false,
+  "base_file_count": 1617,
+  "new_test_count": 20,
+  "new_test_passed": 20,
+  "worktree_regression": {
+    "module_count": 109,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 3184,
+    "passed": 3163,
+    "skipped": 21,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "remaining_blockers": [
+    "official API specification unverified",
+    "official platform sandbox upload prohibited and unverified",
+    "OS user authentication not established",
+    "metadata/notes reviewed locally only; not official publishing approval",
+    "Windows real EXE and GUI untested"
+  ],
+  "candidate_zip": {
+    "previous_files_preserved": 1617,
+    "candidate_files": 1648,
+    "crc_ok": true,
+    "independent_test_total": 3184,
+    "passed": 3163,
+    "skipped": 21,
+    "failures": 0,
+    "errors": 0,
+    "all_group_exit_codes_zero": true
+  }
+}

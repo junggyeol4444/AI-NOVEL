@@ -1,0 +1,40 @@
+{
+  "stage": 32,
+  "feature": "human_assigned_offline_genre_pattern",
+  "runtime": "Windows-oriented local Python / offline SQLite / no GitHub or cloud API",
+  "development_python": "3.13.5",
+  "declared_python_range": ">=3.12,<3.13",
+  "unittest": {
+    "total": 662,
+    "passed": 656,
+    "skipped": 6,
+    "failed": 0,
+    "errors": 0,
+    "new_stage32_tests_total": 52,
+    "new_stage32_tests_passed": 51,
+    "new_stage32_tests_skipped_gui": 1
+  },
+  "smoke": {
+    "mandatory_checks": "passed",
+    "warning": "Python version differs from supported 3.12"
+  },
+  "dependency_policy_check": "passed",
+  "previous_test_fixes": [
+    "explicitly close sqlite3 test connections in test_reference_catalog.py and test_import_pipeline.py"
+  ],
+  "limitations": [
+    "PySide6 GUI not verified in this environment",
+    "Windows EXE not built or tested",
+    "Local AI model inference/writing not implemented",
+    "Genre patterns are statistical observations, not semantic genre inference",
+    "Some unused historical optional server dependencies still in pyproject.toml"
+  ],
+  "github_actions_used": false,
+  "external_services_used": false,
+  "verified_by": [
+    "PYTHONPATH=src python -m unittest tests.test_genre_patterns -q",
+    "PYTHONPATH=src python -m unittest discover -s tests -q",
+    "PYTHONPATH=src python scripts/smoke_test.py",
+    "PYTHONPATH=src python scripts/check_dependencies.py"
+  ]
+}

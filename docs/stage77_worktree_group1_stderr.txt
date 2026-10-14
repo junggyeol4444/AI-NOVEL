@@ -1,0 +1,37 @@
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53d79e7a0>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53d709d50>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53d709300>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53dacb5b0>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53dacba60>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53dacb790>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53dac8f40>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53dacb880>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53dacb100>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53dac9300>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf77_work/src/ai_novel_factory/database/episodes.py:148: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb53dacb970>
+  item = Scene(*(row[key] for key in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 304 tests in 2.594s
+
+OK (skipped=3)

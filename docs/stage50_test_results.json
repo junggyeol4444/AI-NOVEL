@@ -1,0 +1,21 @@
+{
+  "stage": 50,
+  "roadmap": "DB 마이그레이션 및 데이터 무결성 테스트",
+  "source_zip": "AI_Novel_Factory_stage49_local.zip",
+  "source_sha256": "2a53a95c0bb57ccaa04a9f4f342def9c82f0d3d81744ef55b03f556eb586de78",
+  "previous_members": 223,
+  "previous_members_missing": [],
+  "test_command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "total": 1787,
+  "passed": 1776,
+  "skipped": 11,
+  "failures": 0,
+  "errors": 0,
+  "new_tests": 9,
+  "platform": "linux",
+  "python": "3.13.5",
+  "limitations": [
+    "Only Novel Bible SQLite baseline migration audited",
+    "Windows EXE not tested"
+  ]
+}

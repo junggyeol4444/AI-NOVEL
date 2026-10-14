@@ -1,0 +1,23 @@
+Stage 87 — ANF-REQ-060
+Base: stage86 ZIP 1021 entries, CRC testzip None; stage86 final verification and archived logs reviewed.
+Original planning TXT: not available in current conversation file list; official user roadmap + docs/requirements.md used.
+Environment: Linux Python 3.13.5; not Windows EXE.
+Commands (stdout/stderr/exit saved in stage87_* files):
+  PYTHONPATH=src python -m unittest -q tests.test_stage87_long_memory_stability_trial
+  python scripts/stage87_run_long_memory_trial.py --output docs/stage87_long_memory_trial_report.json
+  python scripts/stage87_run_long_memory_trial.py --output docs/stage87_conflict_injection_report.json --conflict-episode 73 (EXPECTED exit 1)
+  python scripts/stage87_partitioned_regression.py --prefix docs/stage87_worktree --start 1 --end 8 (groups 1..6)
+  python scripts/stage87_partitioned_regression.py --prefix docs/stage87_worktree --start 7 --end 8 (groups 7..8)
+  python scripts/stage87_partitioned_regression.py --prefix docs/stage87_worktree --aggregate
+Results:
+  New tests: 12 passed, exit 0; a pre-fix test expectation failure was corrected and rerun successfully.
+  Normal trial: 120 mock DRAFTs, 120 summaries, 120 versions, 119 anchor retrieval checks, 120 canon checks,
+                explicit conflicts 0, SQLite integrity OK, FK errors 0, FINAL 0, errors 0.
+  Conflict injection: 120 attempted, 119 drafts, 1 explicit canon-key conflict, 1 blocked, exit 1 as expected.
+  Worktree regression: 100 disjoint modules, 2844 tests, 2827 passed, 17 skipped, 0 failed/error.
+  Note: initial orchestration shell timed out after group 6; group 7..8 completed separately, all eight group exit codes 0.
+  Known pre-existing SQLite ResourceWarning can appear in test stderr; not a failed test.
+  No authenticated approval, finalization, memory delta application, full QC chain, actual LLM, Windows, Redis/Celery/pgvector.
+  Candidate ZIP independently extracted: 1072 files; 1021 previous files preserved, only README.md changed.
+  Candidate independent regression: 100 modules, 2844 tests, 2827 passed, 17 skipped, 0 failed/error.
+  Final ZIP will include independent candidate test stdout/stderr/exit and will itself be re-extracted/retested.

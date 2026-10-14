@@ -1,0 +1,25 @@
+{
+  "stage": 28,
+  "description": "foreshadowing and emotion lexical cues",
+  "mode": "offline_local_only",
+  "python_version": "3.13.5",
+  "full_tests": {
+    "run": 455,
+    "passed": 452,
+    "skipped": 3,
+    "failed": 0
+  },
+  "new_tests": {
+    "run": 45,
+    "passed": 45,
+    "skipped": 0,
+    "failed": 0
+  },
+  "smoke": "required checks passed",
+  "deferred": [
+    "Windows 3.12 verification",
+    "Windows GUI and EXE build",
+    "semantic local-model emotion inference",
+    "meaningful plot-thread pairing"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "stage": 35,
+  "feature": "user-selected generic statistical elements (SQLite recipe)",
+  "run_date": "2026-10-12",
+  "runtime_python": "3.13.5",
+  "project_python_requirement": "3.12",
+  "test_command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "test_total": 803,
+  "test_passed": 794,
+  "test_skipped": 9,
+  "test_failed": 0,
+  "stage35_test_total": 41,
+  "stage35_test_passed": 40,
+  "stage35_test_skipped": 1,
+  "stage35_test_failed": 0,
+  "smoke_command": "PYTHONPATH=src python scripts/smoke_test.py",
+  "smoke_result": "required checks PASS; Python minor version warning",
+  "dependencies_command": "PYTHONPATH=src python scripts/check_dependencies.py",
+  "dependencies_result": "PASS",
+  "gui_windows_tested": false,
+  "windows_exe_built": false,
+  "external_servers_used": false,
+  "github_used": false,
+  "limitations": [
+    "Python 3.12 compatibility not yet confirmed",
+    "PySide6 not installed; GUI stage35 test skipped",
+    "The selected values are only statistical observations; local AI Writer is not implemented",
+    "All stage 1-34 test exclusions remain unresolved"
+  ]
+}

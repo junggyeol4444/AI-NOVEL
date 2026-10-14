@@ -1,0 +1,74 @@
+{
+  "stage": 95,
+  "requirement": "ANF-REQ-066",
+  "implementation_status": "PARTIAL_OFFLINE_ONLY",
+  "official_acceptance_status": "NOT_MET",
+  "official_api_spec_verified": false,
+  "official_test_environment_upload_verified": false,
+  "external_network_calls": 0,
+  "actual_publication_calls": 0,
+  "original_spec_txt_verified": false,
+  "base_zip": "AI_Novel_Factory_stage94_local.zip",
+  "base_zip_file_count": 1561,
+  "new_unittest_count": 14,
+  "new_unittest_passed": 14,
+  "new_unittest_failures": 0,
+  "worktree_regression": {
+    "module_count": 108,
+    "test_count": 3164,
+    "passed": 3143,
+    "skipped": 21,
+    "failures": 0,
+    "errors": 0,
+    "groups": 8,
+    "groups_complete": true
+  },
+  "remaining_blockers": [
+    "official platform API specification not verified",
+    "official test environment upload not tested",
+    "platform account and external connection prohibited",
+    "metadata and author notes not bound to approval",
+    "Windows EXE GUI real execution not tested"
+  ],
+  "implemented": [
+    "offline adapter Protocol",
+    "fail-closed real upload entrypoint",
+    "stage89 current approval recheck",
+    "stage94 anchored manifest and exact episode text check",
+    "local sandbox-only simulated acceptance",
+    "no raw manuscript content in receipt"
+  ],
+  "independent_archive_test": "FINAL_ZIP_PASSED",
+  "candidate_archive": {
+    "file_count": 1592,
+    "crc_ok": true,
+    "base_94_preserved": true,
+    "changed_base_files": [
+      "README.md"
+    ],
+    "independent_test_count": 3164,
+    "independent_passed": 3143,
+    "independent_skipped": 21,
+    "independent_errors": 0,
+    "independent_failures": 0,
+    "groups": 8,
+    "module_count": 108,
+    "complete": true
+  },
+  "final_archive": {
+    "file_count": 1617,
+    "zip_crc_ok": true,
+    "all_prior_94_entries_preserved": true,
+    "base_changed_files": [
+      "README.md"
+    ],
+    "module_count": 108,
+    "groups": 8,
+    "tests": 3164,
+    "passed": 3143,
+    "skipped": 21,
+    "failures": 0,
+    "errors": 0,
+    "official_acceptance_status": "NOT_MET"
+  }
+}

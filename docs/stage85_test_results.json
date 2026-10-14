@@ -1,0 +1,29 @@
+{
+  "stage": 85,
+  "requirement_id": "ANF-REQ-050",
+  "base_stage": 84,
+  "new_tests": 68,
+  "worktree": {
+    "module_count": 98,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 2821,
+    "passed": 2804,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "candidate_independent": null,
+  "final_independent": null,
+  "limitations": [
+    "original planning TXT unavailable and not independently reviewed",
+    "tick must be explicitly invoked by a running local application; no Windows OS scheduler or PC wake-up",
+    "no unattended automatic local model execution; explicit authorized local callback required",
+    "recurring schedule targets one fixed episode and never advances episodes without stage84 handoff",
+    "callback safety cannot be enforced against arbitrary untrusted user-supplied functions",
+    "no authenticated user approval, final manuscript saving, publishing or remote service calls",
+    "Windows EXE/GUI, actual local LLM, Redis/Celery/pgvector untested",
+    "tested with Python 3.13.5 on Linux, project targets Python 3.12"
+  ]
+}

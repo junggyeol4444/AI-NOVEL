@@ -1,0 +1,27 @@
+"""Optional GUI smoke test; runs only if PySide6 is available."""
+import importlib.util
+import os
+from pathlib import Path
+import sys
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'src'))
+
+@unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
+class DesktopGuiTests(unittest.TestCase):
+    def test_sidebar_switches_pages(self):
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        from PySide6.QtWidgets import QApplication
+        from ai_novel_factory.desktop.app import MainWindow
+        app = QApplication.instance() or QApplication([])
+        window = MainWindow()
+        self.assertEqual(window.sidebar.count(), 12)
+        window.sidebar.setCurrentRow(7)
+        self.assertEqual(window.pages.currentIndex(), 7)
+        self.assertIn('API 미연결', window.statusBar().currentMessage())
+        window.close()
+        self.assertIsNotNone(app)
+
+if __name__ == '__main__':
+    unittest.main()

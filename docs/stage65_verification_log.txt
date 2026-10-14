@@ -1,0 +1,9 @@
+Stage 65: ordered in-memory assembly of scene drafts.
+Input: AI_Novel_Factory_stage64_local.zip (324 files). Reviewed docs/requirements.md, docs/stage64_test_results.json and docs/stage64_verification_log.txt.
+New tests: PYTHONPATH=src python -m unittest discover -s tests -p "test_stage65*.py" -v -> Ran 27 tests, OK.
+Worktree: PYTHONPATH=src python -m unittest discover -s tests -q -> Ran 2043 tests, OK (skipped=14).
+Prior file content: 323 files preserved; README.md updated.
+Prohibitions observed: no remote repositories, external servers, cloud AI APIs.
+Existing SQLite connection ResourceWarning observed.
+First ZIP extracted separately, full suite: {'total': 2043, 'passed': 2029, 'skipped': 14, 'failures': 0, 'errors': 0, 'exit_code': 0}. Hidden files and CRC passed.
+Recheck: extracted source suite Ran 2043 tests; OK (skipped=14), exit 0.

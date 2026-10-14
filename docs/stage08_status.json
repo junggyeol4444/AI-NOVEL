@@ -1,0 +1,10 @@
+{
+  "stage": 8,
+  "title": "PySide6 데스크톱 기본 UI",
+  "base_archive": "AI_Novel_Factory_stage06.zip",
+  "source_status": "implemented_in_artifact",
+  "qt_runtime_test": "not_run_if_dependency_unavailable",
+  "windows_exe_test": "not_run",
+  "unavailable_prior_stage_artifacts": [2, 4, 7],
+  "requires_user_approval": ["PySide6 설치", "Windows 실기기 테스트"]
+}

@@ -1,0 +1,48 @@
+{
+  "stage": 64,
+  "roadmap": "장면 단위 소설 초고 생성",
+  "requirement_id": "ANF-REQ-046 (기존 61단계에 최초 매핑; 64단계는 통합 구현)",
+  "prior_zip": "AI_Novel_Factory_stage63_local.zip",
+  "prior_file_count": 313,
+  "prior_files_unchanged_sha256": 312,
+  "prior_readme_updated": true,
+  "new_tests": 21,
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+  },
+  "worktree_suite": {
+    "total": 2016,
+    "passed": 2002,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  "fresh_extraction_suite": {
+    "total": 2016,
+    "passed": 2002,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  "limitations": [
+    "Mock provider is deterministic fixture, not AI inference",
+    "JSON local subprocess is a test worker, not a real language model",
+    "LocalExecutableProvider cannot ensure a caller-chosen binary is network-isolated",
+    "No reference similarity scoring or full output originality assurance",
+    "No draft persistence, final manuscript approval or publication",
+    "Windows EXE and real GUI/DPAPI not tested",
+    "Existing SQLite connection ResourceWarning remains"
+  ],
+  "zip_file_count": 324,
+  "final_zip_extraction_suite": {
+    "total": 2016,
+    "passed": 2002,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  }
+}

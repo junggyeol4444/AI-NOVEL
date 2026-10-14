@@ -1,0 +1,1 @@
+{"filename": "publication_metadata.json", "sha256": "c057e71a01d63a83976ccaf5d6e97493150520e42fe00d3c20b6c3100e7945d6", "status": "DRAFT_REQUIRES_USER_REVIEW", "published": false}

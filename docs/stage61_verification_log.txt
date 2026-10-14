@@ -1,0 +1,12 @@
+Stage 61 — local model provider protocol
+Source: AI_Novel_Factory_stage60_local.zip
+Reviewed: docs/requirements.md; docs/stage60_test_results.json; docs/stage60_verification_log.txt
+Source files checked byte-for-byte SHA256: 286
+Command: PYTHONPATH=src python -m unittest discover -s tests -p test_stage61*.py -q
+Result: Ran 23 tests; OK
+Command: PYTHONPATH=src python -m unittest discover -s tests -q
+Result: Ran 1949 tests; OK (skipped=14); failed=0, errors=0
+First separately extracted ZIP full suite: Ran 1949 tests; OK (skipped=14); failed=0, errors=0
+Source ZIP SHA256 verification: 286 files preserved
+Hidden files: .gitignore, .env.example, .editorconfig, .python-version present
+Final ZIP: repacked with fresh test logs and independently re-extracted for a final check

@@ -1,0 +1,26 @@
+{
+  "stage": 51,
+  "requirement": "ANF-REQ-041",
+  "source_zip": "AI_Novel_Factory_stage50_local.zip",
+  "source_sha256": "df3240e88bd83f05f1e6efe8e16468f8dac4ac81498bbb98662a3c2bcc524335",
+  "previous_members": 228,
+  "new_tests": 7,
+  "command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "tests_total": 1794,
+  "passed": 1783,
+  "skipped": 11,
+  "failures": 0,
+  "errors": 0,
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "python": "3.13.5",
+  "limitations": [
+    "Template-only draft; not AI idea generation",
+    "No Windows EXE verification",
+    "No persistence or UI integration"
+  ],
+  "zip_members": 233,
+  "zip_integrity": "passed",
+  "fresh_extract_full_suite": "passed",
+  "old_members_preserved": true,
+  "gitignore_present": true
+}

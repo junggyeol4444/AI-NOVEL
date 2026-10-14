@@ -1,0 +1,14 @@
+Stage 67 — input AI_Novel_Factory_stage66_local.zip (340 files) inspected and safely extracted.
+Read docs/requirements.md, docs/stage66_orchestrator.md and prior verification records.
+Official roadmap stage 67 Redis/Celery; no direct ANF-REQ mapping.
+24 new tests passed.
+Initial full unittest -q attempt exceeded tool timeout; no result claimed for it.
+Second full run -v: Ran 2093 tests in 32.044s, OK (skipped=14), exit=0.
+Prior zip: 339 files byte-identical, README.md appended only.
+Actual Redis/Celery server not used; no remote access.
+First ZIP created: 348 files, CRC OK; .gitignore and .env.example present.
+An initial full fresh-extraction -v run exceeded tool timeout; results not counted.
+Fresh ZIP-extracted disjoint recheck: test_stage6*.py 189 tests 0 skipped OK; stage_other 916 tests 3 skipped OK; base 988 tests 11 skipped OK.
+Sum = 2093 total, 2079 pass, 14 skipped, 0 failures/errors.
+First finalized 351-file ZIP CRC OK and re-extracted, 189+916+988 tests OK (skipped 0+3+11).
+Then metadata-only report adjusted to clarify initial 348-file ZIP vs 351-file release; no source/tests changed.

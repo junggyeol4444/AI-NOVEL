@@ -1,0 +1,46 @@
+{
+  "stage": 30,
+  "verified_at_utc": "2026-10-12T06:23:16+00:00",
+  "based_on": "AI_Novel_Factory_stage29_OFFLINE_ARCHITECTURE_FIXED.zip",
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Linux",
+    "windows_tested": false,
+    "pyside6_available": false
+  },
+  "full_unittest": {
+    "count": 568,
+    "passed": 564,
+    "skipped": 4,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  "stage30_tests": {
+    "new_total": 46,
+    "passed": 45,
+    "skipped": 1,
+    "failed": 0
+  },
+  "smoke": {
+    "passed": true,
+    "exit_code": 0,
+    "python_version_warning": true
+  },
+  "offline_integration": {
+    "network_socket_blocked": true,
+    "reference_import_sqlite": true
+  },
+  "unverified": [
+    "Windows GUI real device",
+    "PySide6 offscreen GUI",
+    "Windows EXE",
+    "local LLM semantic writing"
+  ],
+  "warnings": [
+    "Preexisting intermittent SQLite ResourceWarning for connections not explicitly closed by older tests"
+  ],
+  "github_actions": false,
+  "github_push": false,
+  "automatic_schedule": false
+}

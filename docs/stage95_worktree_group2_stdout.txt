@@ -1,0 +1,2 @@
+{'status': 'ok', 'service': 'ai-novel-factory', 'api_version': 'v1'}
+{"folder": "upload_drafts", "episodes": 1, "files": 3, "manifest_sha256": "a032fae5159ef7681125724410850372a442cf67f441fdd8f7db2a00fdc71cab", "publication_approved": false, "published": false}

@@ -1,0 +1,13 @@
+Stage 97 official roadmap: Windows PyInstaller EXE build. ANF-REQ-001 acceptance NOT MET.
+Input: stage96_local.zip 1729 entries, CRC checked, stage96 results/logs and docs/requirements.md reviewed. Original project TXT inaccessible; official roadmap user-provided.
+Actual environment: Linux, Python 3.13.5, PyInstaller and PySide6 unavailable.
+Offline launch check: PYTHONPATH=src python packaging/windows/launcher.py --check => exit=0, 12 sections.
+Actual attempt: python scripts/build_windows_exe.py --report docs/stage97_build_preflight.json => exit=2 (not_windows, python_not_3_12, missing_pyinstaller, missing_pyside6). No Windows exe produced.
+New tests: 25 passed. Full working tree regression: 111 test modules, 8 nonoverlapping groups, 3238 tests: 3217 passed, 21 skipped, 0 failed/error; group execution commands/stdout/stderr/exit evidence stage97_worktree_*.
+95-stage official API sandbox upload unverified; 96-stage official platform rule and upload ability unverified. Neither marked complete.
+No external API, server, GitHub, cloud AI or publication used. Actual Windows test unverified.
+Existing 6 stage85 harmless .log progress lines retained; release verifier now strictly verifies these exact legacy file paths/content, and allows one exact new source spec file. General private logs/spec still rejected.
+Candidate and final cumulative ZIP evidence appended after independent regression.
+Candidate ZIP: 1766 files; previous 1729/1729 preserved, changed previous: README.md, .gitignore, scripts/verify_release_bundle.py; CRC PASS.
+Candidate ZIP extracted to a separate new directory. ALL 111 test modules: 3238 total / 3217 passed / 21 skipped / 0 failures / 0 errors in 8 non-overlapping groups. Logs in docs/stage97_candidate_independent*.
+Final ZIP to be independently extracted and re-tested, with separate external final verification JSON.

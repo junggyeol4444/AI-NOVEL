@@ -1,0 +1,13 @@
+{
+  "stage": 57,
+  "python": "3.13.5",
+  "environment": "Linux",
+  "tests": 1862,
+  "passed": 1851,
+  "skipped": 11,
+  "failed": 0,
+  "fresh_extraction_pending": false,
+  "fresh_extraction_tests": 1862,
+  "fresh_extraction_passed": 1851,
+  "fresh_extraction_skipped": 11
+}

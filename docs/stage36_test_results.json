@@ -1,0 +1,31 @@
+{
+  "stage": 36,
+  "name": "관련 통계 패턴 검색",
+  "date": "2026-10-12",
+  "scope": "offline local SQLite, aggregate-only, opt-in selected metrics",
+  "runtime_python": "3.13.5",
+  "project_python": "3.12",
+  "new_tests": {
+    "total": 42,
+    "passed": 41,
+    "skipped": 1,
+    "failures": 0
+  },
+  "full_tests": {
+    "total": 845,
+    "passed": 835,
+    "skipped": 10,
+    "failures": 0
+  },
+  "smoke": "passed required checks (Python version warning)",
+  "dependency_policy": "passed",
+  "windows_exe": "not built/not tested",
+  "pyside6_gui": "not tested; GUI test skipped",
+  "local_ai_writer": "not implemented",
+  "git_or_server_usage": "none for this stage",
+  "limitations": [
+    "numeric comparison, not semantic AI analysis",
+    "only 12 predefined genre codes",
+    "source must have saved elements and valid genre pattern"
+  ]
+}

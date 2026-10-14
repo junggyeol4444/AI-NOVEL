@@ -1,0 +1,18 @@
+Stage 74 / 100 — Foreshadowing episode evidence checker
+Baseline: AI_Novel_Factory_stage73_local.zip (428 files).
+Inspected docs/requirements.md, docs/stage73_test_results.json, docs/stage73_verification_log.txt.
+Roadmap step 74: 복선 설치·진행·회수 상태 검사 (no directly mapped ANF-REQ ID).
+Uses stage47 ANF-REQ-037 ForeshadowStore.
+No remote repository, web, external server, or cloud AI API accessed.
+Commands (Linux, local):
+  PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage74*.py' -q
+    Ran 41 tests; OK
+  PYTHONPATH=src python -m unittest discover -s tests -q
+    Ran 2331 tests in 22.039s; OK (skipped=17), exit 0
+    Full raw stderr/stdout in docs/stage74_worktree_stderr.txt and stdout.txt.
+SQLite unclosed connection ResourceWarning persists from earlier stages.
+New checker is read-only and uses reviewer annotations; no NLP/approval/publication.
+Candidate ZIP: 435 files; CRC OK; .gitignore/.env.example/.python-version present.
+Candidate ZIP extracted to a separate directory and entire suite rerun:
+  Ran 2331; passed=2314, skipped=17, failures=0, errors=0, exit=0.
+  Raw output in docs/stage74_candidate_stderr.txt and stdout.txt.

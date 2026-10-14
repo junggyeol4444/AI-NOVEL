@@ -1,0 +1,47 @@
+test_approval_has_no_implicit_publish_side_effect (test_stage89_publication_approval.PublicationApprovalTests.test_approval_has_no_implicit_publish_side_effect) ... ok
+test_approve_explicit_then_gate (test_stage89_publication_approval.PublicationApprovalTests.test_approve_explicit_then_gate) ... ok
+test_approve_twice_rejected (test_stage89_publication_approval.PublicationApprovalTests.test_approve_twice_rejected) ... ok
+test_challenge_redacted_repr (test_stage89_publication_approval.PublicationApprovalTests.test_challenge_redacted_repr) ... ok
+test_confirmation_secret_not_in_database (test_stage89_publication_approval.PublicationApprovalTests.test_confirmation_secret_not_in_database) ... ok
+test_database_challenge_hash_not_plaintext (test_stage89_publication_approval.PublicationApprovalTests.test_database_challenge_hash_not_plaintext) ... ok
+test_events_no_manuscript (test_stage89_publication_approval.PublicationApprovalTests.test_events_no_manuscript) ... ok
+test_forged_ready_flag_fails (test_stage89_publication_approval.PublicationApprovalTests.test_forged_ready_flag_fails) ... ok
+test_incomplete_ending_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_incomplete_ending_blocks) ... ok
+test_invalid_request_id_rejected (test_stage89_publication_approval.PublicationApprovalTests.test_invalid_request_id_rejected) ... ok
+test_missing_final_candidate (test_stage89_publication_approval.PublicationApprovalTests.test_missing_final_candidate) ... ok
+test_missing_inventory_review_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_missing_inventory_review_blocks) ... ok
+test_missing_version_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_missing_version_blocks) ... ok
+test_new_request_supersedes_old (test_stage89_publication_approval.PublicationApprovalTests.test_new_request_supersedes_old) ... ok
+test_new_review_does_not_approve_automatically (test_stage89_publication_approval.PublicationApprovalTests.test_new_review_does_not_approve_automatically) ... ok
+test_no_reference_confirmation_required (test_stage89_publication_approval.PublicationApprovalTests.test_no_reference_confirmation_required) ... ok
+test_pending_is_not_authorization (test_stage89_publication_approval.PublicationApprovalTests.test_pending_is_not_authorization) ... ok
+test_project_isolation (test_stage89_publication_approval.PublicationApprovalTests.test_project_isolation) ... ok
+test_reference_change_after_approval_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_reference_change_after_approval_blocks) ... ok
+test_reference_checks_required_and_current (test_stage89_publication_approval.PublicationApprovalTests.test_reference_checks_required_and_current) ... ok
+test_reference_missing_annotation_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_reference_missing_annotation_blocks) ... ok
+test_reference_missing_current_inputs_at_gate_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_reference_missing_current_inputs_at_gate_blocks) ... ok
+test_reference_missing_receipt_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_reference_missing_receipt_blocks) ... ok
+test_reference_registration_invalidates_no_reference_claim (test_stage89_publication_approval.PublicationApprovalTests.test_reference_registration_invalidates_no_reference_claim) ... ok
+test_reference_report_with_review_status_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_reference_report_with_review_status_blocks) ... /mnt/data/anf_stage89_work/src/ai_novel_factory/database/event_timeline.py:268: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f78c73b4a90>
+  for before, targets in closure.items():
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_reference_wrong_source_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_reference_wrong_source_blocks) ... ok
+test_reject_after_change_still_possible (test_stage89_publication_approval.PublicationApprovalTests.test_reject_after_change_still_possible) ... ok
+test_reject_does_not_allow_reapprove (test_stage89_publication_approval.PublicationApprovalTests.test_reject_does_not_allow_reapprove) ... ok
+test_reject_is_not_approval (test_stage89_publication_approval.PublicationApprovalTests.test_reject_is_not_approval) ... ok
+test_reopen_persists_approval (test_stage89_publication_approval.PublicationApprovalTests.test_reopen_persists_approval) ... ok
+test_revoke_invalidates_gate (test_stage89_publication_approval.PublicationApprovalTests.test_revoke_invalidates_gate) ... ok
+test_snapshot_sha64 (test_stage89_publication_approval.PublicationApprovalTests.test_snapshot_sha64) ... ok
+test_stale_after_final_version_change (test_stage89_publication_approval.PublicationApprovalTests.test_stale_after_final_version_change) ... ok
+test_stale_after_project_rule_change (test_stage89_publication_approval.PublicationApprovalTests.test_stale_after_project_rule_change) ... ok
+test_stale_before_approval_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_stale_before_approval_blocks) ... ok
+test_untracked_final_candidate_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_untracked_final_candidate_blocks) ... ok
+test_wrong_challenge_fails_closed (test_stage89_publication_approval.PublicationApprovalTests.test_wrong_challenge_fails_closed) ... ok
+test_wrong_decision_type (test_stage89_publication_approval.PublicationApprovalTests.test_wrong_decision_type) ... ok
+test_wrong_ending_project_blocks (test_stage89_publication_approval.PublicationApprovalTests.test_wrong_ending_project_blocks) ... ok
+
+----------------------------------------------------------------------
+Ran 39 tests in 0.446s
+
+OK

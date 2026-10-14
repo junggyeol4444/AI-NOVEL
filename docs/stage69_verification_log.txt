@@ -1,0 +1,14 @@
+Stage 69: source inspected from AI_Novel_Factory_stage68_local.zip (361 entries).
+Read docs/requirements.md ANF-REQ-048 and docs/stage68_verification_log.txt.
+Code added: retry_checkpoint.py; local_task_queue.py identity-claim extension; 34 new tests.
+Worktree new test command: PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage69*.py' -q
+Result: 34 tests OK.
+Worktree full command: PYTHONPATH=src python -m unittest discover -s tests -q
+Result: 2161 tests, 17 skipped, 0 failures/errors, exit 0; elapsed ~31.98s.
+Preexisting SQLite unclosed connection ResourceWarning observed.
+Fresh final-ZIP extraction and independent rerun: pending (filled after execution).
+No GitHub, cloud AI API, remote servers, or Windows EXE invocation.
+First ZIP independent extraction: 2161 tests, 17 skipped, 0 failures/errors, exit 0; elapsed 31.33s.
+CRC OK; 361 previous entries preserved. Old changed entries: README.md, src/ai_novel_factory/local_task_queue.py.
+Hidden .gitignore/.env.example/.python-version retained.
+See stage69_fresh_stdout.txt and stage69_fresh_stderr.txt for actual independent execution output.

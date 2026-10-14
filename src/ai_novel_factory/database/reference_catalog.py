@@ -97,6 +97,8 @@ class ReferenceCatalog:
         self._db = sqlite3.connect(database_path, timeout=10)
         self._db.row_factory = sqlite3.Row
         self._db.execute("PRAGMA busy_timeout=10000")
+        # Stage 30 profile rows are tied to registered local references.
+        self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript("""
             CREATE TABLE IF NOT EXISTS reference_files (
               reference_id TEXT PRIMARY KEY,

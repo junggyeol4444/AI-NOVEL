@@ -1,0 +1,66 @@
+[
+  {
+    "group": 1,
+    "total": 304,
+    "skipped": 3,
+    "passed": 301,
+    "exit_code": 0,
+    "stderr_file": "docs/stage79_candidate_group1_stderr.txt"
+  },
+  {
+    "group": 2,
+    "total": 304,
+    "skipped": 1,
+    "passed": 303,
+    "exit_code": 0,
+    "stderr_file": "docs/stage79_candidate_group2_stderr.txt"
+  },
+  {
+    "group": 3,
+    "total": 303,
+    "skipped": 2,
+    "passed": 301,
+    "exit_code": 0,
+    "stderr_file": "docs/stage79_candidate_group3_stderr.txt"
+  },
+  {
+    "group": 4,
+    "total": 305,
+    "skipped": 1,
+    "passed": 304,
+    "exit_code": 0,
+    "stderr_file": "docs/stage79_candidate_group4_stderr.txt"
+  },
+  {
+    "group": 5,
+    "total": 305,
+    "skipped": 1,
+    "passed": 304,
+    "exit_code": 0,
+    "stderr_file": "docs/stage79_candidate_group5_stderr.txt"
+  },
+  {
+    "group": 6,
+    "total": 306,
+    "skipped": 3,
+    "passed": 303,
+    "exit_code": 0,
+    "stderr_file": "docs/stage79_candidate_group6_stderr.txt"
+  },
+  {
+    "group": 7,
+    "total": 303,
+    "skipped": 3,
+    "passed": 300,
+    "exit_code": 0,
+    "stderr_file": "docs/stage79_candidate_group7_stderr.txt"
+  },
+  {
+    "group": 8,
+    "total": 395,
+    "skipped": 3,
+    "passed": 392,
+    "exit_code": 0,
+    "stderr_file": "docs/stage79_candidate_group8_stderr.txt"
+  }
+]

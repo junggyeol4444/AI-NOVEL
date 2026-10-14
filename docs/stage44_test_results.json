@@ -1,0 +1,48 @@
+{
+  "stage": 44,
+  "name": "세계관·조직·지역·능력·아이템 저장",
+  "requirement": "ANF-REQ-034",
+  "source_zip": "AI_Novel_Factory_stage43_local.zip",
+  "baseline": {
+    "test_count": 1253,
+    "passed": 1242,
+    "skipped": 11,
+    "failures": 0,
+    "errors": 0
+  },
+  "python_version": "3.13.5",
+  "test_command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "test_count": 1340,
+  "passed": 1329,
+  "skipped": 11,
+  "failures": 0,
+  "errors": 0,
+  "new_tests": 87,
+  "new_tests_passed": 87,
+  "checks": {
+    "source_tree_full_suite": "passed (1340 tests, 1329 passed, 11 skipped, 0 failures/errors)",
+    "source_tree_smoke": "passed (Python 3.12 target warning)",
+    "source_tree_dependency_policy": "passed",
+    "source_tree_compileall": "passed",
+    "release_zip": "passed (189 files, CRC integrity, no private entries, all 183 stage43 files preserved)",
+    "release_extracted_full_suite": "passed (1340 tests, 1329 passed, 11 skipped, 0 failures/errors)",
+    "release_extracted_smoke": "passed (Python 3.12 target warning)",
+    "release_extracted_dependency_policy": "passed",
+    "release_extracted_compileall": "passed",
+    "release_extracted_hidden_files": "passed (.gitignore, .env.example, .python-version, .editorconfig)"
+  },
+  "limitations": [
+    "User-authored world canon is stored as plaintext in local SQLite (not encrypted)",
+    "No extraction/copying of reference-novel content into world canon",
+    "No automatic injection of world canon into an AI Writer (Writer not implemented)",
+    "Not a proof of originality or an authorization to publish",
+    "Windows 10/11 GUI and EXE untested",
+    "Python 3.12 target untested (ran Python 3.13.5)",
+    "PySide6 optional tests skipped: 11",
+    "Full suite emitted a non-failing ResourceWarning for an unclosed SQLite connection",
+    "No automatic publishing or legal originality guarantee"
+  ],
+  "github_remote_actions": "none",
+  "external_network_services": "none",
+  "verified_at_utc": "2026-10-12T12:03:14.583863+00:00"
+}

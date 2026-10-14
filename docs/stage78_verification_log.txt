@@ -1,0 +1,16 @@
+Stage 78 / 100 — ANF-REQ-030 Reference Similarity Checker
+Baseline: AI_Novel_Factory_stage77_local.zip, 502 files, SHA-256 427115d1353e603b31099ce6b47f7f2969a7fdf19991b302f6053428a5be4265, ZIP CRC OK.
+Original proposal attachment not available for independent inspection; packaged docs/requirements.md and user's roadmap summary used.
+New tests: PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage78*.py' -q
+Result: Ran 46 tests, OK. Evidence: docs/stage78_new_stderr.txt.
+Complete worktree regression: 90 test_*.py modules, 8 disjoint groups, PYTHONPATH=src:tests python -m unittest <group modules> -q.
+Result: 2480 tests, 2463 passed, 17 skipped, failures 0, errors 0, 8 groups exit 0.
+Evidence: docs/stage78_worktree_groups.json and docs/stage78_worktree_group1..8_stderr.txt.
+Initial whole-suite orchestration commands were interrupted before completion; those partial attempts are NOT counted as passing runs. All eight groups were subsequently run individually and their complete stderr summaries saved.
+Source text is never written to a report or receipt. The receipt database is opt-in; no approval/finalization/publishing performed.
+Actual stage89 finalization integration and raw-file provenance remain unverified.
+No GitHub, remote repository, external server, cloud AI API or publishing calls.
+Linux Python 3.13.5; Windows EXE/GUI, real local LLM, live Redis/Celery/pgvector unverified. Existing SQLite ResourceWarning persists.
+Candidate ZIP extraction and final release ZIP verification to follow; separate JSON will contain independent final evidence.
+Candidate ZIP independently extracted: 534 files, CRC OK; 90 disjoint test modules, 2480 tests, 2463 passed, 17 skipped, 0 failures/errors. Evidence: docs/stage78_candidate_groups.json and stage78_candidate_group1..8_stderr.txt.
+Candidate results are included in final cumulative ZIP; final ZIP independent recheck will be reported in separate verification JSON.

@@ -1,0 +1,8 @@
+<string>:2: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fdccbfe31f0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+<string>:2: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fdccbfe32e0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 419 tests in 9.078s
+
+OK (skipped=1)

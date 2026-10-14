@@ -1,3 +1,5 @@
+> **운영 설계 정정 (2026-10-12):** 아래 초기 의존성/설치 계획 중 GitHub, 원격 API, PostgreSQL, Redis, Celery, 유료 AI 서비스 관련 내용은 현재 PC 단독 실행 프로젝트의 필수 요구사항이 아니며, 그 설치·연결을 진행하지 않습니다. 최신 규칙은 `docs/OFFLINE_RUNTIME_AUDIT.md`를 따릅니다.
+
 # 5단계 — 의존성·버전관리 정책
 
 ## 범위와 상태
@@ -48,3 +50,8 @@ python -m unittest discover -s tests -v
 - Novel Bible이 Reference Profile보다 우선함.
 - 참고작 등록 시 Similarity Checker 검증이 원고 확정의 전제임.
 - 실제 출판 및 비용 발생 서비스는 사용자 승인 후 수행함.
+
+
+### 91단계 Pillow 선택 그래픽 의존성
+
+`pyproject.toml`의 선택 `graphics` extra에 `Pillow>=10.4,<13`을 추가했다. 이 추가 기능은 **오프라인 JPEG 표지/썸네일 합성에만** 필요하며 기존 데스크톱/서버/DB 라이브러리 버전과 필수 설치 목록은 변경하지 않는다. `scripts/check_dependencies.py`의 manifest 정책에도 `graphics: pillow` 그룹을 정식 선택 extra로 등록했다. 원격 패키지 설치·라이브러리 업데이트를 수행하지 않았다.

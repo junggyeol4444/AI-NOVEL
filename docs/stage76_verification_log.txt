@@ -1,0 +1,12 @@
+Stage 76 / 100 — ANF-REQ-053 Style Checker
+Baseline: AI_Novel_Factory_stage75_local.zip (448 files), CRC checked, requirements and stage75 logs reviewed.
+Never accessed GitHub, remote repositories, external servers or cloud AI APIs.
+New tests: 27 tests, OK.
+Worktree full suite: Ran 2400 tests; OK (skipped=17); 2383 passed; 17 skipped; 0 failures/errors.
+Evidence: docs/stage76_new_stderr.txt, docs/stage76_worktree_stderr.txt
+Existing ResourceWarning for unclosed SQLite connection persists.
+Windows EXE/GUI, real language model inference and Redis/Celery not tested.
+Awaiting extracted ZIP re-verification.
+Candidate ZIP extracted in separate directory; full suite Ran 2400; OK (skipped=17). CRC and hidden files confirmed.
+Candidate stderr: docs/stage76_candidate_stderr.txt.
+Final release ZIP re-verification is conducted separately, with evidence outside immutable ZIP to prevent self-referential log changes.

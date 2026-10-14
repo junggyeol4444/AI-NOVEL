@@ -1,0 +1,7 @@
+/mnt/data/anf78_work/src/ai_novel_factory/repetition_checker.py:209: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fbc35d57b50>
+  while (at := haystack.find(needle, cursor)) != -1:
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 306 tests in 9.973s
+
+OK (skipped=3)

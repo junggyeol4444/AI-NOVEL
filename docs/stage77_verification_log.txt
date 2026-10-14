@@ -1,0 +1,14 @@
+Stage 77 / 100 — ANF-REQ-054 repetition checker
+Baseline: AI_Novel_Factory_stage76_local.zip, 459 entries, SHA-256 9412c7713e9f2bd7759ccadce3be7208448bc68aac210ed39e84b6549250ff97; ZIP CRC OK.
+Original proposal attachment not available in this run. Scope taken from user's roadmap summary and packaged docs/requirements.md.
+New tests: PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage77*.py' -q
+Result: Ran 34 tests, OK. Evidence: docs/stage77_new_stderr.txt.
+An initial unpartitioned full suite attempt timed out before producing a summary; do not count it as passed. Evidence: docs/stage77_initial_full_run_timed_out_stderr.txt.
+Complete worktree regression: 88 test_*.py files divided into 8 disjoint unittest module groups, each run with PYTHONPATH=src:tests python -m unittest <group modules> -q.
+All 8 groups exited 0; sum Ran 2434, skipped 17, passed 2417, failures 0, errors 0.
+The group containing stage77 tests was rerun after 2 additional safety tests were added, so these totals reflect the final source.
+Evidence: docs/stage77_worktree_groups.json and stage77_worktree_group1..8_stderr.txt.
+No remote repositories, GitHub, cloud AI API, network servers, or publication actions were used.
+Linux Python 3.13.5 test environment; Windows GUI/EXE and real local AI model inference unverified. Existing unrelated SQLite ResourceWarning persists.
+Candidate ZIP extracted in fresh directory; 8 disjoint groups, 2434 tests, 2417 passed, 17 skipped, 0 failures/errors. Candidate ZIP CRC OK. Evidence: docs/stage77_candidate_extracted_results.json and stage77_candidate_group1..8_stderr.txt.
+Final release ZIP independent verification will be reported in a separate JSON file (not embedded in its own ZIP).

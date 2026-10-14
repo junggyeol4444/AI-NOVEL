@@ -1,0 +1,35 @@
+{
+  "stage": 13,
+  "stage_name": "TXT·Markdown 파서",
+  "tested_at_kst": "2026-10-12T09:59:01+09:00",
+  "python": "3.13.5",
+  "os": "Linux",
+  "baseline": "AI_Novel_Factory_stage13.zip (동일 13단계 품질 보강)",
+  "stage12_artifact_found": false,
+  "unit_tests": {
+    "total": 74,
+    "passed": 71,
+    "skipped": 3,
+    "failed": 0
+  },
+  "new_stage13_tests": 19,
+  "smoke": {
+    "required_checks_passed": 6,
+    "python_version_warning": true
+  },
+  "compileall": "passed",
+  "windows_gui": "not_tested",
+  "windows_exe": "not_built",
+  "remote_repo": "not_connected",
+  "user_pc_files_changed": false,
+  "notes": [
+    "Stage 12 validation/hash integration pending",
+    "PySide6 GUI tests skipped because unavailable"
+  ],
+  "original_tested_at_kst": "2026-10-12T09:05:39+09:00",
+  "changes_this_run": [
+    "Markdown 다중 줄 Setext 제목 정상 인식",
+    "제목 구분선 단독 입력 회귀 검사",
+    "기존 13단계 테스트 전체 재실행"
+  ]
+}

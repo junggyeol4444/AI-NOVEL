@@ -1,0 +1,32 @@
+{
+  "stage": 37,
+  "name": "패턴 사용 기록 관리",
+  "date": "2026-10-12",
+  "scope": "offline local SQLite, opt-in aggregate metric usage log only",
+  "runtime_python": "3.13.5",
+  "project_python": "3.12",
+  "new_tests": {
+    "total": 41,
+    "passed": 40,
+    "skipped": 1,
+    "failures": 0
+  },
+  "full_tests": {
+    "total": 886,
+    "passed": 875,
+    "skipped": 11,
+    "failures": 0
+  },
+  "smoke": "passed required checks, Python version warning",
+  "dependency_policy": "passed",
+  "compileall": "passed",
+  "windows_exe": "not built/not tested",
+  "pyside6_gui": "not executed (optional dependency absent)",
+  "local_ai_writer": "not implemented",
+  "github_or_external_server": "not used",
+  "limitations": [
+    "manual log, not automatic writing event detection",
+    "fingerprint of aggregate metrics only",
+    "current flag means aggregate configuration unchanged, not narrative suitability"
+  ]
+}

@@ -15,6 +15,8 @@ REQUIRED_CONTROLS = {
     "NO_PAID_API_OR_INSTALL_WITHOUT_APPROVAL",
     "NO_CLAIM_OF_PC_OFF_LOCAL_BUILD",
     "SECRETS_NEVER_IN_SOURCE_OR_LOGS",
+    "OFFLINE_CORE_FUNCTIONS", "NO_EXTERNAL_AI_API",
+    "NO_GITHUB_RUNTIME_DEPENDENCY", "NO_REMOTE_DATABASE_OR_JOB_SERVER",
 }
 
 def load_contract(path: str | Path) -> dict:
@@ -35,18 +37,35 @@ def validate_contract(contract: dict) -> list[str]:
     for edge in connections:
         if edge.get("from") not in ids or edge.get("to") not in ids:
             problems.append("Unknown connection endpoint")
-    if any(edge.get("from") == "desktop" and edge.get("to") != "api" for edge in connections):
-        problems.append("Desktop must not bypass API boundary")
+    if any(edge.get("from") == "desktop" and edge.get("to") not in {"api", "orchestrator"}
+           for edge in connections):
+        problems.append("Desktop must not access storage/providers directly")
     if any(edge.get("from") == "reference_analyzer" and edge.get("to") == "writer" for edge in connections):
         problems.append("Reference raw material must not flow directly to writer")
     if not REQUIRED_CONTROLS.issubset(set(contract.get("nonnegotiable_controls", []))):
         problems.append("Required copyright/safety/approval control missing")
     deployment = contract.get("deployment", {})
-    for key in ("api_host", "postgresql_host", "redis_host", "worker_host"):
-        if deployment.get(key) != "UNDECIDED_APPROVAL_REQUIRED":
-            problems.append(f"Deployment location prematurely decided: {key}")
-    if deployment.get("remote_repository") != "NOT_CONNECTED":
-        problems.append("Remote repository connection is not verified")
+    required_local = {
+        "desktop": "USER_WINDOWS_PC",
+        "api_host": "OPTIONAL_LOOPBACK_ONLY",
+        "postgresql_host": "NOT_USED",
+        "redis_host": "NOT_USED",
+        "worker_host": "SAME_WINDOWS_PC_IN_PROCESS",
+        "remote_repository": "NOT_USED_AT_RUNTIME",
+        "offline_behavior": "NO_NETWORK_REQUIRED_FOR_CORE_FUNCTIONS",
+        "pc_off_execution": "NOT_SUPPORTED",
+        "runtime_network": "NO_EXTERNAL_NETWORK_DEPENDENCY",
+        "ai_execution": "LOCAL_DEVICE_ONLY",
+        "data_storage": "USER_PC_SQLITE",
+    }
+    for key, expected in required_local.items():
+        if deployment.get(key) != expected:
+            problems.append(f"Local-only deployment contract violated: {key}")
+    for component in components:
+        if component.get("zone") != "local":
+            problems.append("All runtime components must remain on the local PC")
+    if contract.get("stack", {}).get("model_provider") != "LOCAL_MODEL_ONLY_NOT_YET_IMPLEMENTED":
+        problems.append("AI provider must be local-only")
     return problems
 
 if __name__ == "__main__":

@@ -1,0 +1,30 @@
+[
+  {
+    "group": 8,
+    "modules": [
+      "test_stage48_style_bible",
+      "test_stage41_novel_bible",
+      "test_stage75_logic_checker",
+      "test_stage69_retry_checkpoint",
+      "test_episode_structure",
+      "test_stage70_one_episode_integration",
+      "test_reference_catalog",
+      "test_stage54_scene_planner",
+      "test_settings",
+      "test_reference_selection",
+      "test_stage59_plot_editor_optional",
+      "test_stage78_reference_similarity_checker",
+      "test_stage78_reference_similarity_records",
+      "test_stage79_reader_simulation",
+      "test_stage79_reader_simulation_records"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage48_style_bible test_stage41_novel_bible test_stage75_logic_checker test_stage69_retry_checkpoint test_episode_structure test_stage70_one_episode_integration test_reference_catalog test_stage54_scene_planner test_settings test_reference_selection test_stage59_plot_editor_optional test_stage78_reference_similarity_checker test_stage78_reference_similarity_records test_stage79_reader_simulation test_stage79_reader_simulation_records -q",
+    "elapsed_seconds": 3.84,
+    "exit_code": 0,
+    "total": 395,
+    "skipped": 3,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage79_worktree_group8_stderr.txt"
+  }
+]

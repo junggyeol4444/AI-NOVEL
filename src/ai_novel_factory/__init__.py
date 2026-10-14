@@ -1,1 +1,1 @@
-"""AI Novel Factory package."""
+"""AI Novel Factory architecture contract (stage 3)."""

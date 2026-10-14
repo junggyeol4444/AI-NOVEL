@@ -1,0 +1,10 @@
+{
+  "sample_only": true,
+  "chapters": 2,
+  "covers": true,
+  "epub_name": "book.epub",
+  "epub_sha256": "bd035a3f3e50d02884243938d0b4eba97f92d7fe857df0caee7782a7a54e18d0",
+  "publication_approved": false,
+  "published": false,
+  "verify": true
+}

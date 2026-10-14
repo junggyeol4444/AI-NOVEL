@@ -1,0 +1,20 @@
+# Stage 83 — offline verification record
+
+Source: AI_Novel_Factory_stage82_local.zip (750 entries). Original planning TXT not available in conversation file list; official user-provided roadmap and docs/requirements.md used. No ANF-REQ ID is assigned specifically to stage 83 in the requirements table.
+
+Implementation: src/ai_novel_factory/manuscript_versions.py
+New tests: tests/test_stage83_manuscript_versions.py (53 pass)
+
+Worktree command: PYTHONPATH=src python -m unittest discover -s tests -p test_stage83_manuscript_versions.py -q
+Output: docs/stage83_new_tests_stdout.txt, docs/stage83_new_tests_stderr.txt
+Worktree complete regression: python scripts/stage83_partitioned_regression.py --prefix docs/stage83_worktree --start 1 --end 8 (groups 1-5 completed before process timeout; groups 6-8 separately resumed)
+Resume: python scripts/stage83_partitioned_regression.py --prefix docs/stage83_worktree --start 6 --end 8
+Aggregate: python scripts/stage83_partitioned_regression.py --prefix docs/stage83_worktree --aggregate
+Coverage: 96 test modules exactly once across 8 disjoint groups.
+Results: 2702 run, 2685 passed, 17 skipped, 0 failures, 0 errors; all group exit codes zero.
+
+Candidate/final ZIP verification appended after packaging. SQLite ResourceWarning in some legacy tests is not resolved. Windows EXE/GUI, real LLM, Redis/Celery, pgvector not executed. No network, GitHub, remote repository or cloud AI API used.
+
+Candidate independent verification: ZIP extracted to /mnt/data/anf83_candidate_extracted; 96 modules in 8 disjoint groups; 2702 run, 2685 passed, 17 skipped, failures/errors 0. The group 5-8 command reached tool time limit after group 7; group 8 separately resumed and all groups aggregated. Logs: docs/stage83_candidate_*
+
+Final ZIP includes the candidate verification logs and is separately extracted and re-tested. Final independent run report is delivered in an external JSON (to avoid changing the ZIP after hashing).

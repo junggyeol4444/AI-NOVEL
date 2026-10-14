@@ -4,34 +4,36 @@
 
 참고소설의 추출 본문을 대상으로 **사용자가 제공한 인물명·별칭**이 어느 회차에 얼마나 자주 언급되는지 계산하고, 인물 간 상대적 언급 비율과 회차 출현 범위 및 명시적 역할 표현을 탐지합니다.
 
-**실제 등장인물 자동 발굴이나 의미 기반 역할 판정은 아닙니다.** central_candidate는 언급 비중에 따른 중심성 *후보*일 뿐 주인공 확정이 아닙니다. explicit_role_hints 역시 제한된 한국어 문장 패턴의 증거 후보이므로 악역·스승 등 역할을 확정할 수 없습니다.
+**실제 등장인물 자동 발굴이나 의미 기반 역할 판정은 아닙니다.** `central_candidate`는 언급 비중에 따른 중심성 *후보*일 뿐 주인공 확정이 아닙니다. `explicit_role_hints` 역시 매우 제한적인 한국어 문장패턴 증거 후보이므로 작품 내용의 사실확인 없이 악역/스승이라고 확정할 수 없습니다.
 
 ## 공개 API
 
-- CharacterSpec(character_id="hero", aliases=("하린", "하린이름")): 호출 중에만 별칭을 보유하는 일시적 입력. repr에서 가려집니다.
-- analyze_character_text(text, characters, number=1): 단일 회차의 언급량과 역할 문구 후보를 계산합니다.
-- analyze_reference_character_roles(document, characters, split=None): 회차 구분과 본문 통계에 맞춰 회차별 집계합니다.
-- ReferenceCharacterRoles: 원문 이름·인용구가 아니라 opaque ID, 언급량, 비율, 제한된 역할 단어 집계만 반환합니다.
+- `CharacterSpec(character_id="hero", aliases=("하린", "하린이름"))`: 호출 중에만 별칭을 보유하는 일시적 입력. `repr`에서 가려집니다.
+- `analyze_character_text(text, characters, number=1)`: 단일 회차의 언급량과 역할 문구 후보를 계산합니다.
+- `analyze_reference_character_roles(document, characters, split=None)`: 기존 회차 구분·본문 통계에 맞춰 회차별 집계합니다.
+- `ReferenceCharacterRoles`: 원문 이름·인용구가 아니라 opaque ID, 언급량, 비율, 제한된 역할 단어 집계만 반환합니다.
 
 ## 측정 규칙
 
-- 한글 이름 뒤의 흔한 조사(은/는/이/가/을/를/에게 등)를 허용하고, 임의 합성어 내부 이름은 세지 않습니다.
+- 한글 이름 뒤의 흔한 조사(`은/는/이/가/을/를/에게...`)를 허용하고, 임의 합성어(`하린별`) 내부 이름은 세지 않습니다.
 - 영문 이름은 대소문자 구분 없이 단어 경계로 검사합니다.
 - 겹치는 별칭은 긴 일치 항목을 우선하며, 동일 별칭을 여러 인물에 할당하면 오류를 반환합니다.
 - 본문 문단만 측정하며, 서문, 회차 제목, Markdown 코드블록은 제외합니다.
-- 명시적 문구 예: "주인공 하린", "하린은 주인공이다", "악역 태수". "하린은 악역을 싫어했다"를 하린의 악역 근거로 취급하지 않습니다.
-- 중심성 후보: 전체 언급이 2회 이상, 해당 인물 언급 비중 30% 이상, 전체 회차 중 50% 이상 출현. 이는 초기 휴리스틱이며 **서사적 역할을 의미하지 않습니다**.
+- 명시적 문구 예: `주인공 하린`, `하린은 주인공이다`, `악역 태수`. `하린은 악역을 싫어했다`를 하린의 악역 근거로 취급하지 않습니다.
+- 중심성 후보: 전체 언급이 2회 이상, 해당 인물 언급 비중 30% 이상, 전체 회차 중 50% 이상 출현. 이는 변경 가능한 초기 휴리스틱이며 **서사적 역할을 의미하지 않습니다**.
 
 ## 안전/품질
 
-- 전체 인물 최대 64명, 인물당 별칭 최대 8개, 인물 별칭 총합 최대 128개, 분석 본문 최대 약 200만 글자, 언급 최대 20,000회.
+- 전체 인물 최대 64명, 인물당 별칭 최대 8개, 분석 본문 최대 약 200만 글자, 언급 최대 20,000회.
 - 결과·예외 메시지에 참고소설의 원문·파일 경로·별칭을 포함하지 않습니다. 파일 저장, 원격 API, 유료 모델을 사용하지 않습니다.
-- 단, 호출부가 CharacterSpec 입력을 직접 직렬화/디버그 로그에 전달하면 별칭이 노출될 수 있으므로 금지해야 합니다.
+- 단, 입력 `CharacterSpec` 객체를 직접 직렬화하거나 디버그 로그로 전달하면 개인정보/저작권상 민감한 별칭이 유출될 수 있으므로 호출부에서 금지해야 합니다.
 - 로컬 AI 기반의 의미 분석/미등록 인물 발굴/동명이인 해소는 아직 구현되지 않았습니다.
 
 ## 검증
 
-1. PYTHONPATH=src python -m unittest discover -s tests -p test_character_roles.py -v
-2. PYTHONPATH=src python -m unittest discover -s tests -v
+```bash
+PYTHONPATH=src python -m unittest tests.test_character_roles -v
+PYTHONPATH=src python -m unittest discover -s tests -v
+```
 
-단계 완료 기준: 테스트 통과, GitHub 개발 PR CI 검증, main 병합 확인. Windows EXE 통합은 후속 단계에서 수행합니다.
+현재 단계 검증 기준: 자동 테스트 통과와 로컬 산출물 무결성 검사. 실제 Windows EXE 통합은 후속 단계에서 수행합니다.

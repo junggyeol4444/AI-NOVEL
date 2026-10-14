@@ -1,0 +1,11 @@
+Stage 98: installation, settings and external-service connection guide — offline only. Existing ANF-REQ-070.
+Prior source: AI_Novel_Factory_stage97_local.zip; 1791 files CRC passed; docs/requirements.md, stage97 results and verification log read. Original project TXT not accessible.
+Actual environment: Linux / Python 3.13.5; Windows EXE build missing, PyInstaller/PySide6 unavailable. User Windows PC not accessed.
+Implemented: docs/stage98_installation_and_connection_guide.md and scripts/stage98_offline_setup.py. The read-only setup script checks only this execution interpreter and defaults; does not read .env, connect services, install packages, or expose secrets.
+Diagnostic command: PYTHONPATH=src python scripts/stage98_offline_setup.py --report docs/stage98_setup_diagnostics.json ; exit 0, stdout/stderr in docs/stage98_setup_stdout.txt/stage98_setup_stderr.txt.
+New tests command: PYTHONPATH=src python -m unittest -q tests/test_stage98_offline_setup.py ; 30 passed, 0 failed/error.
+Worktree regression command: PYTHONPATH=src python scripts/stage98_partitioned_regression.py --prefix docs/stage98_worktree --start 1 --end 4 ; then 5--8 ; then --aggregate.
+Worktree: 112 unique test modules; 8 non-overlapping groups; 3268 total / 3247 passed / 21 skipped / 0 failed / 0 errors. Full stdout/stderr, commands and exits in docs/stage98_worktree_*.
+97 Windows build/real GUI, 95 official API, 96 upload compatibility remain unverified. No GitHub, cloud API, external servers, publishing or uploads. No automatic registration of schedulers.
+Candidate and final cumulative source ZIP independently tested in separate directories; see external verification JSON and logs for final evidence.
+Candidate ZIP extracted to separate directory; all 112 modules / 8 unique groups re-executed: 3268 total, 3247 passed, 21 skipped, 0 failures/errors. Logs under docs/stage98_candidate_* and docs/stage98_candidate_groups.json.

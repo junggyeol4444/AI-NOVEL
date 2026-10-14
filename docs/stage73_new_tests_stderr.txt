@@ -1,0 +1,44 @@
+test_bad_claim_types_rejected (test_stage73_timeline_checker.TimelineCheckerTests.test_bad_claim_types_rejected) ... ok
+test_cross_project_event_rejected (test_stage73_timeline_checker.TimelineCheckerTests.test_cross_project_event_rejected) ... ok
+test_current_revision_ok (test_stage73_timeline_checker.TimelineCheckerTests.test_current_revision_ok) ... ok
+test_date_claim_rejects_naive_and_invalid_values (test_stage73_timeline_checker.TimelineCheckerTests.test_date_claim_rejects_naive_and_invalid_values) ... ok
+test_day_and_instant_inside_day_compatible (test_stage73_timeline_checker.TimelineCheckerTests.test_day_and_instant_inside_day_compatible) ... ok
+test_day_ends_exclusively_at_midnight (test_stage73_timeline_checker.TimelineCheckerTests.test_day_ends_exclusively_at_midnight) ... ok
+test_does_not_modify_database (test_stage73_timeline_checker.TimelineCheckerTests.test_does_not_modify_database) ... ok
+test_duplicate_mentions_rejected (test_stage73_timeline_checker.TimelineCheckerTests.test_duplicate_mentions_rejected) ... ok
+test_duplicate_order_claims_rejected (test_stage73_timeline_checker.TimelineCheckerTests.test_duplicate_order_claims_rejected) ... ok
+test_empty_annotations_do_not_certify_entire_prose (test_stage73_timeline_checker.TimelineCheckerTests.test_empty_annotations_do_not_certify_entire_prose) ... ok
+test_episode_adapter_rejects_non_preview (test_stage73_timeline_checker.TimelineCheckerTests.test_episode_adapter_rejects_non_preview) ... ok
+test_exact_day_matches (test_stage73_timeline_checker.TimelineCheckerTests.test_exact_day_matches) ... ok
+test_expected_revision_stale_rejected (test_stage73_timeline_checker.TimelineCheckerTests.test_expected_revision_stale_rejected) ... ok
+test_explicit_order_matches (test_stage73_timeline_checker.TimelineCheckerTests.test_explicit_order_matches) ... ok
+test_flashback_text_order_never_automatically_checked (test_stage73_timeline_checker.TimelineCheckerTests.test_flashback_text_order_never_automatically_checked) ... ok
+test_helper_instant_overlap_rules (test_stage73_timeline_checker.TimelineCheckerTests.test_helper_instant_overlap_rules) ... ok
+test_invalid_manuscript (test_stage73_timeline_checker.TimelineCheckerTests.test_invalid_manuscript) ... ok
+test_invalid_mention_span_and_evidence (test_stage73_timeline_checker.TimelineCheckerTests.test_invalid_mention_span_and_evidence) ... ok
+test_limits_reject_large_input (test_stage73_timeline_checker.TimelineCheckerTests.test_limits_reject_large_input) ... ok
+test_missing_event_rejected (test_stage73_timeline_checker.TimelineCheckerTests.test_missing_event_rejected) ... ok
+test_order_requires_both_cited_mentions (test_stage73_timeline_checker.TimelineCheckerTests.test_order_requires_both_cited_mentions) ... ok
+test_out_of_range_episode_and_revision_rejected (test_stage73_timeline_checker.TimelineCheckerTests.test_out_of_range_episode_and_revision_rejected) ... ok
+test_overlapping_day_order_is_inconclusive (test_stage73_timeline_checker.TimelineCheckerTests.test_overlapping_day_order_is_inconclusive) ... ok
+test_precise_instant_mismatch (test_stage73_timeline_checker.TimelineCheckerTests.test_precise_instant_mismatch) ... ok
+test_relative_date_offset (test_stage73_timeline_checker.TimelineCheckerTests.test_relative_date_offset) ... ok
+test_relative_root_order_without_absolute_date (test_stage73_timeline_checker.TimelineCheckerTests.test_relative_root_order_without_absolute_date) ... ok
+test_relative_same_offset_is_simultaneous (test_stage73_timeline_checker.TimelineCheckerTests.test_relative_same_offset_is_simultaneous) ... ok
+test_relative_unknown_root_stays_unverifiable (test_stage73_timeline_checker.TimelineCheckerTests.test_relative_unknown_root_stays_unverifiable) ... ok
+test_report_does_not_include_prose (test_stage73_timeline_checker.TimelineCheckerTests.test_report_does_not_include_prose) ... ok
+test_reverse_order_conflicts_with_dates (test_stage73_timeline_checker.TimelineCheckerTests.test_reverse_order_conflicts_with_dates) ... ok
+test_revision_changing_during_check_rejected (test_stage73_timeline_checker.TimelineCheckerTests.test_revision_changing_during_check_rejected) ... ok
+test_same_event_different_spans_allowed (test_stage73_timeline_checker.TimelineCheckerTests.test_same_event_different_spans_allowed) ... ok
+test_same_event_order_conflict (test_stage73_timeline_checker.TimelineCheckerTests.test_same_event_order_conflict) ... ok
+test_same_timestamp_strict_order_conflict (test_stage73_timeline_checker.TimelineCheckerTests.test_same_timestamp_strict_order_conflict) ... ok
+test_timezone_converted_instant (test_stage73_timeline_checker.TimelineCheckerTests.test_timezone_converted_instant) ... ok
+test_transitive_explicit_order (test_stage73_timeline_checker.TimelineCheckerTests.test_transitive_explicit_order) ... ok
+test_unknown_date_reported_inconclusive (test_stage73_timeline_checker.TimelineCheckerTests.test_unknown_date_reported_inconclusive) ... ok
+test_unknown_order_is_inconclusive (test_stage73_timeline_checker.TimelineCheckerTests.test_unknown_order_is_inconclusive) ... ok
+test_wrong_day_flags_conflict (test_stage73_timeline_checker.TimelineCheckerTests.test_wrong_day_flags_conflict) ... ok
+
+----------------------------------------------------------------------
+Ran 39 tests in 0.139s
+
+OK

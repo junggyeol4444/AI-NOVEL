@@ -1,0 +1,9 @@
+/usr/lib/python3.13/unittest/mock.py:2247: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f411962d8a0>
+  def __init__(self, name, parent):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/zipfile/__init__.py:1642: UserWarning: Duplicate name: 'EPUB/nav.xhtml'
+  return self._open_to_write(zinfo, force_zip64=force_zip64)
+----------------------------------------------------------------------
+Ran 514 tests in 3.065s
+
+OK (skipped=2)

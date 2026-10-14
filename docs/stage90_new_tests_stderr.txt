@@ -1,0 +1,47 @@
+test_all_known_error_codes_valid (test_stage90_operations_monitor.OperationalTests.test_all_known_error_codes_valid) ... ok
+test_arbitrary_secrets_refused (test_stage90_operations_monitor.OperationalTests.test_arbitrary_secrets_refused) ... ok
+test_currency_not_mixed (test_stage90_operations_monitor.OperationalTests.test_currency_not_mixed) ... ok
+test_does_not_create_external_connections (test_stage90_operations_monitor.OperationalTests.test_does_not_create_external_connections) ... ok
+test_error_code_accepted_only_on_failure (test_stage90_operations_monitor.OperationalTests.test_error_code_accepted_only_on_failure) ... ok
+test_event_metadata_only_schema (test_stage90_operations_monitor.OperationalTests.test_event_metadata_only_schema) ... ok
+test_event_persists_reopen (test_stage90_operations_monitor.OperationalTests.test_event_persists_reopen) ... ok
+test_existing_queue_read (test_stage90_operations_monitor.OperationalTests.test_existing_queue_read) ... ok
+test_failure_classification (test_stage90_operations_monitor.OperationalTests.test_failure_classification) ... ok
+test_insertion_rollback_when_invalid (test_stage90_operations_monitor.OperationalTests.test_insertion_rollback_when_invalid) ... ok
+test_invalid_cost_and_currency_denied (test_stage90_operations_monitor.OperationalTests.test_invalid_cost_and_currency_denied) ... ok
+test_invalid_project_filters_denied (test_stage90_operations_monitor.OperationalTests.test_invalid_project_filters_denied) ... ok
+test_invalid_task_or_event_denied (test_stage90_operations_monitor.OperationalTests.test_invalid_task_or_event_denied) ... ok
+test_limit_rejection (test_stage90_operations_monitor.OperationalTests.test_limit_rejection) ... ok
+test_many_events_lookup_latest (test_stage90_operations_monitor.OperationalTests.test_many_events_lookup_latest) ... ok
+test_missing_file_never_created (test_stage90_operations_monitor.OperationalTests.test_missing_file_never_created) ... ok
+test_monitor_progress_existing (test_stage90_operations_monitor.OperationalTests.test_monitor_progress_existing) ... ok
+test_negative_measurements_denied (test_stage90_operations_monitor.OperationalTests.test_negative_measurements_denied) ... ok
+test_no_tasks_table_denied (test_stage90_operations_monitor.OperationalTests.test_no_tasks_table_denied) ... ok
+test_not_sqlite_denied (test_stage90_operations_monitor.OperationalTests.test_not_sqlite_denied) ... ok
+test_optional_ui_not_imported_by_reader (test_stage90_operations_monitor.OperationalTests.test_optional_ui_not_imported_by_reader) ... ok
+test_project_cost_isolation (test_stage90_operations_monitor.OperationalTests.test_project_cost_isolation) ... ok
+test_project_filter (test_stage90_operations_monitor.OperationalTests.test_project_filter) ... ok
+test_queue_error_redacted (test_stage90_operations_monitor.OperationalTests.test_queue_error_redacted) ... ok
+test_reader_no_schema_creation (test_stage90_operations_monitor.OperationalTests.test_reader_no_schema_creation) ... ok
+test_reader_no_state_transition (test_stage90_operations_monitor.OperationalTests.test_reader_no_state_transition) ... ok
+test_reader_running_does_not_interrupt (test_stage90_operations_monitor.OperationalTests.test_reader_running_does_not_interrupt) ... ok
+test_record_unknown_default (test_stage90_operations_monitor.OperationalTests.test_record_unknown_default) ... ok
+test_reported_and_estimated_cost_separate (test_stage90_operations_monitor.OperationalTests.test_reported_and_estimated_cost_separate) ... ok
+test_reported_zero_cost_is_known (test_stage90_operations_monitor.OperationalTests.test_reported_zero_cost_is_known) ... ok
+test_requires_timezone_aware (test_stage90_operations_monitor.OperationalTests.test_requires_timezone_aware) ... ok
+test_scheduler_absent (test_stage90_operations_monitor.OperationalTests.test_scheduler_absent) ... ok
+test_scheduler_error_redacted (test_stage90_operations_monitor.OperationalTests.test_scheduler_error_redacted) ... ok
+test_summary_empty (test_stage90_operations_monitor.OperationalTests.test_summary_empty) ... ok
+test_symlink_denied (test_stage90_operations_monitor.OperationalTests.test_symlink_denied) ... ok
+test_timezone_converted (test_stage90_operations_monitor.OperationalTests.test_timezone_converted) ... ok
+test_unknown_cost_not_assumed_zero (test_stage90_operations_monitor.OperationalTests.test_unknown_cost_not_assumed_zero) ... ok
+test_wrong_ledger_object (test_stage90_operations_monitor.OperationalTests.test_wrong_ledger_object) ... ok
+test_attached_main_window_tab (test_stage90_operations_monitor.OptionalQtTests.test_attached_main_window_tab) ... skipped 'PySide6 optional; Linux/headless not validated'
+test_invalid_db_doesnt_change_queue (test_stage90_operations_monitor.OptionalQtTests.test_invalid_db_doesnt_change_queue) ... skipped 'PySide6 optional; Linux/headless not validated'
+test_ui_cost_and_errors (test_stage90_operations_monitor.OptionalQtTests.test_ui_cost_and_errors) ... skipped 'PySide6 optional; Linux/headless not validated'
+test_widget_view_only (test_stage90_operations_monitor.OptionalQtTests.test_widget_view_only) ... skipped 'PySide6 optional; Linux/headless not validated'
+
+----------------------------------------------------------------------
+Ran 42 tests in 0.465s
+
+OK (skipped=4)

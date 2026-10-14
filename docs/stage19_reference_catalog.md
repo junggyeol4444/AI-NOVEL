@@ -34,4 +34,4 @@ $env:PYTHONPATH='src'
 python -m unittest discover -s tests -v
 ```
 
-기존 2·4·7·12·14단계 독립 산출물은 확인되지 않았으며 실제 Windows EXE의 DB 저장 시험은 아직 실시하지 않았습니다. GitHub에는 PR로 병합하고 CI 상태를 별도로 기록합니다.
+기존 2·4·7·12·14단계 독립 산출물은 확인되지 않았으며 실제 Windows EXE의 DB 저장 시험은 아직 실시하지 않았습니다. 이후 개발 결과는 대화 첨부 소스 ZIP과 로컬 테스트 기록으로 관리합니다.

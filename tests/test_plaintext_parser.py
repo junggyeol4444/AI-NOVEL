@@ -31,6 +31,24 @@ class TestTextParser(unittest.TestCase):
         self.assertEqual(parsed.blocks[0].heading_level, 1)
         self.assertEqual(parsed.blocks[0].end_line, 2)
 
+    def test_markdown_multiline_setext_heading(self) -> None:
+        parsed = parse_text("첫째 줄\n둘째 줄\n---\n\n본문", format="markdown")
+        self.assertEqual([b.kind for b in parsed.blocks], ["heading", "paragraph"])
+        self.assertEqual(parsed.blocks[0].text, "첫째 줄\n둘째 줄")
+        self.assertEqual((parsed.blocks[0].start_line, parsed.blocks[0].end_line), (1, 3))
+        self.assertEqual(parsed.blocks[0].heading_level, 2)
+
+    def test_markdown_setext_after_blank_line(self) -> None:
+        parsed = parse_text("서론\n\n다음 제목\n===\n\n본문", format="markdown")
+        self.assertEqual([b.kind for b in parsed.blocks], ["paragraph", "heading", "paragraph"])
+        self.assertEqual(parsed.blocks[1].text, "다음 제목")
+        self.assertEqual((parsed.blocks[1].start_line, parsed.blocks[1].end_line), (3, 4))
+        self.assertEqual(parsed.blocks[1].heading_level, 1)
+
+    def test_markdown_unattached_rule_is_not_heading(self) -> None:
+        parsed = parse_text("---\n\n본문", format="markdown")
+        self.assertFalse(any(b.kind == "heading" for b in parsed.blocks))
+
     def test_markdown_fenced_content_is_not_heading(self) -> None:
         parsed = parse_text("```text\n# 코드 안\n```\n\n본문", format="markdown")
         self.assertEqual([b.kind for b in parsed.blocks], ["code", "paragraph"])

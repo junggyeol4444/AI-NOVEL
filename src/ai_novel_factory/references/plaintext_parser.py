@@ -84,6 +84,20 @@ def parse_text(text: str, *, format: str = "txt", encoding: str | None = None) -
             continue
 
         if format == "markdown":
+            # A Setext underline converts the *preceding paragraph*, including
+            # multi-line headings, into one heading block. Inspecting only the
+            # immediately preceding line loses valid Markdown structure.
+            underline = _SETEXT_HEADING.match(line)
+            if underline and paragraph:
+                heading_level = 1 if underline.group(1)[0] == "=" else 2
+                blocks.append(ParsedBlock(
+                    "heading", paragraph_start, number,
+                    "\n".join(paragraph).strip(), heading_level,
+                ))
+                paragraph = []
+                i += 1
+                continue
+
             fence = _FENCE.match(line)
             if fence:
                 flush_paragraph()
@@ -109,14 +123,6 @@ def parse_text(text: str, *, format: str = "txt", encoding: str | None = None) -
                 heading_text = re.sub(r"[ \t]+#+[ \t]*$", "", heading_text).strip()
                 blocks.append(ParsedBlock("heading", number, number, heading_text, len(heading.group(1))))
                 i += 1
-                continue
-
-            if (i + 1 < len(lines) and _SETEXT_HEADING.match(lines[i + 1])
-                    and line.strip() and not paragraph):
-                marker = lines[i + 1].strip()[0]
-                blocks.append(ParsedBlock("heading", number, number + 1, line.strip(),
-                                          1 if marker == "=" else 2))
-                i += 2
                 continue
 
         if not paragraph:

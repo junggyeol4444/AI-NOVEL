@@ -1,0 +1,46 @@
+{
+  "stage": 65,
+  "roadmap": "여러 Scene을 하나의 회차 초고로 결합",
+  "requirement_id": "기존 docs/requirements.md에서 65단계 직접 매핑 없음 (공식 로드맵 적용)",
+  "prior_zip": "AI_Novel_Factory_stage64_local.zip",
+  "prior_file_count": 324,
+  "prior_files_sha256_unchanged": 323,
+  "prior_readme_updated": true,
+  "new_tests": 27,
+  "environment": {
+    "python": "3.13.5",
+    "platform": "Linux-6.18.44-x86_64-with-glibc2.41"
+  },
+  "worktree_suite": {
+    "total": 2043,
+    "passed": 2029,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  "limitations": [
+    "Mock provider is a fixture, not an AI model",
+    "No reference similarity analysis or originality guarantee",
+    "Episode text only returned in memory: no database persistence or publishing",
+    "No actual Windows EXE, real GUI, local LLM or DPAPI runtime test",
+    "Existing SQLite connection ResourceWarning remains"
+  ],
+  "zip_file_count": 331,
+  "first_extraction_suite": {
+    "total": 2043,
+    "passed": 2029,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  "second_extraction_suite": {
+    "total": 2043,
+    "passed": 2029,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  }
+}

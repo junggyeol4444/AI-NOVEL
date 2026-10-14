@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 
@@ -128,7 +129,7 @@ class ReferenceCatalogTests(unittest.TestCase):
             with ReferenceCatalog(location) as db:
                 self.assertEqual(db.count(), 1)
                 self.assertEqual(db.get(row.reference_id).file_name, "테스트.txt")
-            with sqlite3.connect(location) as conn:
+            with closing(sqlite3.connect(location)) as conn:
                 columns = {c[1] for c in conn.execute("PRAGMA table_info(reference_files)")}
                 self.assertEqual(columns, {"reference_id", "file_name", "source_format",
                                            "byte_count", "sha256", "status", "created_at", "updated_at"})

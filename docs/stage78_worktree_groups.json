@@ -1,0 +1,172 @@
+[
+  {
+    "group": 1,
+    "modules": [
+      "test_stage47_foreshadow",
+      "test_foreshadow_emotion",
+      "test_element_selection",
+      "test_event_pacing",
+      "test_stage66_orchestrator",
+      "test_stage59_plot_editor_model",
+      "test_episode_splitter",
+      "test_offline_runtime_policy",
+      "test_stage53_episode_planner",
+      "test_stage43_release_verifier",
+      "test_reference_picker_gui_optional"
+    ],
+    "total": 304,
+    "skipped": 3,
+    "passed": 301,
+    "exit_code": 0,
+    "stderr_file": "docs/stage78_worktree_group1_stderr.txt"
+  },
+  {
+    "group": 2,
+    "modules": [
+      "test_stage45_relationships",
+      "test_pattern_strength",
+      "test_stage74_foreshadow_checker",
+      "test_cliffhanger_analysis",
+      "test_stage76_style_checker",
+      "test_stage63_writer_prompt",
+      "test_docx_parser",
+      "test_stage47_release_verifier",
+      "test_stage44_release_verifier",
+      "test_api_health",
+      "test_stage41_release_verifier"
+    ],
+    "total": 304,
+    "skipped": 1,
+    "passed": 303,
+    "exit_code": 0,
+    "stderr_file": "docs/stage78_worktree_group2_stderr.txt"
+  },
+  {
+    "group": 3,
+    "modules": [
+      "test_stage43_character_knowledge",
+      "test_copy_protection",
+      "test_related_pattern_search",
+      "test_stage71_continuity_checker",
+      "test_stage65_episode_assembler",
+      "test_stage64_scene_writer",
+      "test_stage58_pattern_application",
+      "test_stage48_release_verifier",
+      "test_stage46_release_verifier",
+      "test_stage51_planning",
+      "test_reference_profile_gui_optional"
+    ],
+    "total": 303,
+    "skipped": 2,
+    "passed": 301,
+    "exit_code": 0,
+    "stderr_file": "docs/stage78_worktree_group3_stderr.txt"
+  },
+  {
+    "group": 4,
+    "modules": [
+      "test_stage44_world_canon",
+      "test_genre_patterns",
+      "test_stage73_timeline_checker",
+      "test_event_timing",
+      "test_stage62_credentials",
+      "test_stage60_planning_pipeline",
+      "test_plaintext_parser",
+      "test_stage56_scene_vectors",
+      "test_stage52_story_arcs",
+      "test_stage42_release_verifier",
+      "test_desktop_navigation"
+    ],
+    "total": 305,
+    "skipped": 1,
+    "passed": 304,
+    "exit_code": 0,
+    "stderr_file": "docs/stage78_worktree_group4_stderr.txt"
+  },
+  {
+    "group": 5,
+    "modules": [
+      "test_stage49_episodes",
+      "test_pattern_library",
+      "test_relationship_changes",
+      "test_character_roles",
+      "test_stage72_knowledge_checker",
+      "test_stage67_local_queue",
+      "test_basic_statistics",
+      "test_stage55_episode_context",
+      "test_stage57_episode_retrieval",
+      "test_smoke",
+      "test_requirements"
+    ],
+    "total": 305,
+    "skipped": 1,
+    "passed": 304,
+    "exit_code": 0,
+    "stderr_file": "docs/stage78_worktree_group5_stderr.txt"
+  },
+  {
+    "group": 6,
+    "modules": [
+      "test_stage46_event_timeline",
+      "test_similarity_baseline",
+      "test_reference_profiles",
+      "test_stage68_task_monitor",
+      "test_stage77_repetition_checker",
+      "test_stage61_local_models",
+      "test_import_pipeline",
+      "test_stage49_release_verifier",
+      "test_stage45_release_verifier",
+      "test_architecture",
+      "test_dependencies"
+    ],
+    "total": 306,
+    "skipped": 3,
+    "passed": 303,
+    "exit_code": 0,
+    "stderr_file": "docs/stage78_worktree_group6_stderr.txt"
+  },
+  {
+    "group": 7,
+    "modules": [
+      "test_stage42_characters",
+      "test_style_statistics",
+      "test_profile_collection",
+      "test_pattern_usage",
+      "test_stage40_reference_integration",
+      "test_pdf_parser",
+      "test_dialogue_statistics",
+      "test_stage40_release_verifier",
+      "test_stage50_migrations",
+      "test_api_client",
+      "test_desktop_gui_optional"
+    ],
+    "total": 303,
+    "skipped": 3,
+    "passed": 300,
+    "exit_code": 0,
+    "stderr_file": "docs/stage78_worktree_group7_stderr.txt"
+  },
+  {
+    "group": 8,
+    "modules": [
+      "test_stage48_style_bible",
+      "test_stage41_novel_bible",
+      "test_stage75_logic_checker",
+      "test_stage69_retry_checkpoint",
+      "test_episode_structure",
+      "test_stage70_one_episode_integration",
+      "test_reference_catalog",
+      "test_stage54_scene_planner",
+      "test_settings",
+      "test_reference_selection",
+      "test_stage59_plot_editor_optional",
+      "test_stage78_reference_similarity_checker",
+      "test_stage78_reference_similarity_records"
+    ],
+    "total": 350,
+    "skipped": 3,
+    "passed": 347,
+    "exit_code": 0,
+    "stderr_file": "docs/stage78_worktree_group8_stderr.txt"
+  }
+]

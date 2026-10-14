@@ -1,0 +1,18 @@
+AI Novel Factory Stage 49 (ANF-REQ-039) — offline verification record
+Source: AI_Novel_Factory_stage48_local.zip, 216 files, CRC and privacy verifier passed.
+Source baseline: PYTHONPATH=src python -m unittest discover -s tests -q
+  Ran 1698 tests; OK (skipped=11); 1687 passed; failures/errors=0.
+Stage49 new: 66 episode tests + 14 release tests = 80 tests passed.
+Full source: Ran 1778 tests; OK (skipped=11); 1767 passed; failures/errors=0.
+Source: smoke (Python 3.12 target WARN), dependency policy, compileall passed.
+Candidate ZIP: 223 files, CRC and privacy verifier passed.
+Candidate ZIP extracted: Ran 1778 tests; OK (skipped=11); 1767 passed; failures/errors=0.
+Candidate extracted: smoke (Python 3.12 target WARN), dependency policy, compileall passed.
+Final ZIP: 223 files, CRC and privacy verifier passed.
+Final ZIP extracted: Ran 1778 tests; OK (skipped=11); 1767 passed; failures/errors=0.
+Final ZIP extracted: smoke (Python 3.12 target WARN), dependency policy, compileall passed.
+Final ZIP extracted: .gitignore, .env.example, .python-version, .editorconfig present.
+Previous 216 files preserved; only README.md and scripts/verify_release_bundle.py updated.
+Windows 10/11 real device, Windows EXE, Python 3.12, actual AI writer not tested.
+Existing non-fatal ResourceWarning: unclosed SQLite connection in previous suite.
+No GitHub, remote repository, cloud API, external server or publishing used.

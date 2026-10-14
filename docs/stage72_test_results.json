@@ -1,0 +1,43 @@
+{
+  "stage": 72,
+  "roadmap_task": "등장인물 지식 범위 충돌 검사",
+  "requirement": "72단계 직접 매핑 없음; 43단계 ANF-REQ-033 Character Knowledge DB 사용",
+  "python": "3.13.5",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "new_tests": 30,
+  "worktree": {
+    "total": 2249,
+    "passed": 2232,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  "baseline_zip": "AI_Novel_Factory_stage71_local.zip",
+  "baseline_files_preserved": 409,
+  "baseline_file_changes": [
+    "README.md"
+  ],
+  "limitations": [
+    "Human-annotated knowledge usage only; no NLP extraction",
+    "Knowledge timeline granularity is episode, not scene",
+    "No Windows EXE/GUI test",
+    "No actual LLM test",
+    "No live Redis/Celery integration"
+  ],
+  "known_warnings": [
+    "Inherited SQLite ResourceWarning"
+  ],
+  "candidate_extracted": {
+    "total": 2249,
+    "passed": 2232,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0,
+    "elapsed_seconds": 23.73,
+    "zip_crc": "ok",
+    "hidden_files": "ok",
+    "baseline_files": "ok"
+  }
+}

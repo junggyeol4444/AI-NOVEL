@@ -1,0 +1,26 @@
+[
+  {
+    "group": 6,
+    "modules": [
+      "test_stage46_event_timeline",
+      "test_similarity_baseline",
+      "test_reference_profiles",
+      "test_stage68_task_monitor",
+      "test_stage77_repetition_checker",
+      "test_stage61_local_models",
+      "test_import_pipeline",
+      "test_stage49_release_verifier",
+      "test_stage45_release_verifier",
+      "test_architecture",
+      "test_dependencies"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage46_event_timeline test_similarity_baseline test_reference_profiles test_stage68_task_monitor test_stage77_repetition_checker test_stage61_local_models test_import_pipeline test_stage49_release_verifier test_stage45_release_verifier test_architecture test_dependencies -q",
+    "elapsed_seconds": 11.11,
+    "exit_code": 0,
+    "total": 306,
+    "skipped": 3,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage78_worktree_group6_stderr.txt"
+  }
+]

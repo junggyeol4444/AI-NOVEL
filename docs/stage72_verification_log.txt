@@ -1,0 +1,6 @@
+Stage 72: based on latest stage71 ZIP (409 files).
+Inspected docs/requirements.md, stage71_test_results.json and stage71_verification_log.txt.
+Added knowledge_checker.py and 30 tests, no online access.
+Worktree: PYTHONPATH=src python -m unittest discover -s tests -q => 2249 tests, 17 skipped, 0 failures/errors.
+Preexisting sqlite3 ResourceWarning remains.
+Candidate ZIP independent fresh extraction and full regression: {"total": 2249, "passed": 2232, "skipped": 17, "failures": 0, "errors": 0, "exit_code": 0, "elapsed_seconds": 23.73, "zip_crc": "ok", "hidden_files": "ok", "baseline_files": "ok"}

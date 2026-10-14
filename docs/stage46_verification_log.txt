@@ -1,0 +1,37 @@
+AI Novel Factory Stage 46 — execution record (offline, Python 3.13.5)
+Command: PYTHONPATH=src python -m unittest discover -s tests -q
+
+===== source tree =====
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7feb58650310>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 1517 tests in 46.875s
+
+OK (skipped=11)
+{'status': 'ok', 'service': 'ai-novel-factory', 'api_version': 'v1'}
+
+===== candidate ZIP extracted =====
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5eba4423e0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 1517 tests in 38.882s
+
+OK (skipped=11)
+{'status': 'ok', 'service': 'ai-novel-factory', 'api_version': 'v1'}
+
+Other commands (source and extracted):
+python scripts/smoke_test.py --json -> exit 0 (python_version WARN)
+python scripts/check_dependencies.py -> exit 0
+python -m compileall -q src tests scripts -> exit 0
+python scripts/verify_release_bundle.py <candidate ZIP> -> exit 0
+
+===== final ZIP extracted full suite =====
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fb6ade5e3e0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 1517 tests in 46.422s
+
+OK (skipped=11)
+{'status': 'ok', 'service': 'ai-novel-factory', 'api_version': 'v1'}
+
+Final ZIP extracted smoke/dependency/compile/release verification: all exit 0.

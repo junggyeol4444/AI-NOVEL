@@ -1,0 +1,66 @@
+{
+  "stage": 10,
+  "stage_name": "초기 스모크 테스트",
+  "checked_at_kst": "2026-10-12T06:03:47+09:00",
+  "environment_python": "3.13.5",
+  "target_python": "3.12.x",
+  "offline": {
+    "stage": 10,
+    "passed": true,
+    "results": [
+      {
+        "check": "safe_defaults",
+        "status": "PASS",
+        "detail": "외부 서비스·AI 기본 비활성"
+      },
+      {
+        "check": "health_contract",
+        "status": "PASS",
+        "detail": "비밀정보 없는 상태 응답 계약"
+      },
+      {
+        "check": "desktop_navigation",
+        "status": "PASS",
+        "detail": "12개 화면 및 메뉴 키 중복 검사"
+      },
+      {
+        "check": "loopback_guard",
+        "status": "PASS",
+        "detail": "외부 호스트 접속 차단"
+      },
+      {
+        "check": "api_cli",
+        "status": "PASS",
+        "detail": "실행 진입점 정상"
+      },
+      {
+        "check": "desktop_cli",
+        "status": "PASS",
+        "detail": "실행 진입점 정상"
+      },
+      {
+        "check": "python_version",
+        "status": "WARN",
+        "detail": "개발 기준 Python 3.12와 다른 실행 환경"
+      }
+    ]
+  },
+  "loopback_http": {
+    "check": "http_roundtrip",
+    "status": "PASS",
+    "detail": "루프백 HTTP 요청·응답 정상"
+  },
+  "unit_tests": {
+    "total": 46,
+    "passed": 45,
+    "skipped": 1,
+    "failed": 0
+  },
+  "not_verified": [
+    "Windows 실제 UI/EXE",
+    "Python 3.12 실행 환경",
+    "2·4·7단계 통합",
+    "사용자 PC",
+    "외부 서비스"
+  ]
+}

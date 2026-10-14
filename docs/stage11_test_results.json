@@ -1,0 +1,29 @@
+{
+  "stage": 11,
+  "title": "참고소설 파일 선택 UI",
+  "timestamp_kst": "2026-10-12T07:03:40+09:00",
+  "base_archive": "AI_Novel_Factory_stage10.zip",
+  "environment": {
+    "python": "3.13.5",
+    "os": "linux",
+    "pyside6_installed": false
+  },
+  "unittest": {
+    "run": 55,
+    "passed": 52,
+    "skipped": 3,
+    "failed": 0,
+    "errors": 0,
+    "command": "PYTHONPATH=src python -m unittest discover -s tests -v"
+  },
+  "smoke": {
+    "mandatory_checks_passed": 6,
+    "python_version_warning": true
+  },
+  "limitations": [
+    "PySide6 미설치로 GUI 테스트 3개 건너뜀",
+    "Windows 실제 GUI/EXE 미검증",
+    "2·4·7단계 독립 산출물 통합 검증 미완료",
+    "원격 저장소 및 사용자 PC 미변경"
+  ]
+}

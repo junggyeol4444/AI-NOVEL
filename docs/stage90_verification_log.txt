@@ -1,0 +1,17 @@
+AI Novel Factory 90/100 — ANF-REQ-069 local operations monitor
+Source: AI_Novel_Factory_stage89_local.zip, 1241 files; CRC OK.
+Original planning TXT: not accessible; official user-provided roadmap and docs/requirements.md used.
+Worktree new tests: PYTHONPATH=src python -m unittest discover -s tests -p test_stage90_operations_monitor.py -v
+  Ran 42 tests; 38 passed, 4 skipped (optional PySide6); zero failures.
+Worktree regression: python scripts/stage90_partitioned_regression.py --prefix docs/stage90_worktree --start 1 --end 8
+  Aggregate: python scripts/stage90_partitioned_regression.py --prefix docs/stage90_worktree --aggregate
+  103 unique modules in 8 disjoint groups, 2965 total, 2944 passed, 21 skipped, 0 failures/errors, each exit=0.
+  Execution time: separate commands for groups 1-6, 7 and 8 due to combined tool timeout.
+  Exact stdout/stderr/exit per group and list of modules in stage90_worktree_groupN_*.txt / stage90_worktree_groups.json.
+No remote network, git operations, LLM or publication operations performed.
+Known limitations: PySide6/Windows GUI not actually run; Python 3.13 rather than project target 3.12; metrics supplied explicitly, no provider billing query.
+Final ZIP independent extraction regression results recorded separately after rerun.
+Candidate ZIP: 1275 files; 89-stage file preservation verified except README.md and desktop/app.py; CRC valid.
+Candidate extraction independent verification: 103 modules in 8 disjoint groups, 2965 total / 2944 passed / 21 skipped / 0 failures; 8 exit codes=0.
+Independent command: python scripts/stage90_partitioned_regression.py --prefix docs/stage90_independent --start N --end N; --aggregate.
+Final source archive created with worktree and candidate-independent stdout/stderr/exit logs. Final archive extraction is verified separately in outer JSON.

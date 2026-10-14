@@ -1,0 +1,7 @@
+/usr/lib/python3.13/argparse.py:1642: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5db0c9ef20>
+  return getattr(self, handler_func_name)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 397 tests in 2.841s
+
+OK (skipped=2)

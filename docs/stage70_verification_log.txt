@@ -1,0 +1,24 @@
+Stage 70: inspected AI_Novel_Factory_stage69_local.zip (370 files; CRC passed).
+Inspected docs/requirements.md (70 only in original roadmap, no direct ANF-REQ),
+docs/stage69_test_results.json and docs/stage69_verification_log.txt.
+Implemented one-episode local queue orchestration, safety gates and offline smoke.
+New test command: PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage70*.py' -q
+New tests: 25 OK.
+Worktree full command: PYTHONPATH=src python -m unittest discover -s tests -q
+Worktree full result: Ran 2186 tests in 29.918s; OK (skipped=17), 0 errors/failures.
+Smoke: PYTHONPATH=src python scripts/stage70_one_episode_smoke.py
+Smoke result: 2 scenes, queue COMPLETED, AWAITING_HUMAN_REVIEW, no approval/save/publish.
+Known preexisting SQLite ResourceWarning observed.
+Full ZIP fresh-extraction verification: pending.
+No GitHub, remote servers, cloud AI API, Windows EXE or actual LLM execution.
+First ZIP file count 378, CRC OK, original 370 file names preserved (only README content changed).
+First separate extraction: full-suite single command timed out; not counted as passed.
+Separate extraction exhaustive split test runs: stage6_7 282 (3 skipped), stage_other 916 (3 skipped), base 988 (11 skipped).
+Combined: 2186 total, 2169 passed, 17 skipped, zero failures/errors. All 3 processes exit 0.
+Hidden files .editorconfig/.env.example/.gitignore/.python-version present.
+See stage70_fresh_*_stdout.txt and *_stderr.txt.
+Final updated ZIP rerun: pending.
+Release candidate ZIP extracted to anf70_final_from_zip: stage6_7 282/3 skip; stage_other 916/3 skip; base 988/11 skip.
+All three exited 0, 2186 total, 2169 passed, 17 skipped; CRC and hidden files confirmed.
+See stage70_release_*_stdout/stderr.txt for the release candidate runs.
+Final documentation ZIP packaging followed by another independent complete split run.

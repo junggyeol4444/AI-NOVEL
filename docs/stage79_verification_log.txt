@@ -1,0 +1,14 @@
+STAGE 79 LOCAL TEST EVIDENCE
+Requirement: ANF-REQ-055 (docs/requirements.md)
+Baseline: AI_Novel_Factory_stage78_local.zip, 555 members
+Original planning attachment: not accessible in conversation files.
+Command: PYTHONPATH=src python -m unittest discover -s tests -p test_stage79*.py -q
+Result: Ran 45 tests, OK
+Full suite: PYTHONPATH=src:tests python -m unittest <group module names> -q; see stage79_worktree_groups.json.
+Groups 1..5 from first run, groups 6..8 rerun separately due command execution timeout; no overlapping modules.
+Results: 92 modules, 2525 tests, 2508 passed, 17 skipped, 0 failures/errors.
+All 8 group stderr logs and group membership JSON are saved in docs/.
+Initial runner typo corrected (see stage79_runner_initial_attempt.txt).
+Local-only Linux; no remote network or external model APIs.
+Candidate ZIP extracted separately; 8 disjoint groups all OK: {"total": 2525, "passed": 2508, "skipped": 17, "failures": 0, "errors": 0, "modules": 92, "groups": 8, "all_exit_codes_zero": true, "evidence": "docs/stage79_candidate_group1..8_stderr.txt"}
+Candidate ZIP CRC and all-member extraction byte identity: OK.

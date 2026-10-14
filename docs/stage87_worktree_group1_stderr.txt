@@ -1,0 +1,6 @@
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7ff712265a80>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 465 tests in 2.602s
+
+OK (skipped=2)

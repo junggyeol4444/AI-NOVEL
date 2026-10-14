@@ -1,0 +1,132 @@
+{
+  "actual_windows_build_performed_by_audit": false,
+  "blocking_items": [
+    "95_official_api",
+    "96_platform_rules",
+    "97_windows_exe",
+    "99_windows_acceptance",
+    "host_not_windows"
+  ],
+  "documentation_checks": {
+    "docs/requirements.md": true,
+    "docs/stage100_release_and_acceptance.md": true,
+    "docs/stage100_user_manual.md": true,
+    "docs/stage98_installation_and_connection_guide.md": true,
+    "docs/stage99_windows_integrated_regression.md": true
+  },
+  "evidence_checks": {
+    "95_official_api": {
+      "reason": "acceptance_evidence_incomplete",
+      "status": "UNVERIFIED"
+    },
+    "96_platform_rules": {
+      "reason": "acceptance_evidence_incomplete",
+      "status": "UNVERIFIED"
+    },
+    "97_windows_exe": {
+      "reason": "acceptance_evidence_incomplete",
+      "status": "UNVERIFIED"
+    },
+    "98_install_guide": {
+      "reason": "self_report_untrusted_until_review",
+      "status": "REPORTED_PASS"
+    },
+    "99_windows_acceptance": {
+      "reason": "acceptance_evidence_incomplete",
+      "status": "UNVERIFIED"
+    }
+  },
+  "host": "non-Windows",
+  "important_note": "Previous reports are self-reported data. Review on actual Windows and obtain human sign-off; this is NOT a release approval.",
+  "network_or_installation_performed": false,
+  "official_platform_upload_performed": false,
+  "original_plan_txt_verified": false,
+  "ready_for_public_release": false,
+  "release_inventory": {
+    "all_present": true,
+    "files": {
+      ".env.example": {
+        "bytes": 284,
+        "present": true,
+        "sha256": "ea0a8ac79f53b5f9ea67e20b69c3256d33174804ecc167d47a71af2c64045fac"
+      },
+      ".gitignore": {
+        "bytes": 529,
+        "present": true,
+        "sha256": "bce0d80933b3c9941ddc1ced8c5efcd5d516929235eba525f75e57b34c0705c6"
+      },
+      "README.md": {
+        "bytes": 73407,
+        "present": true,
+        "sha256": "39337c368fe39cbf7971b0190670e84fd694889f1e937e123750a32e6f6f3457"
+      },
+      "docs/requirements.md": {
+        "bytes": 16246,
+        "present": true,
+        "sha256": "6a71dc4f7d95a0d2277bea5d3c22ae9137c83113cf3c42bd940f0ff547d313c5"
+      },
+      "docs/stage100_release_and_acceptance.md": {
+        "bytes": 6583,
+        "present": true,
+        "sha256": "af9489b948a877a4ea0708ec7e9d8e865117926d1ce60c4ad5afb44f5f75511c"
+      },
+      "docs/stage100_user_manual.md": {
+        "bytes": 6412,
+        "present": true,
+        "sha256": "95394aed92873f42ef1f2331441c0b791520511fb8f35f76d9cde339e6201d16"
+      },
+      "docs/stage95_continuation_test_results.json": {
+        "bytes": 1210,
+        "present": true,
+        "sha256": "13ba37fdd0ebaab4f86c617f9ab7fe2d10424f92e43519938a93e648fae70614"
+      },
+      "docs/stage96_test_results.json": {
+        "bytes": 1280,
+        "present": true,
+        "sha256": "3d158100a0b62198eb85ddc4e69b15538c33fb3c0be40f3aeec1f9deb0647af1"
+      },
+      "docs/stage97_test_results.json": {
+        "bytes": 1934,
+        "present": true,
+        "sha256": "cd2d577235c7299e65fed3326ba2672aa90266befd194e1d824ab47042d68f8b"
+      },
+      "docs/stage98_test_results.json": {
+        "bytes": 1559,
+        "present": true,
+        "sha256": "fe9157528a38e2570497a2f80b70e5d671d7b909977c8f1177c92f9139780489"
+      },
+      "docs/stage99_test_results.json": {
+        "bytes": 2541,
+        "present": true,
+        "sha256": "2edb4036d0de90d1da959ecd6dadc12f21aa4e2f2c361e2a63d941475ea9d84d"
+      },
+      "pyproject.toml": {
+        "bytes": 1116,
+        "present": true,
+        "sha256": "b2caa62bf042264e67626abd6299414e735ad200c732d22e0f1f0910656f9eab"
+      },
+      "scripts/build_windows_exe.py": {
+        "bytes": 6620,
+        "present": true,
+        "sha256": "9d3d273d08593be8b11fd16218dde5b21522e99f4b358b138f48d67ce56f8f8b"
+      },
+      "scripts/stage100_release_audit.py": {
+        "bytes": 7807,
+        "present": true,
+        "sha256": "ca7bde5e7f3a8ae50bd734267db55ce348c9c0a3ca702933436564444ba7363d"
+      },
+      "scripts/stage99_windows_acceptance.py": {
+        "bytes": 8839,
+        "present": true,
+        "sha256": "6d2d174c51fdeb4b52af8343a295898052f21c0a1a3ec2c515920109c3f3b5b3"
+      }
+    },
+    "format": 1,
+    "scope": "selected_source_components_not_a_zip_signature"
+  },
+  "release_status": "BLOCKED",
+  "requirement": "ANF-REQ-072",
+  "scope": "release_documentation_and_acceptance_criteria",
+  "stage": 100,
+  "user_acceptance_automatically_granted": false
+}

@@ -1,0 +1,35 @@
+{
+  "stage": 81,
+  "requirement": "ANF-REQ-057",
+  "new_tests": 36,
+  "worktree": {
+    "stage": 81,
+    "group_count": 8,
+    "module_count": 94,
+    "module_coverage_exact": true,
+    "total": 2608,
+    "passed": 2591,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "limitations": [
+    "caller-supplied approval assertion not independently verified",
+    "only explicit manuscript annotations extracted",
+    "no canon database application",
+    "Windows EXE/GUI and real LLM integrations untested"
+  ],
+  "candidate_independent": {
+    "stage": 81,
+    "group_count": 8,
+    "module_count": 94,
+    "module_coverage_exact": true,
+    "total": 2608,
+    "passed": 2591,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  }
+}

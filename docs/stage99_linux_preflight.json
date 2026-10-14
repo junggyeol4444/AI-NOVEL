@@ -1,0 +1,30 @@
+{
+  "blockers": [
+    "not_windows",
+    "python_not_3_12",
+    "exe_missing"
+  ],
+  "command_exit_codes": {},
+  "environment": "non-Windows",
+  "exe_sha256": null,
+  "local_llm_inference": "UNVERIFIED",
+  "mode": "preflight_only",
+  "network_used": false,
+  "official_platform_api_upload": "UNVERIFIED",
+  "os_release": "Linux",
+  "pe_header_valid": false,
+  "physical_display_user_review": "UNVERIFIED",
+  "postgres_pgvector_and_redis_celery": "UNVERIFIED",
+  "publication_executed": false,
+  "python_312": false,
+  "python_version": "3.13",
+  "report_is_not_a_release_approval": true,
+  "requirement": "ANF-REQ-071",
+  "smoke_checks": {},
+  "stage": 99,
+  "user_pc_accessed": false,
+  "windows_acceptance_met": false,
+  "windows_comprehensive_regression": "UNVERIFIED",
+  "windows_exe_present": false,
+  "windows_exe_runtime": "UNVERIFIED"
+}

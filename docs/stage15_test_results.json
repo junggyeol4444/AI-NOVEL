@@ -1,0 +1,29 @@
+{
+  "stage": 15,
+  "title": "DOCX 파서",
+  "run_at_kst": "2026-10-12T11:06:57+09:00",
+  "source_baseline": "AI_Novel_Factory_stage13_hardened.zip",
+  "new_parser_tests": 18,
+  "tests_total": 92,
+  "tests_passed": 89,
+  "tests_skipped": 3,
+  "tests_failed": 0,
+  "smoke_required_passed": 6,
+  "smoke_failed": 0,
+  "compileall": "pass",
+  "python_runtime": "3.13.5",
+  "python_project_target": "3.12",
+  "gui_tests": "skipped: PySide6 not installed",
+  "windows_exe": "not built or tested",
+  "user_pc_modified": false,
+  "remote_repository_connected": false,
+  "pending_integration": [
+    "stage12_input_validation_hash",
+    "stage14_epub_parser"
+  ],
+  "test_commands": [
+    "PYTHONPATH=src python -m unittest discover -s tests -v",
+    "PYTHONPATH=src python scripts/smoke_test.py",
+    "python -m compileall -q src tests"
+  ]
+}

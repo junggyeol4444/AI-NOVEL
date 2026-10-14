@@ -1,0 +1,9 @@
+Stage 96 official roadmap: platform-specific file formats and upload feasibility checks.
+Implementation PARTIAL OFFLINE ONLY: compares user-supplied UNVERIFIED constraints to stage92 metadata, stage93 locally generated EPUB subset, and stage94 UTF-8 upload drafts. No official platform profile or upload feasibility result.
+Source: previous stage95_continuation_local.zip; ZIP 1673 entries / CRC OK, docs/requirements.md, stage95 continuation test/results and verification log read. Original project TXT not present. No dedicated stage96 ANF-REQ exists; NONE assigned/invented.
+Official stage95 ANF-REQ-066 acceptance UNMET; official platform formats and sandbox upload UNVERIFIED.
+New tests: 29 passed; worktree regression: 110 modules split into eight nonoverlapping groups, 3213 run / 3192 pass / 21 skip / 0 fail / 0 error. Group logs and exit codes stored in docs/stage96_worktree_group* files; full manifest docs/stage96_worktree_groups.json.
+External API, server, GitHub and cloud LLM calls: NONE. Publication: NONE. Windows runtime GUI/EXE, actual local LLM, Redis/Celery, pgvector unverified.
+Candidate cumulative ZIP: 1704 entries; preserved 1673/1673 previous ZIP entries including hidden files; only README.md changed; ZIP CRC OK.
+Candidate independently extracted into new directory and ALL 110 modules independently tested: 3213 total / 3192 pass / 21 skip / 0 fail / 0 error, all eight group exit codes zero. Logs now embedded as docs/stage96_candidate_independent*.
+Final cumulative ZIP is created after embedding this evidence; verify final extraction separately.

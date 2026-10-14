@@ -1,0 +1,27 @@
+{
+  "stage": 54,
+  "requirement": "ANF-REQ-044",
+  "command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "original": {
+    "run": 1826,
+    "passed": 1815,
+    "skipped": 11,
+    "failed": 0
+  },
+  "runtime": "Linux Python 3.13",
+  "limitations": [
+    "Windows EXE not tested",
+    "AI scene writing not implemented",
+    "database persistence not implemented"
+  ],
+  "fresh_extract": {
+    "run": 1826,
+    "passed": 1815,
+    "skipped": 11,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "zip_sha256": "8a70d67163678eb928441270de5aadb00606be94d2ec54c3be52721ab88e3c99",
+  "zip_file_count": 248,
+  "gitignore_included": true
+}

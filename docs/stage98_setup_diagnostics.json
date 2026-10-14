@@ -1,0 +1,33 @@
+{
+  "stage": 98,
+  "scope": "local_read_only_setup_diagnostics",
+  "observed_environment": "non-Windows",
+  "source_python_3_12_compatible_target": false,
+  "windows_target_present": false,
+  "local_gui_module_available": false,
+  "windows_build_tool_available": false,
+  "optional_graphics_module_available": true,
+  "windows_build_preflight_possible": false,
+  "installed_windows_exe_verified": false,
+  "gui_runtime_verified": false,
+  "user_pc_inspected": false,
+  "local_model_inference_verified": false,
+  "postgres_pgvector_runtime_verified": false,
+  "redis_celery_runtime_verified": false,
+  "external_service_connection": "DISABLED",
+  "cloud_ai_connection": "DISABLED",
+  "official_platform_upload_verified": false,
+  "platform_publishing_executed": false,
+  "installer_executed": false,
+  "network_used": false,
+  "user_approval_authenticated": false,
+  "stage95_official_api_acceptance_met": false,
+  "stage96_official_upload_compatibility_verified": false,
+  "stage97_windows_exe_acceptance_met": false,
+  "default_configuration": {
+    "valid": true,
+    "api_loopback_only": true,
+    "remote_services_configured": false,
+    "cloud_provider_configured": false
+  }
+}

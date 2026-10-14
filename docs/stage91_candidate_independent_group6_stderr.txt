@@ -1,0 +1,10 @@
+/mnt/data/anf_stage91_candidate_extracted/src/ai_novel_factory/memory_delta.py:37: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fce3d852200>
+  or any(ord(c) < 32 or ord(c) == 127 for c in s)):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage91_candidate_extracted/src/ai_novel_factory/memory_delta.py:37: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fce3d8ea3e0>
+  or any(ord(c) < 32 or ord(c) == 127 for c in s)):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 304 tests in 4.658s
+
+OK (skipped=9)

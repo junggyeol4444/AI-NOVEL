@@ -1,0 +1,42 @@
+{
+  "stage": 83,
+  "requirement_id": null,
+  "requirement_basis": "official 100-stage roadmap stage 83; existing ANF-REQ-039 is related stage-49 episode storage",
+  "base_stage": 82,
+  "new_tests": 53,
+  "worktree": {
+    "stage": 83,
+    "requirement": null,
+    "module_count": 96,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 2702,
+    "passed": 2685,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "candidate_independent": {
+    "stage": 83,
+    "requirement": null,
+    "module_count": 96,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 2702,
+    "passed": 2685,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "final_independent": null,
+  "limitations": [
+    "original planning TXT not available in conversation file list",
+    "versioned saves are opt-in; external EpisodeStore edits are detected, not captured",
+    "FINAL is not user-authenticated approval or publication permission",
+    "snapshots cover draft/final_text, not scene/plot/summary/checks",
+    "no encryption or authenticated tamper proof",
+    "Windows EXE/GUI, real LLM, Redis/Celery/pgvector not tested"
+  ]
+}

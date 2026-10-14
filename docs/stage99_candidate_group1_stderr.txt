@@ -1,0 +1,8 @@
+<frozen os>:717: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7f5bea5298a0>
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.13/zipfile/__init__.py:1642: UserWarning: Duplicate name: 'EPUB/nav.xhtml'
+  return self._open_to_write(zinfo, force_zip64=force_zip64)
+----------------------------------------------------------------------
+Ran 569 tests in 2.652s
+
+OK (skipped=2)

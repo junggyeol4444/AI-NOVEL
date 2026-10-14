@@ -1,0 +1,16 @@
+Stage 75 / 100 — ANF-REQ-052 evidence-labelled logic checker
+Baseline ZIP: AI_Novel_Factory_stage74_local.zip (437 files; CRC tested before work).
+Reviewed: docs/requirements.md, docs/stage74_test_results.json, docs/stage74_verification_log.txt, prior checkers.
+Never contacted GitHub, any remote repository, external server or cloud AI API.
+Local environment: Python 3.13.5, Linux-6.18.44-x86_64-with-glibc2.41
+New module: src/ai_novel_factory/logic_checker.py; 42 new tests.
+New unit test command: PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage75*.py' -v
+  Ran 42 tests; OK; exit 0.
+Full suite command: PYTHONPATH=src python -m unittest discover -s tests -q
+  Ran 2373 tests in 23.667s; OK (skipped=17); 2356 passed, 17 skipped, failures/errors=0, exit 0.
+  Raw stdout: docs/stage75_worktree_stdout.txt; stderr: docs/stage75_worktree_stderr.txt.
+Preserved all 437 previous files; README.md updated only.
+Known pre-existing issue: ResourceWarning unclosed SQLite connection.
+Logic facts must be labelled by reviewer; no NLP, DB writes, automatic approval or publication.
+candidate_extracted: {'total': 2373, 'passed': 2356, 'skipped': 17, 'failures': 0, 'errors': 0, 'exit_code': 0, 'unittest_seconds': 25.4, 'zip_crc': 'ok', 'hidden_files': 'ok', 'unpacked_file_count': 444}
+final_extracted: {'total': 2373, 'passed': 2356, 'skipped': 17, 'failures': 0, 'errors': 0, 'exit_code': 0, 'unittest_seconds': 24.241, 'zip_crc': 'ok', 'hidden_files': 'ok', 'unpacked_file_count': 446}

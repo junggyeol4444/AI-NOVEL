@@ -1,0 +1,71 @@
+{
+  "extracted_from": "AI_Novel_Factory_stage77_candidate.zip",
+  "zip_crc": "ok",
+  "baseline_files_preserved": 459,
+  "zip_file_count": 485,
+  "disjoint_test_modules": 88,
+  "groups": [
+    {
+      "group": 1,
+      "exit_code": 0,
+      "total": 304,
+      "skipped": 3,
+      "elapsed_seconds": 3.97
+    },
+    {
+      "group": 2,
+      "exit_code": 0,
+      "total": 304,
+      "skipped": 1,
+      "elapsed_seconds": 4.45
+    },
+    {
+      "group": 3,
+      "exit_code": 0,
+      "total": 303,
+      "skipped": 2,
+      "elapsed_seconds": 5.27
+    },
+    {
+      "group": 4,
+      "exit_code": 0,
+      "total": 305,
+      "skipped": 1,
+      "elapsed_seconds": 4.4
+    },
+    {
+      "group": 5,
+      "exit_code": 0,
+      "total": 305,
+      "skipped": 1,
+      "elapsed_seconds": 9.53
+    },
+    {
+      "group": 6,
+      "exit_code": 0,
+      "total": 306,
+      "skipped": 3,
+      "elapsed_seconds": 12.2
+    },
+    {
+      "group": 7,
+      "exit_code": 0,
+      "total": 303,
+      "skipped": 3,
+      "elapsed_seconds": 3.31
+    },
+    {
+      "group": 8,
+      "exit_code": 0,
+      "total": 304,
+      "skipped": 3,
+      "elapsed_seconds": 3.29
+    }
+  ],
+  "total": 2434,
+  "passed": 2417,
+  "skipped": 17,
+  "failures": 0,
+  "errors": 0,
+  "all_exit_codes_zero": true
+}

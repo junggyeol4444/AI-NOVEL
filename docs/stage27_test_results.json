@@ -1,0 +1,24 @@
+{
+  "stage": 27,
+  "feature": "character relationship co-mention and lexical cue change candidates",
+  "mode": "conversation-local; no GitHub or remote sync",
+  "environment": "Linux Python 3.13.5",
+  "commands": [
+    "PYTHONPATH=src python -m unittest discover -s tests -p test_relationship_changes.py -v",
+    "PYTHONPATH=src python -m unittest discover -s tests -q",
+    "PYTHONPATH=src python scripts/smoke_test.py",
+    "python -m compileall -q src tests scripts"
+  ],
+  "new_tests": 43,
+  "total_tests": 410,
+  "passed_tests": 407,
+  "skipped_tests": 3,
+  "failed_tests": 0,
+  "smoke_required_checks": "passed",
+  "python312_verified": false,
+  "windows_exe_verified": false,
+  "local_model_semantics_verified": false,
+  "warning": "Existing tests emit ResourceWarning for unclosed sqlite connection; follow-up needed",
+  "remote_repository_modified": false,
+  "source_of_truth": "cumulative ZIP attached in this conversation"
+}

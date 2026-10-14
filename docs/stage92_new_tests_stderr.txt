@@ -1,0 +1,51 @@
+test_c0_tab_rejected_in_description (test_stage92_publication_metadata.Stage92ContractTests.test_c0_tab_rejected_in_description) ... ok
+test_c1_and_bidi_rejected (test_stage92_publication_metadata.Stage92ContractTests.test_c1_and_bidi_rejected) ... ok
+test_contract_required_fields (test_stage92_publication_metadata.Stage92ContractTests.test_contract_required_fields) ... ok
+test_cover_alignment (test_stage92_publication_metadata.Stage92ContractTests.test_cover_alignment) ... ok
+test_forbid_approved_and_published (test_stage92_publication_metadata.Stage92ContractTests.test_forbid_approved_and_published) ... ok
+test_forbid_other_status_or_origin (test_stage92_publication_metadata.Stage92ContractTests.test_forbid_other_status_or_origin) ... ok
+test_input_uses_original_user_logline (test_stage92_publication_metadata.Stage92ContractTests.test_input_uses_original_user_logline) ... ok
+test_keyword_duplicates_casefold (test_stage92_publication_metadata.Stage92ContractTests.test_keyword_duplicates_casefold) ... ok
+test_keyword_length (test_stage92_publication_metadata.Stage92ContractTests.test_keyword_length) ... ok
+test_keyword_nfc_duplicates (test_stage92_publication_metadata.Stage92ContractTests.test_keyword_nfc_duplicates) ... ok
+test_keyword_normalization (test_stage92_publication_metadata.Stage92ContractTests.test_keyword_normalization) ... ok
+test_keyword_types (test_stage92_publication_metadata.Stage92ContractTests.test_keyword_types) ... ok
+test_keywords_required (test_stage92_publication_metadata.Stage92ContractTests.test_keywords_required) ... ok
+test_krw_fraction_invalid (test_stage92_publication_metadata.Stage92ContractTests.test_krw_fraction_invalid) ... ok
+test_language_invalid (test_stage92_publication_metadata.Stage92ContractTests.test_language_invalid) ... ok
+test_multiline_synopsis_allowed (test_stage92_publication_metadata.Stage92ContractTests.test_multiline_synopsis_allowed) ... ok
+test_no_reference_input_or_network_function (test_stage92_publication_metadata.Stage92ContractTests.test_no_reference_input_or_network_function) ... ok
+test_nonstring_text (test_stage92_publication_metadata.Stage92ContractTests.test_nonstring_text) ... ok
+test_price_above_maximum (test_stage92_publication_metadata.Stage92ContractTests.test_price_above_maximum) ... ok
+test_price_currency_invalid (test_stage92_publication_metadata.Stage92ContractTests.test_price_currency_invalid) ... ok
+test_price_currency_krw (test_stage92_publication_metadata.Stage92ContractTests.test_price_currency_krw) ... ok
+test_price_negative_and_float_invalid (test_stage92_publication_metadata.Stage92ContractTests.test_price_negative_and_float_invalid) ... ok
+test_price_usd_cents (test_stage92_publication_metadata.Stage92ContractTests.test_price_usd_cents) ... ok
+test_project_id (test_stage92_publication_metadata.Stage92ContractTests.test_project_id) ... ok
+test_required_text (test_stage92_publication_metadata.Stage92ContractTests.test_required_text) ... ok
+test_text_limits (test_stage92_publication_metadata.Stage92ContractTests.test_text_limits) ... ok
+test_title_no_newline (test_stage92_publication_metadata.Stage92ContractTests.test_title_no_newline) ... ok
+test_unicode_nfc_normalization (test_stage92_publication_metadata.Stage92ContractTests.test_unicode_nfc_normalization) ... ok
+test_cli_bad_input_safe_error (test_stage92_publication_metadata.Stage92PersistenceTests.test_cli_bad_input_safe_error) ... ok
+test_cli_creates_only_draft_and_never_prints_private_prose (test_stage92_publication_metadata.Stage92PersistenceTests.test_cli_creates_only_draft_and_never_prints_private_prose) ... ok
+test_cli_reject_extra_reference_fields (test_stage92_publication_metadata.Stage92PersistenceTests.test_cli_reject_extra_reference_fields) ... ok
+test_duplicate_json_key_rejected (test_stage92_publication_metadata.Stage92PersistenceTests.test_duplicate_json_key_rejected) ... ok
+test_extra_field_rejected_even_with_hash (test_stage92_publication_metadata.Stage92PersistenceTests.test_extra_field_rejected_even_with_hash) ... ok
+test_forged_approval_rejected_even_with_new_hash (test_stage92_publication_metadata.Stage92PersistenceTests.test_forged_approval_rejected_even_with_new_hash) ... ok
+test_invalid_hash (test_stage92_publication_metadata.Stage92PersistenceTests.test_invalid_hash) ... ok
+test_is_actual_utf8_json (test_stage92_publication_metadata.Stage92PersistenceTests.test_is_actual_utf8_json) ... ok
+test_missing_output_dir (test_stage92_publication_metadata.Stage92PersistenceTests.test_missing_output_dir) ... ok
+test_no_log_or_publish_calls (test_stage92_publication_metadata.Stage92PersistenceTests.test_no_log_or_publish_calls) ... ok
+test_no_overwrite (test_stage92_publication_metadata.Stage92PersistenceTests.test_no_overwrite) ... ok
+test_no_symlink_file (test_stage92_publication_metadata.Stage92PersistenceTests.test_no_symlink_file) ... ok
+test_no_symlink_output (test_stage92_publication_metadata.Stage92PersistenceTests.test_no_symlink_output) ... ok
+test_roundtrip_korean (test_stage92_publication_metadata.Stage92PersistenceTests.test_roundtrip_korean) ... ok
+test_stable_canonical_bytes (test_stage92_publication_metadata.Stage92PersistenceTests.test_stable_canonical_bytes) ... ok
+test_symlink_read_rejected (test_stage92_publication_metadata.Stage92PersistenceTests.test_symlink_read_rejected) ... ok
+test_tampered_checksum (test_stage92_publication_metadata.Stage92PersistenceTests.test_tampered_checksum) ... ok
+test_too_large_rejected (test_stage92_publication_metadata.Stage92PersistenceTests.test_too_large_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 46 tests in 0.010s
+
+OK

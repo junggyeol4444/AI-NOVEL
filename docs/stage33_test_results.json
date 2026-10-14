@@ -1,0 +1,26 @@
+{
+  "stage": 33,
+  "feature": "offline_reference_pattern_library",
+  "base_archive": "AI_Novel_Factory_stage32_local.zip",
+  "execution": "Python on local PC and SQLite; no external server or GitHub usage",
+  "development_python": "3.13.5",
+  "declared_python": ">=3.12,<3.13",
+  "unittest": {"total": 716, "passed": 709, "skipped": 7, "failed": 0, "errors": 0},
+  "new_tests": {"total": 54, "passed": 53, "skipped_optional_gui": 1, "failed": 0, "errors": 0},
+  "smoke": "mandatory checks passed; runtime Python version warning",
+  "dependency_policy": "passed; no package installation or Windows EXE build",
+  "no_external_services_called": true,
+  "github_not_used": true,
+  "limitations": [
+    "Windows GUI test skipped because PySide6 is not installed in validation environment",
+    "Windows EXE not built or tested",
+    "Actual local LLM and semantic writing not implemented",
+    "Existing unused optional remote-service dependencies remain in the historical pyproject.toml"
+  ],
+  "commands": [
+    "PYTHONPATH=src python -m unittest tests.test_pattern_library -q",
+    "PYTHONPATH=src python -m unittest discover -s tests -q",
+    "PYTHONPATH=src python scripts/smoke_test.py",
+    "PYTHONPATH=src python scripts/check_dependencies.py"
+  ]
+}

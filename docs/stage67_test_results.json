@@ -1,0 +1,92 @@
+{
+  "stage": 67,
+  "official_roadmap": "Redis·Celery 비동기 작업큐 연동",
+  "scope": "Local SQLite durable metadata queue and optional loopback-only Celery configuration; live Redis/Celery not integrated/tested",
+  "prior_zip": "AI_Novel_Factory_stage66_local.zip",
+  "prior_files": 340,
+  "prior_file_comparison": "All 339 prior entries byte-identical except README.md appended",
+  "new_tests": 24,
+  "worktree": {
+    "total": 2093,
+    "passed": 2079,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0,
+    "command": "PYTHONPATH=src python -m unittest discover -s tests -v"
+  },
+  "new_suite": {
+    "total": 24,
+    "passed": 24,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  "fresh_zip_extraction": {
+    "method": "three disjoint test partitions after extracting ZIP to anf67_fresh_from_zip",
+    "total": 2093,
+    "passed": 2079,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0,
+    "exit_codes": [
+      0,
+      0,
+      0
+    ],
+    "partitions": [
+      {
+        "name": "test_stage6*.py",
+        "tests": 189,
+        "skipped": 0
+      },
+      {
+        "name": "test_stage* excluding stage6",
+        "tests": 916,
+        "skipped": 3
+      },
+      {
+        "name": "tests not prefixed test_stage",
+        "tests": 988,
+        "skipped": 11
+      }
+    ]
+  },
+  "unverified": [
+    "Live Redis broker and Celery worker transport",
+    "Windows EXE and GUI",
+    "local LLM generation",
+    "network sandbox for arbitrary local executables"
+  ],
+  "known_warnings": [
+    "Legacy SQLite connection ResourceWarning"
+  ],
+  "archive": {
+    "initial_zip_files": 348,
+    "release_zip_files": 351,
+    "zip_crc_ok": true,
+    "hidden_files": [
+      ".gitignore",
+      ".env.example"
+    ]
+  },
+  "release_zip_extraction": {
+    "verified_again_from_351_file_release": true,
+    "total": 2093,
+    "passed": 2079,
+    "skipped": 14,
+    "failures": 0,
+    "errors": 0,
+    "exit_codes": [
+      0,
+      0,
+      0
+    ],
+    "partition_tests": [
+      189,
+      916,
+      988
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+test_bad_conflict_id_does_not_echo_title (test_stage88_ending_audit.EndingAuditTests.test_bad_conflict_id_does_not_echo_title) ... ok
+test_blank_final_blocks (test_stage88_ending_audit.EndingAuditTests.test_blank_final_blocks) ... ok
+test_bool_only_inventory_flags (test_stage88_ending_audit.EndingAuditTests.test_bool_only_inventory_flags) ... ok
+test_conflict_abandoned_needs_review (test_stage88_ending_audit.EndingAuditTests.test_conflict_abandoned_needs_review) ... ok
+test_conflict_backwards_close_rejected (test_stage88_ending_audit.EndingAuditTests.test_conflict_backwards_close_rejected) ... ok
+test_conflict_future_close_blocks (test_stage88_ending_audit.EndingAuditTests.test_conflict_future_close_blocks) ... ok
+test_conflict_future_open_blocks (test_stage88_ending_audit.EndingAuditTests.test_conflict_future_open_blocks) ... ok
+test_conflict_invalid_outcome_rejected (test_stage88_ending_audit.EndingAuditTests.test_conflict_invalid_outcome_rejected) ... ok
+test_conflict_open_blocks (test_stage88_ending_audit.EndingAuditTests.test_conflict_open_blocks) ... ok
+test_conflict_persists_reopen (test_stage88_ending_audit.EndingAuditTests.test_conflict_persists_reopen) ... ok
+test_conflict_project_isolation (test_stage88_ending_audit.EndingAuditTests.test_conflict_project_isolation) ... ok
+test_conflict_resolved_allows_review (test_stage88_ending_audit.EndingAuditTests.test_conflict_resolved_allows_review) ... ok
+test_conflict_stale_revision_rejected (test_stage88_ending_audit.EndingAuditTests.test_conflict_stale_revision_rejected) ... ok
+test_conflict_terminal_cannot_close_again (test_stage88_ending_audit.EndingAuditTests.test_conflict_terminal_cannot_close_again) ... ok
+test_corrupted_conflict_fails_closed (test_stage88_ending_audit.EndingAuditTests.test_corrupted_conflict_fails_closed) ... ok
+test_empty_explicitly_reviewed_is_ready_for_human_only (test_stage88_ending_audit.EndingAuditTests.test_empty_explicitly_reviewed_is_ready_for_human_only) ... ok
+test_empty_unreviewed_is_blocked (test_stage88_ending_audit.EndingAuditTests.test_empty_unreviewed_is_blocked) ... ok
+test_foreshadow_abandoned_needs_review (test_stage88_ending_audit.EndingAuditTests.test_foreshadow_abandoned_needs_review) ... ok
+test_foreshadow_developing_blocks (test_stage88_ending_audit.EndingAuditTests.test_foreshadow_developing_blocks) ... ok
+test_foreshadow_future_install_blocks (test_stage88_ending_audit.EndingAuditTests.test_foreshadow_future_install_blocks) ... ok
+test_foreshadow_future_resolution_blocks (test_stage88_ending_audit.EndingAuditTests.test_foreshadow_future_resolution_blocks) ... ok
+test_foreshadow_open_blocks (test_stage88_ending_audit.EndingAuditTests.test_foreshadow_open_blocks) ... ok
+test_foreshadow_resolved_allows (test_stage88_ending_audit.EndingAuditTests.test_foreshadow_resolved_allows) ... ok
+test_future_manuscript_blocks (test_stage88_ending_audit.EndingAuditTests.test_future_manuscript_blocks) ... ok
+test_invalid_ending_episode (test_stage88_ending_audit.EndingAuditTests.test_invalid_ending_episode) ... ok
+test_memory_database_rejected (test_stage88_ending_audit.EndingAuditTests.test_memory_database_rejected) ... ok
+test_missing_ending_episode_blocks (test_stage88_ending_audit.EndingAuditTests.test_missing_ending_episode_blocks) ... ok
+test_no_implicit_completion_state_created (test_stage88_ending_audit.EndingAuditTests.test_no_implicit_completion_state_created) ... ok
+test_partial_inventory_blocks (test_stage88_ending_audit.EndingAuditTests.test_partial_inventory_blocks) ... ok
+test_report_digest_stable (test_stage88_ending_audit.EndingAuditTests.test_report_digest_stable) ... ok
+test_report_does_not_expose_manuscript_or_titles (test_stage88_ending_audit.EndingAuditTests.test_report_does_not_expose_manuscript_or_titles) ... ok
+test_require_current_review_blocks_unreviewed (test_stage88_ending_audit.EndingAuditTests.test_require_current_review_blocks_unreviewed) ... ok
+test_require_current_review_rejects_foreshadow_change (test_stage88_ending_audit.EndingAuditTests.test_require_current_review_rejects_foreshadow_change) ... ok
+test_require_current_review_rejects_forged_flag (test_stage88_ending_audit.EndingAuditTests.test_require_current_review_rejects_forged_flag) ... ok
+test_require_current_review_rejects_manuscript_change (test_stage88_ending_audit.EndingAuditTests.test_require_current_review_rejects_manuscript_change) ... ok
+test_require_current_review_rejects_new_conflict (test_stage88_ending_audit.EndingAuditTests.test_require_current_review_rejects_new_conflict) ... ok
+test_require_current_review_succeeds_without_finalizing (test_stage88_ending_audit.EndingAuditTests.test_require_current_review_succeeds_without_finalizing) ... ok
+test_timeline_corruption_fails_closed (test_stage88_ending_audit.EndingAuditTests.test_timeline_corruption_fails_closed) ... ok
+test_timeline_known_date_passes (test_stage88_ending_audit.EndingAuditTests.test_timeline_known_date_passes) ... /mnt/data/anf_stage88_work/src/ai_novel_factory/database/event_timeline.py:135: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe79d54bc40>
+  self._db.execute("""CREATE TABLE IF NOT EXISTS bible_timeline_order (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage88_work/src/ai_novel_factory/database/event_timeline.py:135: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe79d548a90>
+  self._db.execute("""CREATE TABLE IF NOT EXISTS bible_timeline_order (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage88_work/src/ai_novel_factory/database/event_timeline.py:135: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe79d54b880>
+  self._db.execute("""CREATE TABLE IF NOT EXISTS bible_timeline_order (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_timeline_unknown_date_needs_review (test_stage88_ending_audit.EndingAuditTests.test_timeline_unknown_date_needs_review) ... ok
+
+----------------------------------------------------------------------
+Ran 40 tests in 0.250s
+
+OK

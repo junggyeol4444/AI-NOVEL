@@ -5,6 +5,7 @@ from io import BytesIO
 import hashlib
 from pathlib import Path
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 
@@ -184,7 +185,7 @@ class ImportPipelineTests(unittest.TestCase):
         out = import_reference_file(f, catalog=self.catalog)
         self.assertNotIn('PRIVATE_TEST_NOVEL_PASSAGE', repr(out))
         self.assertNotIn(str(self.root), repr(out))
-        with sqlite3.connect(self.root / 'reference.sqlite3') as con:
+        with closing(sqlite3.connect(self.root / 'reference.sqlite3')) as con:
             fields = con.execute('select * from reference_files').fetchone()
             flat = repr(fields)
             self.assertNotIn('PRIVATE_TEST_NOVEL_PASSAGE', flat)

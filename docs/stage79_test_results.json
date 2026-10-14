@@ -1,0 +1,47 @@
+{
+  "stage": 79,
+  "roadmap_task": "Reader Simulation 몰입도·전개·캐릭터 평가",
+  "requirement": "ANF-REQ-055",
+  "baseline_zip": "AI_Novel_Factory_stage78_local.zip",
+  "baseline_zip_sha256": "6156aea8797d097bc224fabf5159a3d5e5900a4c22a1853bf5f81ff3ab282e58",
+  "baseline_file_count": 555,
+  "original_proposal_attachment_accessible": false,
+  "new_tests": 45,
+  "new_tests_passed": 45,
+  "worktree_partitioned_regression": {
+    "total": 2525,
+    "passed": 2508,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "groups": 8,
+    "modules": 92,
+    "all_exit_codes_zero": true,
+    "evidence": "docs/stage79_worktree_groups.json and docs/stage79_worktree_group1..8_stderr.txt"
+  },
+  "runtime": {
+    "python": "3.13.5",
+    "platform": "Linux"
+  },
+  "limitations": [
+    "Only human-marked scene rubric presence indicators; no real readers, automatic prose understanding, objective quality scores or LLM simulation",
+    "Explicit local SQLite reference-only receipts; no manuscript approval, finalization or publication",
+    "Original proposal attachment not available in conversation files; packaged requirements and user-provided roadmap used",
+    "Windows EXE/GUI, real LLM, Redis/Celery and pgvector live integration not tested",
+    "Pre-existing SQLite ResourceWarning may appear"
+  ],
+  "candidate_independent_extraction": {
+    "total": 2525,
+    "passed": 2508,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "modules": 92,
+    "groups": 8,
+    "all_exit_codes_zero": true,
+    "evidence": "docs/stage79_candidate_group1..8_stderr.txt"
+  },
+  "candidate_zip_files": 586,
+  "candidate_zip_crc_ok": true,
+  "candidate_zip_all_members_identical_to_extracted": true
+}

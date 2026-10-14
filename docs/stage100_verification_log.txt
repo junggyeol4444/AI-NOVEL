@@ -1,0 +1,22 @@
+Stage 100 / ANF-REQ-072 — release documents and acceptance criteria.
+Original source plan TXT unverified; user roadmap and actual docs/requirements.md used. No fabricated requirement IDs.
+Stage99 cumulative ZIP verified: 1912 entries, ZIP CRC OK, stage99 test_results and verification_log checked.
+Prior Windows acceptance, official API upload and platform-format claims remain UNVERIFIED; RELEASE_BLOCKED.
+No network, upload, publication, installation, cloud API, repository or user computer access.
+New test command: PYTHONPATH=src:tests python -m unittest -q tests/test_stage100_release_audit.py
+New unit tests: 31/31 passed; new test stdout/stderr/exit saved as docs/stage100_new_tests_*.
+Audit command: python scripts/stage100_release_audit.py --report docs/stage100_release_audit.json
+Audit exit=2 expected BLOCKED; no release granted; docs/stage100_audit_* logs preserved.
+Worktree regression commands:
+PYTHONPATH=src python scripts/stage99_partitioned_regression.py --prefix docs/stage100_worktree --start 1 --end 4
+PYTHONPATH=src python scripts/stage99_partitioned_regression.py --prefix docs/stage100_worktree --start 5 --end 8
+PYTHONPATH=src python scripts/stage99_partitioned_regression.py --prefix docs/stage100_worktree --aggregate
+Worktree 114 unique unittest modules, 8 disjoint partitions, total=3334, passed=3313, skipped=21, failures=0, errors=0.
+Candidate ZIP: 1960 files, stage99 1912/1912 preserved, only README.md modified, CRC passed.
+Candidate independent extraction commands:
+PYTHONPATH=src python scripts/stage99_partitioned_regression.py --prefix docs/stage100_candidate_independent --start 1 --end 4
+PYTHONPATH=src python scripts/stage99_partitioned_regression.py --prefix docs/stage100_candidate_independent --start 5 --end 8
+PYTHONPATH=src python scripts/stage99_partitioned_regression.py --prefix docs/stage100_candidate_independent --aggregate
+Candidate independent 114 modules, 8 disjoint partitions, total=3334, passed=3313, skipped=21, failures=0, errors=0.
+Final archive and final independently extracted validation will be recorded in external stage100_final_verification.json.
+Original ZIP hidden files .gitignore .env.example etc preserved; no Windows EXE or actual GUI/LLM/Redis/pgvector validated.

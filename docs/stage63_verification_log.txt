@@ -1,0 +1,10 @@
+Stage 63 — local Novel Bible-first prompt preview
+Input: AI_Novel_Factory_stage62_local.zip (304 files); reviewed docs/requirements.md and docs/stage62_test_results.json and docs/stage62_verification_log.txt
+Command: PYTHONPATH=src python -m unittest discover -s tests -p "test_stage63*.py" -v
+Result: Ran 19 tests; OK
+Command: PYTHONPATH=src python -m unittest discover -s tests -q
+Worktree result: Ran 1995 tests; OK (skipped=14); 1981 passed, 0 failures/errors
+First ZIP independently extracted to anf63_fresh_verification; same full-suite result: 1995/1981/14/0
+Prior source ZIP SHA256 preservation: all 304 prior files unchanged
+ZIP CRC passed; hidden files checked: .gitignore .env.example .editorconfig .python-version
+First final ZIP re-extracted into anf63_final_from_zip: Ran 1995 tests; OK (skipped=14); 1981 passed, 0 failures/errors. Final report repackaged and reverified below.

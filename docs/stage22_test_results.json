@@ -1,0 +1,10 @@
+{
+  "stage": 22,
+  "environment": "Linux Python 3.13, local offline test",
+  "command": "PYTHONPATH=src python -m unittest discover -s tests -v",
+  "ran": 232,
+  "passed": 229,
+  "skipped": 3,
+  "failed": 0,
+  "windows_exe_verified": false
+}

@@ -1,0 +1,7 @@
+Stage 82 / ANF-REQ-058
+Base: stage81 ZIP, 683 files; original planning TXT not available in current conversation files.
+Worktree: 95 unittest modules, 8 disjoint groups, 2649 total, 2632 passed, 17 skipped, 0 failures, 0 errors.
+New stage82 tests: 41 passed.
+Worktree initial multi-group command ended before group8 because of execution time limit; group8 was executed separately. Group6 was re-executed after adding 2 tests. Exact group stderr/stdout and command list: stage82_worktree_groups.json.
+Candidate/final independent results will be appended below.
+Candidate ZIP independently extracted: 95 modules, 8 disjoint groups, 2649 total, 2632 passed, 17 skipped, failures/errors 0. Logs: docs/stage82_candidate_group[1..8]_*; commands in docs/stage82_candidate_groups.json.

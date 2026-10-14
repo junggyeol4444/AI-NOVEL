@@ -1,0 +1,46 @@
+{
+  "stage": 86,
+  "requirement_id": "ANF-REQ-059",
+  "base_stage": 85,
+  "base_archive": "AI_Novel_Factory_stage85_local.zip",
+  "original_planning_txt_available": false,
+  "python": "3.13.5",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "new_tests": 11,
+  "new_tests_passed": 11,
+  "new_tests_exit_code": 0,
+  "trial": {
+    "expected_episodes": 30,
+    "attempted_episodes": 30,
+    "successful_drafts": 30,
+    "scenes_in_successful_drafts": 60,
+    "error_count": 0,
+    "final_version_count": 0,
+    "passed": true
+  },
+  "injected_rejection": {
+    "attempted_episodes": 30,
+    "successful_drafts": 29,
+    "error_count": 1,
+    "preliminary_blocked_count": 1,
+    "passed": false
+  },
+  "injected_rejection_expected_exit_code": 1,
+  "worktree": {
+    "module_count": 99,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 2832,
+    "passed": 2815,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "limitations": [
+    "30 mock-generated DRAFT episodes only; no actual AI novel writing",
+    "no full quality checks or actual stage84 finalization chain",
+    "no approval authentication, publication, remote API, or memory application",
+    "Windows EXE, GUI, Redis/Celery, pgvector, local LLM not tested"
+  ]
+}

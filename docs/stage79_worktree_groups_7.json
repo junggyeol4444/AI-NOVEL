@@ -1,0 +1,26 @@
+[
+  {
+    "group": 7,
+    "modules": [
+      "test_stage42_characters",
+      "test_style_statistics",
+      "test_profile_collection",
+      "test_pattern_usage",
+      "test_stage40_reference_integration",
+      "test_pdf_parser",
+      "test_dialogue_statistics",
+      "test_stage40_release_verifier",
+      "test_stage50_migrations",
+      "test_api_client",
+      "test_desktop_gui_optional"
+    ],
+    "command": "/opt/pyvenv/bin/python -m unittest test_stage42_characters test_style_statistics test_profile_collection test_pattern_usage test_stage40_reference_integration test_pdf_parser test_dialogue_statistics test_stage40_release_verifier test_stage50_migrations test_api_client test_desktop_gui_optional -q",
+    "elapsed_seconds": 4.46,
+    "exit_code": 0,
+    "total": 303,
+    "skipped": 3,
+    "failures": 0,
+    "errors": 0,
+    "stderr_file": "docs/stage79_worktree_group7_stderr.txt"
+  }
+]

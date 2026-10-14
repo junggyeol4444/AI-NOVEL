@@ -1,0 +1,11 @@
+{
+  "stage": 19,
+  "topic": "reference metadata catalogue",
+  "environment": "Linux Python 3.13.5",
+  "command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "total": 164,
+  "passed": 161,
+  "skipped": 3,
+  "failed": 0,
+  "windows_exe_tested": false
+}

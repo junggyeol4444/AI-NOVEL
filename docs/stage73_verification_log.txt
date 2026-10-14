@@ -1,0 +1,14 @@
+Stage 73 / 100 — Timeline evidence check
+Source: AI_Novel_Factory_stage72_local.zip, 418 files; inspected docs/requirements.md and stage72 tests/log.
+Roadmap: step 73 Timeline 날짜·시간·사건 순서 검사; no directly assigned ANF-REQ ID.
+Implemented: src/ai_novel_factory/timeline_checker.py; tests/test_stage73_timeline_checker.py
+No remote repository, external server, or cloud AI calls.
+Commands:
+  PYTHONPATH=src python -m unittest discover -s tests -p 'test_stage73*.py' -q
+  PYTHONPATH=src python -m unittest discover -s tests -q
+Worktree: 41 new tests passed; full 2290 tests, 17 skipped, zero failures/errors; exit 0.
+Candidate ZIP: 423 entries; CRC ok; .gitignore, .env.example and .python-version included.
+Candidate extracted to /mnt/data/anf73_candidate_fresh; full 2290 tests, 17 skipped, zero failures/errors; exit 0.
+Existing 418 files preserved; only README.md modified.
+Inherited SQLite connection ResourceWarning observed, no new failure.
+Windows UI/EXE, real LLM, live Redis/Celery not verified. Annotated spans only, no NLP.

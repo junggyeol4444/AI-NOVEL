@@ -1,0 +1,10 @@
+/mnt/data/anf_stage97_candidate_extracted/src/ai_novel_factory/database/foreshadow.py:129: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc97b126200>
+  item = ForeshadowEvent(*(row[k] for k in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage97_candidate_extracted/src/ai_novel_factory/database/foreshadow.py:129: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fc97b1c3a60>
+  item = ForeshadowEvent(*(row[k] for k in (
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 329 tests in 6.861s
+
+OK (skipped=9)

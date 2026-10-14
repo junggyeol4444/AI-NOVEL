@@ -1,0 +1,30 @@
+Stage 88 / ANF-REQ-061 (offline local ending readiness inspection)
+Original user planning TXT: NOT ACCESSIBLE; roadmap in conversation and docs/requirements.md used.
+Base archive: AI_Novel_Factory_stage87_local.zip (1106 entries), CRC: OK.
+Environment: Linux Python 3.13.5. Windows EXE, GUI, actual LLM, Redis/Celery/pgvector NOT VERIFIED.
+No external servers, cloud API, Git operations, manuscript finalization or publication.
+
+New tests:
+PYTHONPATH=src python -m unittest discover -s tests -p test_stage88_ending_audit.py -v
+stdout: docs/stage88_new_tests_stdout.txt
+stderr: docs/stage88_new_tests_stderr.txt
+exit: docs/stage88_new_tests_exit.txt
+40 tests passed, 0 failures, 0 errors, exit 0.
+
+Worktree regression (all 101 distinct test modules, partitioned into 8 nonoverlapping groups):
+python scripts/stage88_partitioned_regression.py --prefix docs/stage88_worktree --start 1 --end 8
+Command timed out at orchestration boundary after groups 1-6 completed; groups 7-8 resumed with:
+python scripts/stage88_partitioned_regression.py --prefix docs/stage88_worktree --start 7 --end 8
+python scripts/stage88_partitioned_regression.py --prefix docs/stage88_worktree --aggregate
+Result: 2884 total, 2867 passed, 17 skipped, 0 failed, 0 errors; all eight group exits zero.
+stdout/stderr/exit codes: docs/stage88_worktree_group{1..8}_{stdout,stderr,exit}.txt
+Coverage proof: docs/stage88_worktree_groups.json
+
+Candidate extraction and final ZIP extraction verification: see external stage88_final_verification.json and independent test logs.
+Finalization transition and publication are NOT implemented. A clear report only means ready for human review.
+Candidate independent extraction regression:
+python scripts/stage88_partitioned_regression.py --prefix docs/stage88_candidate_independent --start 1 --end 4
+python scripts/stage88_partitioned_regression.py --prefix docs/stage88_candidate_independent --start 5 --end 8
+python scripts/stage88_partitioned_regression.py --prefix docs/stage88_candidate_independent --aggregate
+2884 total, 2867 passed, 17 skipped, 0 failed, 0 errors; all group exits zero.
+Evidence: docs/stage88_candidate_independent_groups.json and group{1..8}_{stdout,stderr,exit}.txt

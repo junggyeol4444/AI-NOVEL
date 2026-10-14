@@ -1,0 +1,45 @@
+{
+  "stage": 100,
+  "requirement": "ANF-REQ-072",
+  "release_status": "BLOCKED",
+  "automatic_release_authorized": false,
+  "user_signoff": "NOT_GIVEN",
+  "host": "Linux",
+  "original_plan_txt_verified": false,
+  "checks": {
+    "95_official_api": {
+      "reason": "acceptance_evidence_incomplete",
+      "status": "UNVERIFIED"
+    },
+    "96_platform_rules": {
+      "reason": "acceptance_evidence_incomplete",
+      "status": "UNVERIFIED"
+    },
+    "97_windows_exe": {
+      "reason": "acceptance_evidence_incomplete",
+      "status": "UNVERIFIED"
+    },
+    "98_install_guide": {
+      "reason": "self_report_untrusted_until_review",
+      "status": "REPORTED_PASS"
+    },
+    "99_windows_acceptance": {
+      "reason": "acceptance_evidence_incomplete",
+      "status": "UNVERIFIED"
+    }
+  },
+  "documents": {
+    "docs/requirements.md": true,
+    "docs/stage100_release_and_acceptance.md": true,
+    "docs/stage100_user_manual.md": true,
+    "docs/stage98_installation_and_connection_guide.md": true,
+    "docs/stage99_windows_integrated_regression.md": true
+  },
+  "blockers": [
+    "95_official_api",
+    "96_platform_rules",
+    "97_windows_exe",
+    "99_windows_acceptance",
+    "host_not_windows"
+  ]
+}

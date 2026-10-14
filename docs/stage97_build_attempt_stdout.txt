@@ -1,0 +1,1 @@
+{"blockers": ["not_windows", "python_not_3_12", "missing_pyinstaller", "missing_pyside6"], "checks": {}, "exe_sha256": null, "network_required": false, "platform": "non-Windows", "preflight_permitted": false, "publish_executed": false, "required_python": "3.12", "stage": 97, "windows_exe_built": false, "windows_runtime_verified": false}

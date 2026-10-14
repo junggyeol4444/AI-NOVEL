@@ -1,0 +1,12 @@
+Partial first invocation stopped by execution time limit after groups 1..5. Remaining groups 6..8 were executed separately. Full disjoint coverage is documented in stage79_worktree_groups.json.
+{
+  "total": 2525,
+  "passed": 2508,
+  "skipped": 17,
+  "failures": 0,
+  "errors": 0,
+  "groups": 8,
+  "modules": 92,
+  "all_exit_codes_zero": true,
+  "evidence": "docs/stage79_worktree_groups.json and docs/stage79_worktree_group1..8_stderr.txt"
+}

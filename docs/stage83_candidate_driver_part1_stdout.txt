@@ -1,0 +1,4 @@
+group 1: total=397, skipped=2, exit=0, ok=True
+group 2: total=235, skipped=0, exit=0, ok=True
+group 3: total=364, skipped=2, exit=0, ok=True
+group 4: total=239, skipped=0, exit=0, ok=True

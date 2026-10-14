@@ -1,0 +1,10 @@
+{
+  "groups": 8,
+  "modules": 90,
+  "total": 2480,
+  "passed": 2463,
+  "skipped": 17,
+  "failures": 0,
+  "errors": 0,
+  "all_exit_codes_zero": true
+}

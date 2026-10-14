@@ -1,0 +1,10 @@
+/mnt/data/anf_stage93_workspace/src/ai_novel_factory/database/episodes.py:225: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe73915f1f0>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_checks
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/mnt/data/anf_stage93_workspace/src/ai_novel_factory/database/episodes.py:225: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fe738d6c7c0>
+  self._db.execute("""CREATE INDEX IF NOT EXISTS ix_episode_checks
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 474 tests in 3.046s
+
+OK (skipped=6)

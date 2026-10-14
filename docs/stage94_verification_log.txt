@@ -1,0 +1,11 @@
+Stage94 / ANF-REQ-065 — local-only UTF-8 upload DRAFTs
+Original spec TXT: unavailable; used user official roadmap + docs/requirements.md
+Base: stage93 ZIP, 1492 files, CRC clean and prior stage93 verification logs read
+New tests: 48 passed, 0 skipped, 0 failures, 0 errors
+Worktree regression: 107 modules, 8 nonoverlapping groups, 3150 tests, 3129 passed, 21 skipped, zero errors/failures. See stage94_worktree_groups.json and group stdout/stderr/exit files.
+Demo: docs/stage94_demo/upload_drafts/; local example only.
+Pending independent ZIP extraction validation.
+Nothing published or uploaded. No remote connections.
+Candidate ZIP: 1536 files; 1492 stage93 files all preserved, only README.md changed; CRC OK.
+Candidate separate extraction regression: 107 modules, 8 disjoint groups, 3150 total, 3129 pass, 21 skip, 0 error/fail; all exits zero.
+Original TXT unavailable. Platform adapter/real upload/Windows GUI/EXE and actual LLM not tested.

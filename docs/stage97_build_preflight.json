@@ -1,0 +1,18 @@
+{
+  "stage": 97,
+  "platform": "non-Windows",
+  "required_python": "3.12",
+  "preflight_permitted": false,
+  "blockers": [
+    "not_windows",
+    "python_not_3_12",
+    "missing_pyinstaller",
+    "missing_pyside6"
+  ],
+  "windows_exe_built": false,
+  "windows_runtime_verified": false,
+  "checks": {},
+  "exe_sha256": null,
+  "network_required": false,
+  "publish_executed": false
+}

@@ -1,0 +1,8 @@
+Stage 85 ANF-REQ-050
+Source: stage84 ZIP, docs/requirements.md, official user roadmap. Original planning TXT unavailable.
+New tests: 68 passed.
+Worktree full regression: 98 unique modules; 2821 tests, 2804 passed, 17 skipped, failures 0, errors 0.
+All 8 disjoint unittest groups exit 0. Group 1 rerun after final additional failure/interrupt protection tests; groups 2-8 source unaffected.
+Earlier candidate verification was superseded by a safety improvement; its results are not counted as final verification.
+No GitHub, remote server, cloud AI API, publication, approval authentication or Windows verification.
+Final ZIP independent extraction pending.

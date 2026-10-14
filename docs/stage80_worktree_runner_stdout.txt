@@ -1,0 +1,9 @@
+group 1/8: tests=397, skipped=2, ok=True
+group 2/8: tests=235, skipped=0, ok=True
+group 3/8: tests=364, skipped=2, ok=True
+group 4/8: tests=239, skipped=0, ok=True
+group 5/8: tests=454, skipped=6, ok=True
+group 6/8: tests=221, skipped=5, ok=True
+group 7/8: tests=324, skipped=1, ok=True
+group 8/8: tests=338, skipped=1, ok=True
+{"modules": 93, "covered_modules": 93, "groups": 8, "total": 2572, "passed": 2555, "skipped": 17, "all_success": true}

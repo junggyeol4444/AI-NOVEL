@@ -1,4 +1,12 @@
-"""PDF parser (stage 16): bounded, local, read-only text extraction."""
+"""Stage 16: bounded PDF reference-text extraction, entirely local and read-only.
+
+PDF page coordinates are recorded in ParsedBlock.start_line/end_line: for PDFs
+these positions mean 1-based *page numbers*, NOT physical text lines.
+
+Extracted passages are ephemeral; callers must not persist, log, upload or pass
+source text directly to the novel writer. PDF extraction is not OCR: scanned
+image-only pages are detected and reported separately.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -19,6 +27,8 @@ MAX_BLOCKS = 50_000
 
 @dataclass(frozen=True)
 class ParsedPdfReference(ParsedReference):
+    """PDF metadata without leaking the private, ephemeral source text in repr."""
+
     page_count: int = 0
     image_only_pages: tuple[int, ...] = field(default_factory=tuple)
     empty_pages: tuple[int, ...] = field(default_factory=tuple)
@@ -31,13 +41,17 @@ def _positive_bounded(value: int, maximum: int, label: str) -> int:
 
 
 def _has_images(page: object) -> bool:
+    """Identify image XObjects without attempting to read/recognize pixels."""
     try:
         return bool(page.images)
     except Exception:
+        # Unsupported/corrupt image filters must never leak raw PDF data into
+        # application errors; a blank page is still accounted for.
         return False
 
 
 def _page_paragraphs(page_text: str) -> list[str]:
+    """Split on blank lines, not every visual line wrap."""
     cleaned = page_text.replace("\r\n", "\n").replace("\r", "\n").replace("\x0c", "\n")
     if "\x00" in cleaned:
         raise ReferenceParseError("PDF 본문에서 잘못된 제어 문자를 발견했습니다.")
@@ -51,6 +65,12 @@ def parse_pdf_bytes(
     max_text_chars: int = MAX_TEXT_CHARS,
     max_page_text_chars: int = MAX_PAGE_TEXT_CHARS,
 ) -> ParsedPdfReference:
+    """Extract selectable text in PDF page order; no OCR or network calls.
+
+    The result includes ``image_only_pages`` for mixed text/image PDFs. A PDF
+    having only image pages raises ReferenceParseError explaining OCR is needed.
+    Images/annotations/forms/attachments are never extracted or executed.
+    """
     if not isinstance(raw, bytes) or not raw:
         raise ReferenceParseError("PDF 바이트 입력이 필요합니다.")
     if len(raw) > MAX_PDF_BYTES:
@@ -60,10 +80,12 @@ def parse_pdf_bytes(
     _positive_bounded(max_pages, MAX_PAGES, "페이지 수 제한")
     _positive_bounded(max_text_chars, MAX_TEXT_CHARS, "본문 길이 제한")
     _positive_bounded(max_page_text_chars, MAX_PAGE_TEXT_CHARS, "페이지 본문 제한")
+
     try:
         from pypdf import PdfReader
     except ImportError:
         raise ReferenceParseError("PDF 처리를 위해 pypdf 설치가 필요합니다.") from None
+
     try:
         reader = PdfReader(BytesIO(raw), strict=True)
         if reader.is_encrypted:
@@ -73,11 +95,13 @@ def parse_pdf_bytes(
             raise ReferenceParseError("PDF 페이지가 없습니다.")
         if page_count > max_pages:
             raise ReferenceParseError("PDF 페이지 수 제한을 초과했습니다.")
+
         blocks: list[ParsedBlock] = []
         image_pages: list[int] = []
         empty_pages: list[int] = []
         total_chars = 0
         for number, page in enumerate(reader.pages, start=1):
+            # Standard text extraction: does not OCR or invoke image decoders.
             extracted = page.extract_text(extraction_mode="plain") or ""
             if not isinstance(extracted, str):
                 raise ReferenceParseError("PDF 텍스트 추출 결과가 올바르지 않습니다.")
@@ -87,26 +111,33 @@ def parse_pdf_bytes(
             if not paragraphs:
                 (image_pages if _has_images(page) else empty_pages).append(number)
                 continue
+
             for paragraph in paragraphs:
                 if len(blocks) >= MAX_BLOCKS:
                     raise ReferenceParseError("PDF 본문 블록 수 제한을 초과했습니다.")
                 total_chars += len(paragraph)
                 if total_chars > max_text_chars:
                     raise ReferenceParseError("PDF 전체 본문 길이 제한을 초과했습니다.")
+                # Page numbers intentionally occupy the generic line fields.
                 blocks.append(ParsedBlock("paragraph", number, number, paragraph))
+
         if not blocks:
             if image_pages:
                 raise ReferenceParseError("이미지 기반 PDF로 텍스트를 추출할 수 없습니다. OCR이 필요합니다.")
             raise ReferenceParseError("PDF에서 추출할 수 있는 텍스트가 없습니다.")
         return ParsedPdfReference(
-            format="pdf", encoding=None,
-            text="\n\n".join(block.text for block in blocks), blocks=tuple(blocks),
-            page_count=page_count, image_only_pages=tuple(image_pages),
+            format="pdf",
+            encoding=None,
+            text="\n\n".join(block.text for block in blocks),
+            blocks=tuple(blocks),
+            page_count=page_count,
+            image_only_pages=tuple(image_pages),
             empty_pages=tuple(empty_pages),
         )
     except ReferenceParseError:
         raise
     except Exception:
+        # Do not leak original passages, names, or local paths via pypdf errors.
         raise ReferenceParseError("PDF 파일을 안전하게 해석할 수 없습니다.") from None
 
 
@@ -118,6 +149,7 @@ def parse_pdf_file(
     max_text_chars: int = MAX_TEXT_CHARS,
     max_page_text_chars: int = MAX_PAGE_TEXT_CHARS,
 ) -> ParsedPdfReference:
+    """Read a bounded local regular PDF once, without modifying it."""
     source = Path(path)
     if source.suffix.lower() != ".pdf":
         raise ReferenceParseError("PDF 확장자만 지원합니다.")

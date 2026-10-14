@@ -1,0 +1,46 @@
+{
+  "stage": 41,
+  "name": "Novel Bible 최우선 설정 저장",
+  "requirement": "ANF-REQ-031",
+  "source_zip": "AI_Novel_Factory_stage40_local.zip",
+  "baseline": {
+    "zip_integrity": "passed",
+    "source_extracted_test_count": 1030,
+    "source_extracted_passed": 1019,
+    "source_extracted_skipped": 11,
+    "source_extracted_failures": 0
+  },
+  "python_version": "3.13.5",
+  "test_command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "test_count": 1094,
+  "passed": 1083,
+  "skipped": 11,
+  "failures": 0,
+  "errors": 0,
+  "new_tests": 64,
+  "new_tests_passed": 64,
+  "checks": {
+    "source_tree_full_suite": "passed",
+    "smoke": "passed (Python 3.12 version warning)",
+    "dependency_policy": "passed",
+    "compileall": "passed",
+    "release_zip": "passed (171 files, CRC integrity, no private entries)",
+    "release_extracted_full_suite": "passed (1094 tests, 1083 passed, 11 skipped, 0 failures/errors)",
+    "release_extracted_smoke": "passed (Python 3.12 version warning)",
+    "release_extracted_dependency_policy": "passed",
+    "release_extracted_compileall": "passed"
+  },
+  "limitations": [
+    "Novel Bible user-authored content stored locally as plaintext (not encrypted)",
+    "Novel Bible precedence resolver is not yet connected to a local AI Writer",
+    "Only six approved anonymous numeric reference feature keys are accepted",
+    "Windows 10/11 GUI and EXE untested",
+    "Python 3.12 target untested (ran Python 3.13.5)",
+    "PySide6 optional tests skipped: 11",
+    "Character/worldbuilding/episode memory stages 42-49 not implemented",
+    "No automatic publishing or legal originality guarantee"
+  ],
+  "github_remote_actions": "none",
+  "external_network_services": "none",
+  "verified_at_utc": "2026-10-12T09:03:57+00:00"
+}

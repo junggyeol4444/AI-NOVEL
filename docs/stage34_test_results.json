@@ -1,0 +1,29 @@
+{
+  "stage": 34,
+  "feature": "per-reference pattern intensity and local statistical preview",
+  "run_date": "2026-10-12",
+  "runtime_python": "3.13.5",
+  "project_python_requirement": "3.12",
+  "test_command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "test_total": 762,
+  "test_passed": 754,
+  "test_skipped": 8,
+  "test_failed": 0,
+  "stage34_test_total": 46,
+  "stage34_test_passed": 45,
+  "stage34_test_skipped": 1,
+  "stage34_test_failed": 0,
+  "smoke_command": "PYTHONPATH=src python scripts/smoke_test.py",
+  "smoke_result": "required checks PASS; Python minor version warning",
+  "dependencies_command": "PYTHONPATH=src python scripts/check_dependencies.py",
+  "dependencies_result": "PASS",
+  "gui_windows_tested": false,
+  "windows_exe_built": false,
+  "external_servers_used": false,
+  "github_used": false,
+  "limitations": [
+    "PySide6 not installed in this test runtime",
+    "Windows EXE and real local LLM generation not yet implemented/tested",
+    "Strength preview is descriptive and not a writer control"
+  ]
+}

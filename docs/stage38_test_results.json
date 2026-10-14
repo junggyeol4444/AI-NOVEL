@@ -1,0 +1,28 @@
+{
+  "stage": 38,
+  "title": "원문 비복제 보호",
+  "verified_at_utc": "2026-10-12T07:41:05.816385+00:00",
+  "python_version": "3.13.5",
+  "test_command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "total_tests": 935,
+  "passed": 924,
+  "skipped": 11,
+  "failures": 0,
+  "errors": 0,
+  "stage38_tests": 49,
+  "stage38_passed": 49,
+  "checks": {
+    "smoke": "passed (Python 3.12 warning)",
+    "dependency_policy": "passed",
+    "compileall": "passed",
+    "zip_integrity": "passed"
+  },
+  "limitations": [
+    "No Windows GUI or EXE runtime verification",
+    "Python 3.12 target not verified in this environment",
+    "Writer integration not possible before Writer implementation",
+    "Checks selected sources only; does not detect paraphrase/semantic copying",
+    "EPUB unsupported in current cumulative parser"
+  ],
+  "git_network_actions": "none"
+}

@@ -1,0 +1,48 @@
+{
+  "stage": 43,
+  "name": "인물별 지식 범위를 회차별로 관리",
+  "requirement": "ANF-REQ-033",
+  "source_zip": "AI_Novel_Factory_stage42_local.zip",
+  "baseline": {
+    "test_count": 1165,
+    "passed": 1154,
+    "skipped": 11,
+    "failures": 0,
+    "errors": 0
+  },
+  "python_version": "3.13.5",
+  "test_command": "PYTHONPATH=src python -m unittest discover -s tests -q",
+  "test_count": 1253,
+  "passed": 1242,
+  "skipped": 11,
+  "failures": 0,
+  "errors": 0,
+  "new_tests": 88,
+  "new_tests_passed": 88,
+  "checks": {
+    "source_tree_full_suite": "passed",
+    "source_tree_smoke": "passed (Python 3.12 target warning)",
+    "source_tree_dependency_policy": "passed",
+    "source_tree_compileall": "passed",
+    "release_zip": "passed (183 files, CRC integrity, no private entries, all 177 stage42 files preserved)",
+    "release_extracted_full_suite": "passed (1253 tests, 1242 passed, 11 skipped, 0 failures/errors)",
+    "release_extracted_smoke": "passed (Python 3.12 target warning)",
+    "release_extracted_dependency_policy": "passed",
+    "release_extracted_compileall": "passed",
+    "release_extracted_hidden_files": "passed (.gitignore, .env.example, .python-version)"
+  },
+  "limitations": [
+    "Knowledge facts are user-authored and plaintext in local SQLite (not encrypted)",
+    "No automatic semantic recognition of facts in prose; caller must supply fact IDs",
+    "Not a proof of originality, not a publishing authorization",
+    "Knowledge events are not yet injected into AI Writer (Writer not implemented)",
+    "Windows 10/11 GUI and EXE untested",
+    "Python 3.12 target untested (ran Python 3.13.5)",
+    "PySide6 optional tests skipped: 11",
+    "Full suite emitted a non-failing ResourceWarning for an unclosed SQLite connection",
+    "No automatic publishing or legal originality guarantee"
+  ],
+  "github_remote_actions": "none",
+  "external_network_services": "none",
+  "verified_at_utc": "2026-10-12T11:05:14.865486+00:00"
+}

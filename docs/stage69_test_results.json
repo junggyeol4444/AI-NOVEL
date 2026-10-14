@@ -1,0 +1,48 @@
+{
+  "stage": 69,
+  "requirement": "ANF-REQ-048",
+  "scope": "partial: local explicit retry, metadata-only checkpoint resume",
+  "full_worktree": {
+    "total": 2161,
+    "passed": 2144,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0,
+    "elapsed_seconds_approx": 31.98
+  },
+  "new_tests": 34,
+  "python": "3.13.5",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "warnings": [
+    "preexisting SQLite connection ResourceWarning"
+  ],
+  "not_tested": [
+    "Windows EXE",
+    "actual local LLM inference",
+    "Redis/Celery broker",
+    "remote API (prohibited)",
+    "final manuscript save idempotency"
+  ],
+  "fresh_zip_verification": "first ZIP extraction passed; final updated ZIP to be separately rerun",
+  "first_zip_fresh_extraction": {
+    "total": 2161,
+    "passed": 2144,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0,
+    "elapsed_seconds_approx": 31.33
+  },
+  "cumulative_zip_files": 370,
+  "original_stage68_files_preserved": 361,
+  "modified_preexisting_files": [
+    "README.md",
+    "src/ai_novel_factory/local_task_queue.py"
+  ],
+  "hidden_files_confirmed": [
+    ".gitignore",
+    ".env.example",
+    ".python-version"
+  ]
+}

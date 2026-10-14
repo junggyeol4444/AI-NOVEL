@@ -1,0 +1,36 @@
+{
+  "stage": 84,
+  "requirement_id": "ANF-REQ-049",
+  "base_stage": 83,
+  "new_tests": 51,
+  "worktree": {
+    "module_count": 97,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 2753,
+    "passed": 2736,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "candidate_independent": {
+    "module_count": 97,
+    "group_count": 8,
+    "module_coverage_exact": true,
+    "total": 2753,
+    "passed": 2736,
+    "skipped": 17,
+    "failures": 0,
+    "errors": 0,
+    "all_exit_codes_zero": true
+  },
+  "final_independent": null,
+  "limitations": [
+    "original planning TXT not accessible in current files",
+    "confirmation_asserted is not authenticated approval",
+    "only metadata-only queue job and opt-in offline draft run, no autonomous full quality pipeline",
+    "no auto-cancel for stale queued tasks; caller must revalidate before dispatch",
+    "no Windows EXE/GUI, real local LLM, Redis/Celery/pgvector testing"
+  ]
+}

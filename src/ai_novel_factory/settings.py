@@ -10,7 +10,6 @@ from pathlib import Path
 from collections.abc import Mapping
 import os
 import re
-from urllib.parse import urlsplit
 
 _ALLOWED = frozenset({
     "ANF_ENV", "ANF_API_HOST", "ANF_API_PORT", "ANF_LOG_LEVEL",
@@ -60,22 +59,6 @@ def _port(value: str) -> int:
     return port
 
 
-def _service_url(value: str, key: str, schemes: set[str]) -> str | None:
-    if not value:
-        return None
-    try:
-        parts = urlsplit(value)
-        valid = parts.scheme in schemes and bool(parts.hostname)
-        # Do not allow query or fragments, which could accidentally expose tokens.
-        valid = valid and not parts.query and not parts.fragment
-        _ = parts.port  # Forces validation of malformed port numbers.
-    except ValueError:
-        valid = False
-    if not valid:
-        raise ConfigurationError(f"{key} has an invalid connection URL")
-    return value
-
-
 @dataclass(frozen=True, slots=True)
 class AppSettings:
     environment: str = "development"
@@ -114,19 +97,28 @@ def load_settings(
     if environment not in {"development", "test", "production"}:
         raise ConfigurationError("ANF_ENV must be development, test, or production")
     api_host = values.get("ANF_API_HOST", "127.0.0.1").strip()
-    if not api_host or any(c.isspace() for c in api_host) or "/" in api_host:
+    if api_host not in {"127.0.0.1", "localhost", "::1"}:
         raise ConfigurationError("ANF_API_HOST is invalid")
     log_level = values.get("ANF_LOG_LEVEL", "INFO").strip().upper()
     if log_level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
         raise ConfigurationError("ANF_LOG_LEVEL is invalid")
     provider = values.get("ANF_AI_PROVIDER", "disabled").strip().lower()
-    if not provider or not re.fullmatch(r"[a-z0-9_-]{1,40}", provider):
+    if provider not in {"disabled", "local", "mock"}:
         raise ConfigurationError("ANF_AI_PROVIDER is invalid")
     ai_key = values.get("ANF_AI_API_KEY", "").strip() or None
     if ai_key is not None and ai_key.lower() in {"your-key", "changeme", "example", "placeholder"}:
         raise ConfigurationError("ANF_AI_API_KEY is a placeholder")
-    if provider != "disabled" and not ai_key:
+    if provider == "mock" and not ai_key:
         raise ConfigurationError("ANF_AI_API_KEY is required for an enabled provider")
+
+    # Legacy remote-service URL fields are intentionally disabled in this offline build.
+    # They are never used by the SQLite catalog or the in-process analyzers.
+    if values.get("ANF_DATABASE_URL", "").strip():
+        raise ConfigurationError("Remote/database service URLs are disabled in local-only mode")
+    if values.get("ANF_REDIS_URL", "").strip():
+        raise ConfigurationError("Queue service URLs are disabled in local-only mode")
+    if provider in {"disabled", "local"} and ai_key:
+        raise ConfigurationError("Cloud API keys are not used in local-only mode")
 
     return AppSettings(
         environment=environment,
@@ -135,10 +127,8 @@ def load_settings(
         log_level=log_level,
         ai_provider=provider,
         ai_api_key=ai_key,
-        database_url=_service_url(values.get("ANF_DATABASE_URL", "").strip(),
-                                  "ANF_DATABASE_URL", {"postgresql", "postgresql+psycopg"}),
-        redis_url=_service_url(values.get("ANF_REDIS_URL", "").strip(),
-                               "ANF_REDIS_URL", {"redis", "rediss"}),
+        database_url=None,
+        redis_url=None,
     )
 
 
