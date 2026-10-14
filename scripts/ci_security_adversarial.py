@@ -4,6 +4,7 @@ These checks provide bounded evidence, not a proof of general security.
 All databases and documents are synthetic. No user account or platform API.
 """
 import os
+from contextlib import closing
 import sqlite3
 import tempfile
 import unittest
@@ -71,7 +72,7 @@ class InjectionDefenses(unittest.TestCase):
     def test_operations_reader_rejects_untrusted_filter(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/"tasks.sqlite"
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db:
                 db.execute("CREATE TABLE local_tasks (task_id TEXT)")
             reader=OperationsReader(path)
             with self.assertRaises(OperationsError):
