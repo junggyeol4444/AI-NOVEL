@@ -6,6 +6,7 @@ the end-to-end consumer journey is NOT allowed to pass on this shortcut.
 """
 from __future__ import annotations
 import json
+import faulthandler
 import os
 from pathlib import Path
 import subprocess
@@ -23,6 +24,7 @@ from ai_novel_factory.database.episodes import EpisodeStore
 from ai_novel_factory.desktop.app import MainWindow
 from ai_novel_factory.desktop.navigation import SECTIONS
 
+faulthandler.dump_traceback_later(150, exit=True)
 ARTIFACT = Path("build/ci")
 ARTIFACT.mkdir(parents=True,exist_ok=True)
 EXE = Path("dist/stage97/AI_Novel_Factory.exe")
@@ -37,6 +39,7 @@ report={"platform":sys.platform,
     "user_journey":"NOT_STARTED","steps":steps,"blockers":blockers}
 
 def mark(step,result,detail=""):
+    print(json.dumps({"checkpoint":step,"result":result,"detail":detail},ensure_ascii=False),flush=True)
     steps.append({"step":step,"result":result,"detail":detail})
     if result=="BLOCKED" or result=="FAIL":
         blockers.append({"step":step,"reason":detail})
