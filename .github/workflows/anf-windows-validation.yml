@@ -23,6 +23,7 @@ jobs:
       ANF_ENV: test
       QT_QPA_PLATFORM: offscreen
       PYTHONIOENCODING: utf-8
+      PYTHONUTF8: '1'
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - name: Checkout test branch only
@@ -48,8 +49,15 @@ jobs:
         shell: pwsh
         run: |
           $env:PYTHONPATH = "$((Get-Location).Path)\src;$((Get-Location).Path)\tests"
-          python scripts/stage99_partitioned_regression.py --prefix build/ci/regression
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $failedGroups = @()
+          foreach ($n in 1..8) {
+            python scripts/stage99_partitioned_regression.py --prefix build/ci/regression --start $n --end $n
+            if ($LASTEXITCODE -ne 0) { $failedGroups += $n }
+          }
+          if ($failedGroups.Count -gt 0) {
+            Write-Error "Failed Windows regression groups: $($failedGroups -join ',')"
+            exit 1
+          }
           python scripts/stage99_partitioned_regression.py --prefix build/ci/regression --aggregate
           exit $LASTEXITCODE
 
