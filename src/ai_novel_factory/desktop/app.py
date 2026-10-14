@@ -14,6 +14,7 @@ from .api_client import check_local_health
 from .reference_picker import ReferencePickerWidget
 from .reference_profile_browser import ReferenceProfileBrowser
 from .plot_editor import PlotEditorWidget
+from .authoring_workflow import AuthoringWorkflowWidget
 from .task_monitor_widget import TaskMonitorWidget
 from .operations_monitor_widget import OperationsMonitorWidget
 from ai_novel_factory.settings import load_settings, ConfigurationError
@@ -46,7 +47,10 @@ class MainWindow(QMainWindow):
             pending.setStyleSheet('color: #666;')
             layout.addWidget(title)
             layout.addWidget(description)
-            if section.key == 'references':
+            if section.key == 'novels':
+                self.authoring = AuthoringWorkflowWidget(page)
+                layout.addWidget(self.authoring)
+            elif section.key == 'references':
                 # Stage 11: selection only, no file content access or import.
                 self.reference_picker = ReferencePickerWidget(page)
                 layout.addWidget(self.reference_picker)
@@ -89,6 +93,9 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
             editor.session.close()
+        authoring = getattr(self, 'authoring', None)
+        if authoring is not None:
+            authoring.session.close()
         event.accept()
 
     def _check_api(self) -> None:
