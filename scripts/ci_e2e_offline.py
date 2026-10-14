@@ -39,7 +39,7 @@ def run(model_dir: str):
     work.mkdir(mode=0o700,exist_ok=False)
     model=LocalExecutableProvider(str(Path(sys.executable).resolve()),
         arguments=(str(Path(__file__).resolve()),"--child",model_dir),
-        timeout_seconds=150,explicitly_allowed=True)
+        timeout_seconds=120,explicitly_allowed=True)
     req=SceneDraftRequest(project_id="ci_synthetic_orig",
         episode_number=1,scene_number=1,novel_bible="Original made-up world.",
         scene_goal="find a lantern before the sunset",
