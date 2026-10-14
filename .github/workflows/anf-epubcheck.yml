@@ -34,8 +34,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export PYTHONPATH=src
+          python scripts/ci_epubcheck_fixture.py
           EPUBCHECK_JAR="$(find build/tools/epubcheck -iname 'epubcheck.jar' -print -quit)"
-          java -jar "$EPUBCHECK_JAR" docs/stage93_demo/book.epub \
+          java -jar "$EPUBCHECK_JAR" build/ci/book.epub \
             -out build/ci/epubcheck_report.xml
       - name: Upload EPUBCheck XML evidence, no private manuscripts
         if: always()

@@ -112,7 +112,7 @@ def _chapter_xhtml(chapter: Chapter, ordinal: int, language: str) -> bytes:
     return (f'<?xml version="1.0" encoding="utf-8"?>\n'
             f'<html xmlns="{NS_XHTML}" xml:lang="{language}" lang="{language}">'
             f'<head><title>{_xml(chapter.title)}</title><link rel="stylesheet" '
-            f'href="styles/book.css" type="text/css"/></head><body>'
+            f'href="../styles/book.css" type="text/css"/></head><body>'
             f'<section><h1>{_xml(chapter.title)}</h1>{paragraphs}</section></body></html>').encode('utf-8')
 
 
