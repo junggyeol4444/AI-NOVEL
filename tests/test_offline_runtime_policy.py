@@ -82,8 +82,10 @@ class OfflineRuntimePolicyTests(unittest.TestCase):
                     self.assertEqual(catalog.count(), 1)
 
     def test_packaged_source_has_no_github_workflow(self):
-        self.assertFalse((ROOT / ".github").exists())
-        self.assertFalse((ROOT / ".git").exists())
+        # GitHub checkout has CI metadata by design; runtime code must not.
+        runtime = ROOT / "src" / "ai_novel_factory"
+        self.assertFalse((runtime / ".github").exists())
+        self.assertFalse((runtime / ".git").exists())
 
 
 if __name__ == "__main__":

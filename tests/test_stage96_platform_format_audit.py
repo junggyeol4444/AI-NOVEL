@@ -3,6 +3,7 @@ from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 import json
+import os
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -141,7 +142,9 @@ class PlatformFormatAuditTests(unittest.TestCase):
         self.assertEqual(data['rules_origin'], 'USER_SUPPLIED_UNVERIFIED')
         self.assertNotIn(self.meta.title, path.read_text())
         self.assertNotIn(self.episodes[0].body, path.read_text())
-        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        if os.name != 'nt':
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        # Windows ACLs are not represented by POSIX st_mode; audit separately.
         with self.assertRaises(PlatformAuditError): write_local_audit_report(result, self.root)
 
     def test_report_symlink_denied(self):

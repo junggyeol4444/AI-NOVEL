@@ -120,7 +120,9 @@ class Stage97BuildTests(unittest.TestCase):
             report=Path(td)/'preflight.json'
             cmd=[sys.executable,str(SCRIPTS/'build_windows_exe.py'),'--preflight-only','--report',str(report)]
             completed=subprocess.run(cmd,cwd=ROOT,capture_output=True,text=True,timeout=12)
-            self.assertEqual(completed.returncode,2)
+            # An actual Windows build runner has a passing preflight.
+            expected = 0 if builder.current_preflight().permitted else 2
+            self.assertEqual(completed.returncode,expected,completed.stderr)
             data=json.loads(report.read_text(encoding='utf8'))
             self.assertFalse(data['windows_exe_built'])
             self.assertFalse(data['windows_runtime_verified'])

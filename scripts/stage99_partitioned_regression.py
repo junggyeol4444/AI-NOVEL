@@ -41,7 +41,9 @@ def main() -> int:
         err = Path(f'{prefix}_group{i}_stderr.txt')
         if not a.aggregate:
             env = dict(os.environ, PYTHONPATH=os.pathsep.join((str(root / 'src'), str(root / 'tests'))))
-            cmd = [sys.executable, '-m', 'unittest', '-q', *(f.stem for f in group)]
+            cmd = ([sys.executable, str(root / 'scripts' / 'windows_unittest_entry.py'), '-q', *(f.stem for f in group)]
+                   if os.name == 'nt' else
+                   [sys.executable, '-m', 'unittest', '-q', *(f.stem for f in group)])
             try:
                 completed = subprocess.run(cmd, cwd=root, env=env, capture_output=True,
                                            text=True, errors='replace', timeout=180)

@@ -238,7 +238,14 @@ class OperationalTests(unittest.TestCase):
         self.assertEqual(self.queue.get('job-a').status,'QUEUED')
 
     def test_optional_ui_not_imported_by_reader(self):
-        self.assertNotIn('PySide6', __import__('sys').modules)
+        # Check in a fresh interpreter: other GUI tests may import Qt first.
+        import subprocess, sys, os
+        code = ('import sys; from ai_novel_factory.operations_monitor import OperationsReader; '
+                'assert not any(k == "PySide6" or k.startswith("PySide6.") for k in sys.modules)')
+        env = dict(os.environ, PYTHONPATH=str(Path(__file__).resolve().parents[1] / 'src'))
+        result = subprocess.run([sys.executable, '-c', code], env=env,
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 optional; Linux/headless not validated')
