@@ -50,7 +50,7 @@ jobs:
           $model = (Resolve-Path build/ci/model).Path
           $provider = (Resolve-Path scripts/ci_real_model.py).Path
           $out = Join-Path (Get-Location).Path "build/ci/journey"
-          & ./dist/stage97/AI_Novel_Factory.exe --ci-authoring-journey $py $model $provider $out
+          python -c "import subprocess,sys; sys.exit(subprocess.run(sys.argv[1:], timeout=240).returncode)" ./dist/stage97/AI_Novel_Factory.exe --ci-authoring-journey $py $model $provider $out
           $code = $LASTEXITCODE
           if (Test-Path build/ci/journey/compiled_exe_user_journey.json) {
             Get-Content build/ci/journey/compiled_exe_user_journey.json
