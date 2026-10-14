@@ -3,7 +3,7 @@ name: AI Novel Factory Windows validation (TEST BRANCH ONLY)
 on:
   push:
     branches:
-      - validation/windows-ci-100
+      - validation/windows-fast-ci-100
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   windows-validation:
-    if: github.ref == 'refs/heads/validation/windows-ci-100'
+    if: github.ref == 'refs/heads/validation/windows-fast-ci-100'
     runs-on: windows-2022
     timeout-minutes: 120
     env:
