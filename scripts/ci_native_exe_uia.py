@@ -27,7 +27,8 @@ def mark(step,status,detail):
 try:
     if os.name!="nt":raise RuntimeError("Windows required")
     if not EXE.is_file():raise RuntimeError("Built EXE absent")
-    from pywinauto import Application
+    from pywinauto import Desktop
+    import psutil
     env=dict(os.environ,ANF_AI_PROVIDER="disabled")
     env.pop("QT_QPA_PLATFORM",None)
     process=subprocess.Popen([str(EXE)],cwd=str(ROOT),env=env,
@@ -35,9 +36,28 @@ try:
     sleep(5)
     if process.poll() is not None:raise RuntimeError("Real Windows GUI EXE exited early")
     mark("launch actual compiled Windows GUI","PASS",f"PID={process.pid}")
-    app=Application(backend="uia").connect(process=process.pid,timeout=15)
-    window=app.top_window()
-    window.wait("exists visible",timeout=15)
+    # PyInstaller one-file bootloader may spawn the real Qt child process,
+    # so matching the initial launch PID alone misses the actual GUI HWND.
+    launcher=psutil.Process(process.pid)
+    related={process.pid}|{p.pid for p in launcher.children(recursive=True)}
+    candidates=[]
+    for backend in ("uia","win32"):
+        try:
+            visible=Desktop(backend=backend).windows(visible_only=True)
+            matches=[w for w in visible if w.process_id() in related
+                     and "AI Novel Factory" in w.window_text()]
+            if matches:
+                candidates=matches
+                mark("find actual executable GUI process","PASS",
+                     f"backend={backend}, window_pid={matches[0].process_id()}, launcher_pid={process.pid}")
+                break
+        except Exception as search_error:
+            print(f"UIA diagnostic {backend}: {type(search_error).__name__}",flush=True)
+    if not candidates:
+        mark("attach Windows UIAutomation to compiled EXE","BLOCKED",
+             "Hosted runner desktop session exposes no visible Qt window for the actual EXE child process")
+        raise RuntimeError("Windows hosted runner UIAutomation cannot enumerate compiled Qt window")
+    window=candidates[0]
     mark("attach Windows UIAutomation to compiled EXE","PASS",window.window_text())
     controls=window.descendants()
     capture=[{"name":c.window_text(),"class":c.friendly_class_name()} for c in controls]
