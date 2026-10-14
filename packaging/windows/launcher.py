@@ -10,6 +10,9 @@ import sys
 
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
+    if len(args) == 5 and args[0] == '--ci-authoring-journey':
+        from ai_novel_factory.desktop.ci_user_journey import run
+        return run(args[1:])
     if args == ['--gui-smoke']:
         # Window creation smoke test; no event loop or external request.
         os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
