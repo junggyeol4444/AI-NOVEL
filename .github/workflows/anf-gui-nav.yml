@@ -30,7 +30,7 @@ jobs:
       - name: Install headless Qt runtime libraries on test runner only
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y libegl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0
+          sudo apt-get install -y libegl1 libopengl0 libxkbcommon-x11-0 libxcb-cursor0 fonts-noto-cjk
       - name: Install desktop GUI test dependencies in isolated runner
         run: python -m pip install -e '.[desktop]'
       - name: Verify all 12 Qt screens and screenshot
