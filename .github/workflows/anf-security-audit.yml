@@ -1,0 +1,70 @@
+name: AI Novel Factory security and dependency checks (TEST BRANCH ONLY)
+
+on:
+  push:
+    branches:
+      - validation/security-ci-100
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    if: github.ref == 'refs/heads/validation/security-ci-100'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: '1'
+      ANF_AI_PROVIDER: disabled
+    steps:
+      - name: Checkout security test branch only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Configure Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install audit tools and optional Python dependencies on test runner
+        run: |
+          python -m pip install -e '.[desktop,api,database,queue,documents,graphics,quality,dev,build]'
+          python -m pip install bandit pip-audit
+      - name: Compile source and check installed dependency conflicts
+        run: |
+          python -m compileall -q src tests scripts
+          python -m pip check
+      - name: Run Ruff, Bandit and package vulnerability checks
+        shell: bash
+        run: |
+          set +e
+          mkdir -p build/ci
+          ruff check src tests scripts --output-format json > build/ci/ruff.json
+          ruff_status=$?
+          bandit -r src -f json -o build/ci/bandit.json
+          bandit_status=$?
+          pip-audit --format json --output build/ci/pip_audit.json
+          pip_audit_status=$?
+          python - "$ruff_status" "$bandit_status" "$pip_audit_status" <<'PY'
+          import json, sys
+          from pathlib import Path
+          status = dict(ruff_exit=int(sys.argv[1]),bandit_exit=int(sys.argv[2]),pip_audit_exit=int(sys.argv[3]))
+          Path('build/ci/security_status.json').write_text(json.dumps(status,indent=2)+'\n',encoding='utf8')
+          print('Security tool exit statuses:', status)
+          PY
+          if [ "$bandit_status" -ne 0 ] || [ "$pip_audit_status" -ne 0 ]; then
+            echo "One or more security tools found issues or could not complete."
+            exit 1
+          fi
+      - name: Preserve security evidence (test artifacts only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-security-evidence-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            build/ci/ruff.json
+            build/ci/bandit.json
+            build/ci/pip_audit.json
+            build/ci/security_status.json
