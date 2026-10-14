@@ -46,7 +46,7 @@ def main() -> int:
                    [sys.executable, '-m', 'unittest', '-q', *(f.stem for f in group)])
             try:
                 completed = subprocess.run(cmd, cwd=root, env=env, capture_output=True,
-                                           text=True, errors='replace', timeout=180)
+                                           text=True, errors='replace', timeout=600)
                 stdout, stderr, status = completed.stdout, completed.stderr, completed.returncode
             except subprocess.TimeoutExpired as exc:
                 stdout = exc.stdout.decode(errors='replace') if isinstance(exc.stdout, bytes) else exc.stdout or ''

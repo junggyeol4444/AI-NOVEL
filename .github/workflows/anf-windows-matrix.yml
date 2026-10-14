@@ -1,0 +1,52 @@
+name: ANF full Windows unittest matrix (ISOLATED TEST BRANCH)
+on:
+  push:
+    branches:
+      - validation/windows-matrix-ci-100
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-regression:
+    if: github.ref == 'refs/heads/validation/windows-matrix-ci-100'
+    runs-on: windows-2022
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8]
+    env:
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+      QT_QPA_PLATFORM: offscreen
+      PYTHONDONTWRITEBYTECODE: '1'
+      ANF_AI_PROVIDER: disabled
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install full optional requirements on this ephemeral Windows runner only
+        shell: pwsh
+        run: |
+          python -m pip install -e ".[desktop,api,database,queue,documents,graphics,quality,dev,build]"
+      - name: Execute disjoint unittest group
+        shell: pwsh
+        run: |
+          python scripts/stage99_partitioned_regression.py --prefix build/ci/matrix --start ${{ matrix.group }} --end ${{ matrix.group }}
+          exit $LASTEXITCODE
+      - name: Preserve the actual stdout, stderr and exit code of group
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-windows-matrix-group-${{ matrix.group }}-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            build/ci/matrix_group${{ matrix.group }}_stderr.txt
+            build/ci/matrix_group${{ matrix.group }}_stdout.txt
+            build/ci/matrix_group${{ matrix.group }}_exit.txt
