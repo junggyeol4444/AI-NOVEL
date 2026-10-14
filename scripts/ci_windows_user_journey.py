@@ -126,16 +126,24 @@ try:
             ep=verify.get_episode(prj.project_id,1)
             if ep.plot != plot:fail("persist_plot","Plot edit not durable after SQLite re-open")
         mark("save_plot_and_sqlite_reopen","PASS","UI event persisted exactly, independent DB connection")
+        # Actual UI semantics: create an empty scene first, enter text, then save.
         scene="North road, invented town. Goal find lantern, danger fog."
-        window.plot_editor.scene_input.setPlainText(scene)
-        app.processEvents()
         QTest.mouseClick(window.plot_editor.add_scene_button,Qt.MouseButton.LeftButton)
         app.processEvents()
         with EpisodeStore(db) as verify:
             snapshot=verify.snapshot(prj.project_id,1)
+            if len(snapshot.scenes)!=1:
+                fail("add_scene","Scene not created by GUI click")
+        mark("add_scene_via_gui","PASS","New empty scene created in SQLite")
+        window.plot_editor.scene_input.setPlainText(scene)
+        app.processEvents()
+        QTest.mouseClick(window.plot_editor.save_scene_button,Qt.MouseButton.LeftButton)
+        app.processEvents()
+        with EpisodeStore(db) as verify:
+            snapshot=verify.snapshot(prj.project_id,1)
             if len(snapshot.scenes)!=1 or snapshot.scenes[0].text!=scene:
-                fail("persist_scene","New scene not in SQLite after re-open")
-        mark("add_scene_and_sqlite_reopen","PASS","UI click, real scene save and read-back")
+                fail("persist_scene","Scene content not saved and readable after SQLite reopen")
+        mark("save_scene_and_sqlite_reopen","PASS","UI save click, real scene persistence and read-back")
         # What a reader expects next: one-click local AI generation from the same GUI.
         if not window.plot_editor.findChildren(QPushButton,"generateSceneWithLocalModel"):
             mark("draft_scene_using_gui","BLOCKED",
