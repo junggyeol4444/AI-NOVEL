@@ -45,6 +45,11 @@ jobs:
           TRANSFORMERS_OFFLINE: '1'
           HF_HUB_OFFLINE: '1'
         run: python scripts/ci_real_model.py --run "${{ github.workspace }}/build/ci/model"
+      - name: Stress 120 synthetic episode miniature drafts through actual local CPU model
+        env:
+          TRANSFORMERS_OFFLINE: '1'
+          HF_HUB_OFFLINE: '1'
+        run: python scripts/ci_model_stress.py "${{ github.workspace }}/build/ci/model"
       - name: Upload checksum metadata only; exclude weights and scene text
         if: always()
         uses: actions/upload-artifact@v4
@@ -52,4 +57,6 @@ jobs:
           name: anf-real-model-metadata-${{ github.run_id }}
           if-no-files-found: warn
           retention-days: 7
-          path: build/ci/real_cpu_model.json
+          path: |
+            build/ci/real_cpu_model.json
+            build/ci/real_model_stress.json
