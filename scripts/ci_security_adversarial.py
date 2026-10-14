@@ -13,7 +13,7 @@ from ai_novel_factory.database.episodes import EpisodeStore
 from ai_novel_factory.database.world_canon import WorldCanonStore
 from ai_novel_factory.memory_application import MemoryCanonStore, MemoryApplicationError
 from ai_novel_factory.operations_monitor import OperationsReader, OperationsError
-from ai_novel_factory.epub3 import EpubError, _parse_xml
+from ai_novel_factory.epub3 import EpubError, _parse_xml, MAX_CHAPTER_BYTES
 
 SQL_VALUE = "valid'); DROP TABLE bible_projects; --"
 
@@ -90,7 +90,7 @@ class InjectionDefenses(unittest.TestCase):
 
     def test_xml_oversized_input_rejected(self):
         with self.assertRaises(EpubError):
-            _parse_xml(b"<x>" + b"A"*2000000 + b"</x>")
+            _parse_xml(b"<x>" + b"A"*(MAX_CHAPTER_BYTES+30001) + b"</x>")
 
 if __name__=="__main__":
     unittest.main(verbosity=2)
