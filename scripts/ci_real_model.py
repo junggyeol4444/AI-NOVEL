@@ -30,7 +30,7 @@ def child(model_dir: str):
 
 def parent(model_dir: str):
     from ai_novel_factory.local_models import SceneDraftRequest, LocalExecutableProvider, draft_scene
-    provider = LocalExecutableProvider(Path(sys.executable).resolve(),
+    provider = LocalExecutableProvider(str(Path(sys.executable).resolve()),
                 arguments=(str(Path(__file__).resolve()), "--child", model_dir),
                 timeout_seconds=120, explicitly_allowed=True)
     request = SceneDraftRequest(project_id="synthetic-ci-work", episode_number=1,
