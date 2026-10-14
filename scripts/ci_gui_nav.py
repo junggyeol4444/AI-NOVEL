@@ -19,6 +19,17 @@ for i, section in enumerate(SECTIONS):
     assert window.pages.currentIndex() == i
     title = window.pages.widget(i).findChild(QLabel, "title_"+section.key)
     assert title is not None and title.text() == section.label
+# Distinguish visible navigation from implemented functionality.
+placeholders=[]
+connected=[]
+for i, section in enumerate(SECTIONS):
+    page=window.pages.widget(i)
+    pending=page.findChild(QLabel, "pending_"+section.key)
+    if pending is not None and "후속 개발" in pending.text():
+        placeholders.append(section.key)
+    else:
+        connected.append(section.key)
+assert len(placeholders)+len(connected)==len(SECTIONS)
 assert window.statusBar().currentMessage().startswith("로컬 UI 준비됨")
 assert "AI/출판 비활성" in window.statusBar().currentMessage()
 window.sidebar.setCurrentRow(9)
@@ -37,7 +48,11 @@ report={"platform":"offscreen_Qt", "screens_checked":12, "episode_tabs":3,
         "status_network_off_and_publication_disabled":True,
         "image_width":grab.width(),"image_height":grab.height(),
         "physical_user_acceptance":"UNVERIFIED", "publication_executed":False,
-        "user_data_used":False}
+        "user_data_used":False,
+        "functional_widgets_connected":connected,
+        "placeholder_only_sections":placeholders,
+        "placeholder_count":len(placeholders),
+        "gui_functional_release_gate":"BLOCKED" if placeholders else "READY_FOR_MORE_TESTING"}
 (out/"gui_report.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
 window.close()
 app.processEvents()
