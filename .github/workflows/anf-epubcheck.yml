@@ -1,0 +1,47 @@
+name: AI Novel Factory official EPUBCheck validation (TEST BRANCH ONLY)
+
+on:
+  push:
+    branches:
+      - validation/epubcheck-ci-100
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  epubcheck:
+    if: github.ref == 'refs/heads/validation/epubcheck-ci-100'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout test branch only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install EPUBCheck v5.4.0 on disposable runner, not main
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          mkdir -p build/tools build/ci
+          curl -fL --retry 3 --max-time 100 \
+            -o build/tools/epubcheck-5.4.0.zip \
+            https://github.com/w3c/epubcheck/releases/download/v5.4.0/epubcheck-5.4.0.zip
+          unzip -q build/tools/epubcheck-5.4.0.zip -d build/tools/epubcheck
+          test -n "$(find build/tools/epubcheck -iname 'epubcheck.jar' -print -quit)"
+      - name: Validate actual synthetic EPUB3 file with W3C EPUBCheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          EPUBCHECK_JAR="$(find build/tools/epubcheck -iname 'epubcheck.jar' -print -quit)"
+          java -jar "$EPUBCHECK_JAR" docs/stage93_demo/book.epub \
+            -out build/ci/epubcheck_report.xml
+      - name: Upload EPUBCheck XML evidence, no private manuscripts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-epubcheck-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: build/ci/epubcheck_report.xml
