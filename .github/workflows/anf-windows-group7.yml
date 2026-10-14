@@ -1,0 +1,55 @@
+name: ANF Windows group-7 crash isolation (TEST BRANCH ONLY)
+on:
+  push:
+    branches:
+      - validation/windows-group7-ci-100
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolate-windows-module:
+    if: github.ref == 'refs/heads/validation/windows-group7-ci-100'
+    runs-on: windows-2022
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ["test_copy_protection", "test_episode_structure", "test_pattern_strength", "test_reference_profiles", "test_stage100_release_audit", "test_stage43_release_verifier", "test_stage47_release_verifier", "test_stage53_episode_planner", "test_stage60_planning_pipeline", "test_stage68_task_monitor", "test_stage76_style_checker", "test_stage82_memory_application", "test_stage90_operations_monitor", "test_stage97_windows_packaging"]
+    env:
+      ANF_AI_PROVIDER: disabled
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+      PYTHONFAULTHANDLER: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install test-only dependencies
+        shell: pwsh
+        run: |
+          python -m pip install -e ".[desktop,api,database,queue,documents,graphics,quality,dev,build]"
+      - name: Isolate one group 7 unittest module and Python shutdown
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build/ci | Out-Null
+          $env:PYTHONPATH = "$((Get-Location).Path)\src;$((Get-Location).Path)\tests"
+          python scripts/windows_unittest_entry.py -q ${{ matrix.module }} *> "build/ci/${{ matrix.module }}.log"
+          $rc=$LASTEXITCODE
+          Set-Content -Path "build/ci/${{ matrix.module }}.exit" -Value $rc
+          Write-Host "Module=${{ matrix.module }} ExitCode=$rc"
+          Get-Content "build/ci/${{ matrix.module }}.log" -Tail 35
+          exit $rc
+      - name: Upload module-specific exit and traceback
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-group7-${{ matrix.module }}-${{ github.run_id }}
+          retention-days: 7
+          if-no-files-found: warn
+          path: build/ci/test_*
