@@ -10,6 +10,7 @@ rules; it does not infer semantic contradictions from natural-language prose.
 from __future__ import annotations
 
 from dataclasses import replace
+from contextlib import closing
 from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -205,7 +206,7 @@ def run_120_episode_memory_trial(*, conflict_episode: int | None = None) -> dict
             reopen_anchor = search_episode_history(reopened, project_id,
                                                     EPISODES+1, ANCHOR)
             reopen_anchor_ok = (len(reopen_anchor) == 1 and reopen_anchor[0].episode == 1)
-            with sqlite3.connect(db) as connection:
+            with closing(sqlite3.connect(db)) as connection:
                 integrity_ok = connection.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
                 foreign_key_errors = len(connection.execute('PRAGMA foreign_key_check').fetchall())
         finally:
