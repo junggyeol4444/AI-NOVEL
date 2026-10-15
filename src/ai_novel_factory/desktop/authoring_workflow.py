@@ -68,6 +68,40 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         if path:
             self._set('executable', path)
 
+    def _choose_gguf_model(self):
+        import sys
+        from pathlib import Path
+        if not getattr(sys, 'frozen', False):
+            self.status.setText('이 기능은 CPU 모델 실행기가 포함된 Windows EXE에서 지원됩니다.')
+            return
+        base = Path(sys.executable).resolve().parent
+        bridge = base / 'ANF_Local_Model.exe'
+        runtime = base / 'runtime' / 'llama-cli.exe'
+        if not bridge.is_file() or not runtime.is_file():
+            self.status.setText('모델 실행기가 포함된 포터블 패키지가 필요합니다.')
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, '사용 권한이 있는 로컬 GGUF 모델 선택',
+            str(base / 'models'), 'GGUF (*.gguf)')
+        if not path:
+            return
+        selected = Path(path)
+        try:
+            if (not selected.is_absolute() or selected.is_symlink()
+                    or selected.suffix.lower() != '.gguf'
+                    or not 8_000_000 <= selected.stat().st_size <= 32_000_000_000):
+                raise ValueError('model invalid')
+        except (OSError, ValueError):
+            self.status.setText('GGUF 모델 경로 또는 파일 크기가 올바르지 않습니다.')
+            return
+        self._set('executable', str(bridge))
+        self._set('arguments', '--gguf "' + str(selected) + '"')
+        self.approved.setChecked(False)
+        self.status.setText(
+            '선택한 로컬 GGUF로 생성하도록 설정했습니다. '
+            '모델 파일은 업로드되지 않으며 실행 시 별도 승인이 필요합니다. '
+            '실제 한국어 글 품질은 모델 성능에 따라 달라집니다.')
+
     def _choose_export_directory(self):
         path = QFileDialog.getExistingDirectory(
             self, '비공개 원고 출력 폴더 선택')

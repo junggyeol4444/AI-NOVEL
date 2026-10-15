@@ -66,6 +66,8 @@ class AuthoringControls:
                            ('characters', '등장인물 (쉼표 구분)')]:
             self._field(key, label)
         self._button('choose_model', '로컬 AI 실행 파일 찾기', self._choose_model_executable)
+        self._button('choose_gguf', '다른 로컬 GGUF 모델 선택 (고급)',
+                     self._choose_gguf_model)
         self.approved = QCheckBox('이 로컬 실행 파일의 이번 실행을 승인합니다')
         self.approved.setObjectName('authoringLocalModelApproval')
         self.form.addRow(self.approved)

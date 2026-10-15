@@ -41,7 +41,22 @@ def main(argv=None) -> int:
             return 0 if proc.returncode == 0 else 2
         except (OSError, subprocess.TimeoutExpired):
             return 2
-    if args:
+    # User may explicitly choose a different local GGUF without replacing or
+    # rewriting the public QA model. No shell or network paths are permitted.
+    if len(args) == 2 and args[0] == '--gguf':
+        chosen = args[1]
+        try:
+            selected = Path(chosen)
+            if (not selected.is_absolute() or chosen.startswith('\\\\')
+                    or selected.is_symlink() or selected.suffix.lower() != '.gguf'
+                    or not selected.is_file()
+                    or not 8_000_000 <= selected.stat().st_size <= 32_000_000_000):
+                raise ValueError('model path rejected')
+            model = selected.resolve(strict=True)
+        except (OSError, ValueError):
+            print('INVALID_LOCAL_GGUF_SELECTION', file=sys.stderr)
+            return 2
+    elif args:
         print('INVALID_ARGUMENTS', file=sys.stderr)
         return 2
     if not llama.is_file() or not model.is_file():

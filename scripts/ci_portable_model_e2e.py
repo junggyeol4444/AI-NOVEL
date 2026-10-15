@@ -81,10 +81,32 @@ def main(argv):
     draft = result.get('draft')
     if not isinstance(draft, str) or not draft.strip() or len(draft) > 100000:
         raise AssertionError('missing generated text')
+    # A user-selected GGUF file must be accepted from an explicit absolute
+    # path. Use the already bundled *synthetic QA* weight for a deterministic
+    # command-line compatibility regression; never fetch user files.
+    alternate = subprocess.run(
+        [str(bridge), '--gguf', str(model)],
+        input=json.dumps(payload), capture_output=True,
+        text=True, encoding='utf-8', errors='replace',
+        cwd=folder, env=env, timeout=145)
+    if alternate.returncode:
+        raise AssertionError('explicit local GGUF model selection failed')
+    selected_output = json.loads(alternate.stdout)
+    if (selected_output.get('protocol') != 'anf-local-scene-v1'
+            or not selected_output.get('draft', '').strip()):
+        raise AssertionError('selected GGUF model produced no scene')
+    rejected = subprocess.run(
+        [str(bridge), '--gguf', 'https://example.invalid/nonlocal.gguf'],
+        capture_output=True, cwd=folder, env=env, timeout=30)
+    if rejected.returncode == 0:
+        raise AssertionError('bridge accepted a remote model URL')
+
     report = {'run':'WIN_X64_OFFLINE_NATIVE_BUNDLE',
               'model_weights_present':True,
               'model_weight_bytes':model.stat().st_size,
               'actual_gguf_local_inference':True,
+              'user_selected_gguf_offline_inference':'PASS',
+              'remote_model_url_rejected':True,
               'no_python_runtime_required_by_user':True,
               'no_remote_api_called':True,
               'draft_sha256':hashlib.sha256(draft.encode('utf-8')).hexdigest(),
