@@ -6,9 +6,11 @@ All project and manuscript writes are explicit. No remote calls at startup.
 from __future__ import annotations
 
 from pathlib import Path
+from hashlib import sha256
 from uuid import uuid4
 
 from PySide6.QtCore import Qt, QSettings, QStandardPaths
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
     QLineEdit, QPlainTextEdit, QFormLayout, QSpinBox, QStackedWidget,
@@ -182,6 +184,9 @@ class ProjectStudio(QWidget):
         self.editor.setPlaceholderText('새 회차를 선택하고 이곳에 원고를 입력하거나 기존 초고를 수정하세요.')
         self.editor.setMinimumHeight(330)
         self.editor.textChanged.connect(self._mark_dirty)
+        self.save_shortcut = QShortcut(QKeySequence.StandardKey.Save, self.editor)
+        self.save_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.save_shortcut.activated.connect(self._save_manuscript)
         center.addWidget(self.editor, 1)
         actions = QHBoxLayout()
         save = QPushButton('원고 버전 저장')
@@ -224,8 +229,7 @@ class ProjectStudio(QWidget):
         self.refresh()
 
     def _advanced(self):
-        if self.confirm_discard():
-            self.show_advanced()
+        self.show_advanced()  # MainWindow intercepts the tab change if the draft is unsaved.
 
     def confirm_discard(self):
         if (self.pages.currentIndex() != 2 or
@@ -247,6 +251,11 @@ class ProjectStudio(QWidget):
         previous = [raw] if isinstance(raw, str) else list(raw or [])
         paths = [str(filename)] + [v for v in previous if v != str(filename)]
         self._recent_settings.setValue('recent_paths', paths[:10])
+        session = self.workflow.session
+        if session.store and session.project_id:
+            digest = sha256(str(filename).encode('utf-8')).hexdigest()
+            self._recent_settings.setValue('recent_title_' + digest,
+                                            session.store.get_project(session.project_id).title)
 
     def _recent_paths(self):
         raw = self._recent_settings.value('recent_paths', [])
@@ -276,7 +285,6 @@ class ProjectStudio(QWidget):
         if not self.confirm_discard():
             return
         try:
-            self.workflow.session.open_project(str(path))
             self.workflow._set('db', str(path))
             self.workflow._open()
             self.workflow._sync()
@@ -284,7 +292,9 @@ class ProjectStudio(QWidget):
             self._loaded_episode = None
             self.refresh()
             self.pages.setCurrentIndex(0)
-        except (OSError, ValueError) as exc:
+        except OSError:
+            self._show_error('로컬 파일을 열거나 저장하지 못했습니다.')
+        except ValueError as exc:
             self._show_error(str(exc))
 
     def _create_project(self):
@@ -330,7 +340,9 @@ class ProjectStudio(QWidget):
             self.create_status.setText('로컬 작품을 생성했습니다. 다음은 회차와 장면을 기획하세요.')
             self.pages.setCurrentIndex(2)
             self.refresh()
-        except (OSError, ValueError) as exc:
+        except OSError:
+            self.create_status.setText('로컬 작품 폴더에 저장하지 못했습니다.')
+        except ValueError as exc:
             self.create_status.setText(str(exc)[:200])
 
     def _create_episode(self):
@@ -435,6 +447,9 @@ class ProjectStudio(QWidget):
             from PySide6.QtWidgets import QListWidgetItem
             item = QListWidgetItem(path.stem)
             item.setData(Qt.ItemDataRole.UserRole, str(path))
+            digest = sha256(str(path).encode('utf-8')).hexdigest()
+            label = self._recent_settings.value('recent_title_' + digest, path.stem)
+            item.setText(label if isinstance(label, str) and label.strip() else path.stem)
             self.recents.addItem(item)
         if not session.project_id:
             self.heading.setText('나만의 이야기를 시작하세요')
@@ -499,5 +514,7 @@ class ProjectStudio(QWidget):
             self.editor_status.setText('저장된 초고 / 사용자 직접 검수 필요')
 
     def _show_error(self, message):
-        self.editor_status.setText(message[:200])
-        QMessageBox.warning(self, '작업을 완료하지 못했습니다', message[:200])
+        # Never show user file paths that OSError may include in the message.
+        safe = '로컬 파일 접근 중 오류가 발생했습니다.' if not isinstance(message, str) else message[:200]
+        self.editor_status.setText(safe)
+        QMessageBox.warning(self, '작업을 완료하지 못했습니다', safe)
