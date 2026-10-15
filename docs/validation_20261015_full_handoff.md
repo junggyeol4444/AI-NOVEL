@@ -177,3 +177,12 @@
 - `authoring_session.select_episode`: 회차와 소속 장면을 모두 조회 완료한 뒤에만 세션의 활성 회차를 바꾸도록 변경. 장면 조회 오류가 나면 기존 회차/원고가 유지되는 직접 로컬 테스트 `tests/test_authoring_session_safety.py` 추가.
 - 최신 소스 검증 커밋 `4b4b5ccd1c4e3a10543d52490a47602f3790e762`. 이에 대한 Linux GUI run `38689911337`, Windows 11 화면 run `38689911375`, EXE 실제 사용 시나리오 run `38689911343`은 마지막 확인 시 `QUEUED`; 결과가 완성되기 전 PASS로 표시 금지. Linux/Windows 외부 runner 장기 대기열에는 구형 in_progress job 다수가 남아 있다.
 - 01~100 전면 기능 및 실제 Windows 10/11 x64 foreground 조작, 30/100/250화 장편 품질과 참고작 유사성 전수 검증 등은 아직 미충족. **RELEASE_BLOCKED** 유지.
+
+
+### 2026-10-15 후속 구현: 안전한 원고 복원·회차 이동·새 SQLite 열기 / CJK 스크린샷 육안 확인
+
+- `4b4b5ccd1c4e3a10543d52490a47602f3790e762`: 과거 버전 복원 중 사용자 거부 또는 DB 오류 시 편집 중 원고를 지우지 않도록 변경. 작품 생성/열기, 회차 이동의 완료 이전 편집기 삭제 금지. 새 회차 생성 대화상자를 취소할 때는 원고 폐기 확인을 띄우거나 편집 내용을 버리지 않는다. 선택한 회차/장면을 불러오지 못하면 기존 세션의 회차/원고와 목록 선택을 보존한다. 각각 합성 Qt 회귀 테스트 추가.
+- `ffeac8cd1f72d667b84d3559b856c99950110d60`: `AuthoringSession.open_project`는 신규 작품 SQLite의 회차/장면을 미리 검증한 뒤에만 구 세션을 닫음. 손상된 로컬 파일을 열어 실패할 때도 기존 사용자가 작업 중이던 작품 세션이 유지된다. 강제 `list_episodes` 오류 회귀 검사 추가. 모든 변경은 검증 브랜치 한정.
+- **검증된 결과:** Linux Qt offscreen run `38689275922` SUCCESS(이전 commit `78086272`), 실서비스 PostgreSQL/Redis run `38689911350` SUCCESS(직전 commit `4b4b5ccd`). **최신 commit `ffeac8cd` 전체 Windows EXE/Qt 통합 검증은 PASS 근거 없음.** Linux quick run `38690349611`, Windows 11 run `38690349621`, Windows EXE run `38690349610`을 최신 결과 확인 대상으로 기록.
+- 이전 성공 run `38688203975`의 합성 Linux Qt GUI 스크린샷 4장을 직접 내려받아 열어 보니 **한국어 글리프가 정상적으로 표시**되는 것을 확인했다. 화면은 820×750 내외 첫 작품 홈/작품 생성 마법사/원고 집필실/진척 홈이며 Qt offscreen 제품 UX 증거에 한정한다. 이 이미지를 실제 Windows 바탕화면의 포그라운드 시각 인수나 전체 실사용 QA로 잘못 표시하지 말 것.
+- 물리 Windows 11 OOBE 전경 문제, 모든 원래 01~100 단계, 장편 집필 품질/저작권 안전성/출판 검수는 아직 미완. **RELEASE_BLOCKED** 유지. `main`은 `69225edeed0a09ded5f847dad9b9ea63bc45367c` 그대로, 사용자의 실제 SQLite/원고 미수정. 새 예약/알림 자동화 생성 없음.
