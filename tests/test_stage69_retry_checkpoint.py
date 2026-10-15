@@ -1,5 +1,6 @@
 """Stage 69 verified local retry/checkpoint contract, no cloud or model dependency."""
 from __future__ import annotations
+from contextlib import closing
 
 from hashlib import sha256
 from pathlib import Path
@@ -56,7 +57,7 @@ class RetryCheckpointTests(unittest.TestCase):
 
     def test_checkpoint_metadata_contains_no_artifacts(self):
         self.run_job()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             rows = db.execute('SELECT * FROM retry_checkpoints').fetchall()
             cols = [col[1] for col in db.execute('PRAGMA table_info(retry_checkpoints)')]
         self.assertEqual(len(rows), 4)
@@ -262,7 +263,7 @@ class RetryCheckpointTests(unittest.TestCase):
         from ai_novel_factory.task_monitor import TaskMonitor
         self._failed_at_scene_1()
         # control request can have existed when a job failed, and prevents retry
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("INSERT OR REPLACE INTO task_controls(task_id,request) VALUES ('job-7','PAUSE')")
         with self.assertRaises(CheckpointError):
             self.store.retry_failed('job-7')

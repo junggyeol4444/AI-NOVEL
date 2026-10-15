@@ -294,6 +294,7 @@ class ForeshadowCheckerTests(unittest.TestCase):
         old = self.check(3, (replace(self.base, claimed_action='RESOLVE'),))
         self.store.close()
         self.store = ForeshadowStore(self.path)
+        self.addCleanup(self.store.close)
         new = self.check(3, (replace(self.base, claimed_action='RESOLVE'),))
         self.assertEqual(old, new)
 

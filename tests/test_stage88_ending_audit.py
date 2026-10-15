@@ -1,5 +1,6 @@
 """Stage 88 / ANF-REQ-061: ending audit remains read-only and fail-closed."""
 from __future__ import annotations
+from contextlib import closing
 
 from dataclasses import replace
 from pathlib import Path
@@ -150,7 +151,7 @@ class EndingAuditTests(unittest.TestCase):
 
     def test_corrupted_conflict_fails_closed(self):
         c = self.store.create_conflict(self.project, title='갈등', opened_episode=1)
-        with sqlite3.connect(self.path) as conn:
+        with closing(sqlite3.connect(self.path)) as conn, conn:
             conn.execute('PRAGMA ignore_check_constraints=ON')
             conn.execute('''UPDATE bible_ending_conflicts SET status='RESOLVED'
                             WHERE conflict_id=?''', (c.conflict_id,))
@@ -213,7 +214,7 @@ class EndingAuditTests(unittest.TestCase):
         with EventTimelineStore(self.path) as db:
             a = db.create_event(self.project, title='A', when='2026-10-12T00:00:00+00:00')
             b = db.create_event(self.project, title='B', when='2026-10-13T00:00:00+00:00')
-        with sqlite3.connect(self.path) as conn:
+        with closing(sqlite3.connect(self.path)) as conn, conn:
             conn.execute('''INSERT INTO bible_timeline_order(project_id,before_id,after_id)
                             VALUES(?,?,?)''', (self.project, b.event_id, a.event_id))
         self.assertIn('TIMELINE_INVALID', [f.code for f in self.ready().findings])
@@ -281,7 +282,7 @@ class EndingAuditTests(unittest.TestCase):
 
     def test_no_implicit_completion_state_created(self):
         self.ready()
-        with sqlite3.connect(self.path) as conn:
+        with closing(sqlite3.connect(self.path)) as conn, conn:
             tables = {row[0] for row in conn.execute('SELECT name FROM sqlite_master WHERE type="table"')}
         self.assertNotIn('bible_completion_approved', tables)
 

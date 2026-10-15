@@ -4,6 +4,7 @@ No destructive table changes are performed. Backups use SQLite's consistent
 backup API; migration refuses damaged databases and unknown future versions.
 """
 from __future__ import annotations
+from contextlib import closing
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,7 +53,7 @@ def _audit(db: sqlite3.Connection) -> IntegrityReport:
 def audit_database(path: str | Path) -> IntegrityReport:
     p = _local_path(path)
     try:
-        with sqlite3.connect(f"file:{p.as_posix()}?mode=ro", uri=True) as db:
+        with closing(sqlite3.connect(f"file:{p.as_posix()}?mode=ro", uri=True)) as db, db:
             return _audit(db)
     except sqlite3.DatabaseError as exc:
         raise MigrationError("데이터베이스를 열 수 없습니다.") from exc
@@ -69,7 +70,7 @@ def migrate_database(path: str | Path, backup_path: str | Path) -> IntegrityRepo
     if source.resolve() == target.resolve() or target.exists():
         raise MigrationError("백업 경로가 원본과 같거나 이미 존재합니다.")
     try:
-        with sqlite3.connect(source) as db:
+        with closing(sqlite3.connect(source)) as db, db:
             db.execute("PRAGMA foreign_keys=ON")
             report = _audit(db)
             if (not report.integrity_ok or report.foreign_key_errors
@@ -80,7 +81,7 @@ def migrate_database(path: str | Path, backup_path: str | Path) -> IntegrityRepo
             with target.open("xb"):
                 pass
             try:
-                with sqlite3.connect(target) as backup:
+                with closing(sqlite3.connect(target)) as backup, backup:
                     db.backup(backup)
                 db.execute("BEGIN IMMEDIATE")
                 db.execute(f"PRAGMA user_version={SCHEMA_VERSION}")

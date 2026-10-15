@@ -1,3 +1,4 @@
+from contextlib import closing
 """Stage 67: offline durable metadata queue, concurrency, crash and broker safety."""
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -102,7 +103,7 @@ class LocalQueueTests(unittest.TestCase):
                 self.queue.enqueue(project, episode)
 
     def test_no_plans_or_manuscript_columns(self):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             columns = [row[1] for row in db.execute('PRAGMA table_info(local_tasks)')]
         self.assertEqual(columns, ['task_id', 'project_id', 'episode_number', 'status', 'attempts', 'error_code'])
 

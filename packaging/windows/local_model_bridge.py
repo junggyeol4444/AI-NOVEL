@@ -103,13 +103,17 @@ def main(argv=None) -> int:
             'Characters:\n' + ', '.join(characters[:20]) + '\n'
             'Write an original scene.\n'
             '<|im_end|>\n<|im_start|>assistant\n')
+        # Restrict native Windows CPU runner to single-thread inference as a
+        # conservative diagnostic for intermittent native heap corruption.
+        # This is a hypothesis until repeated compiled-GGUF CI verifies it.
         # Verified against b11624 Windows CPU runtime: the minimal
         # --single-turn --no-display-prompt invocation exits successfully.
         # The previous combination with --no-conversation / --simple-io
         # returned native exit 1 although loading the GGUF succeeds.
         command = [
             str(llama), '--model', str(model), '--prompt', prompt,
-            '--predict', '384', '--single-turn', '--no-display-prompt'
+            '--predict', '384', '--threads', '1', '--threads-batch', '1',
+            '--single-turn', '--no-display-prompt'
         ]
         env = {k: os.environ[k] for k in
                ('SYSTEMROOT', 'WINDIR', 'PATH', 'TEMP', 'TMP') if k in os.environ}

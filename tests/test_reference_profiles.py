@@ -171,10 +171,15 @@ class ProfileStorageTests(unittest.TestCase):
         self.assertEqual(self.catalog.count(), 0)
         self.assertEqual(self.store.count(), 0)
 
-    def test_unsupported_epub_fails_closed(self):
-        with self.assertRaisesRegex(ReferenceParseError, 'EPUB'):
-            import_reference_profile(self.root / 'test.epub', catalog=self.catalog)
+    def test_invalid_epub_fails_closed(self):
+        # EPUB is supported now; malformed content must still be rejected
+        # before a catalog row or profile is persisted.
+        source = self.root / 'test.epub'
+        source.write_bytes(b'synthetic invalid EPUB bytes')
+        with self.assertRaises(ReferenceParseError):
+            import_reference_profile(source, catalog=self.catalog)
         self.assertEqual(self.catalog.count(), 0)
+        self.assertEqual(self.store.count(), 0)
 
     def test_database_has_no_raw_source_and_paths(self):
         self.f.write_text('제1화\n\n' + SECRET, encoding='utf-8')

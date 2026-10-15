@@ -1,5 +1,6 @@
 """Stage 90 ANF-REQ-069: metadata-only local UI data and operating audit."""
 from __future__ import annotations
+from contextlib import closing
 
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -43,10 +44,10 @@ class OperationalTests(unittest.TestCase):
         self.assertEqual(report.reported_minor_by_currency, ())
 
     def test_reader_no_schema_creation(self):
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             con.execute('DROP TABLE operation_events')
         self.assertEqual(OperationsReader(self.db).list_events(), ())
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             self.assertFalse(con.execute("SELECT 1 FROM sqlite_master WHERE name='operation_events'").fetchone())
 
     def test_missing_file_never_created(self):
@@ -66,7 +67,7 @@ class OperationalTests(unittest.TestCase):
 
     def test_no_tasks_table_denied(self):
         p = self.db.parent / 'other.db'
-        with sqlite3.connect(p) as con: con.execute('CREATE TABLE other(name TEXT)')
+        with closing(sqlite3.connect(p)) as con, con: con.execute('CREATE TABLE other(name TEXT)')
         with self.assertRaises(OperationsError): OperationsReader(p)
 
     def test_wrong_ledger_object(self):
@@ -152,7 +153,7 @@ class OperationalTests(unittest.TestCase):
         self.assertEqual((row.progress,row.stage),(40,'WRITING'))
 
     def test_event_metadata_only_schema(self):
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             names={r[1] for r in con.execute('PRAGMA table_info(operation_events)')}
         self.assertFalse({'prompt','manuscript','full_error','token_text','api_key','message'} & names)
 
@@ -238,7 +239,15 @@ class OperationalTests(unittest.TestCase):
         self.assertEqual(self.queue.get('job-a').status,'QUEUED')
 
     def test_optional_ui_not_imported_by_reader(self):
-        self.assertNotIn('PySide6', __import__('sys').modules)
+        import subprocess
+        import sys
+        proc = subprocess.run(
+            [sys.executable, '-c',
+             'import ai_novel_factory.operations_monitor; import sys; '
+             'assert "PySide6" not in sys.modules'],
+            capture_output=True, text=True, timeout=15,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
 
 
 @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 optional; Linux/headless not validated')

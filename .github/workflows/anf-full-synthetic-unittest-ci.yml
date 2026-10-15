@@ -40,18 +40,22 @@ jobs:
           sudo apt-get install -y -qq libegl1 libopengl0 libxcb-cursor0 libxkbcommon-x11-0 fonts-noto-cjk
       - name: Install synthetic test dependencies without AI weights or credentials
         run: python -m pip install -e ".[desktop,api,database,queue,documents,graphics,quality]"
-      - name: Full unittest discovery in disposable runner
+      - name: Full unittest discovery in disposable Linux runner
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           mkdir -p build/ci/full-unittest
           python -m unittest discover -s tests -p 'test_*.py' -v 2>&1 | tee build/ci/full-unittest/unittest.log
           exit ${PIPESTATUS[0]}
+      - name: Windows full tests in bounded isolated modules (never silently skip)
+        if: runner.os == 'Windows'
+        run: python scripts/ci_full_synthetic_by_module.py --root . --output build/ci/full-unittest --timeout 150
       - name: Preserve complete test output for investigation
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: anf-full-unittest-${{ runner.os }}
-          path: build/ci/full-unittest/unittest.log
+          path: build/ci/full-unittest/
           if-no-files-found: warn
           retention-days: 7
       - name: Clarify acceptance scope

@@ -1,3 +1,4 @@
+from contextlib import closing
 import sqlite3
 import tempfile
 import unittest
@@ -42,7 +43,7 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(self.backup.read_text(), 'keep')
 
     def test_refuse_future_version(self):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute('PRAGMA user_version=999')
         with self.assertRaises(MigrationError):
             migrate_database(self.path, self.backup)
@@ -55,7 +56,7 @@ class MigrationTests(unittest.TestCase):
 
     def test_refuse_missing_tables(self):
         other = Path(self.tmp.name) / 'empty.db'
-        with sqlite3.connect(other):
+        with closing(sqlite3.connect(other)) as _sqlite_connection, _sqlite_connection:
             pass
         with self.assertRaises(MigrationError):
             migrate_database(other, self.backup)

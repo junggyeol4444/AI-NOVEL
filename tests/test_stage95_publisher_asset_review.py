@@ -153,6 +153,7 @@ class Stage95PublisherAssetReviewTests(unittest.TestCase):
         ch = self.request(); self.decide(ch)
         self.assets.close()
         self.assets = PublisherAssetReviewStore(self.parent/'publisher_asset_reviews.sqlite')
+        self.addCleanup(self.assets.close)
         self.assertEqual(self.simulate(ch.review_id).accepted_episode_count, 1)
         data = (self.parent/'publisher_asset_reviews.sqlite').read_bytes()
         self.assertNotIn(ch.confirmation_code.encode(), data)

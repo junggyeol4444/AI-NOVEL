@@ -139,7 +139,11 @@ class Stage97BuildTests(unittest.TestCase):
 
     def test_spec_includes_no_foreign_binaries(self):
         s=(ROOT/'packaging/windows/AI_Novel_Factory.spec').read_text(encoding='utf8')
-        self.assertIn('datas=[]',s)
+        # Only the checked-in Korean font and its license may be collected;
+        # this must not open the door to bundled foreign executables.
+        self.assertIn('datas=FONT_ASSETS',s)
+        self.assertIn("'NotoSansKR.ttf'",s)
+        self.assertIn("'OFL.txt'",s)
         self.assertIn('binaries=[]',s)
 
     def test_installer_not_invoked_in_source(self):

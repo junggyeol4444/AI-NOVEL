@@ -141,6 +141,8 @@ class PlatformFormatAuditTests(unittest.TestCase):
         self.assertEqual(data['rules_origin'], 'USER_SUPPLIED_UNVERIFIED')
         self.assertNotIn(self.meta.title, path.read_text())
         self.assertNotIn(self.episodes[0].body, path.read_text())
+        if __import__('os').name == 'nt':
+            self.skipTest('NTFS requires a separate Windows DACL audit; POSIX mode bits are not authoritative')
         self.assertEqual(path.stat().st_mode & 0o777, 0o600)
         with self.assertRaises(PlatformAuditError): write_local_audit_report(result, self.root)
 

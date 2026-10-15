@@ -1,5 +1,12 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 오전 추가 — Windows 3377 전체 검증 실패의 직접 근거와 SQLite 잠금 처리
+- [전체 CI #38822819078](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38822819078): 기존 한 프로세스 실행 Linux 3389 tests, 4 FAIL; Windows 3377 tests, 5 FAIL + 21 ERROR + 2 SKIP, 따라서 전체 검증 FAIL. Windows 21 오류의 실제 로그는 테스트 임시 SQLite 파일에서 `PermissionError: [WinError 32]`. `with sqlite3.connect(...) as conn`이 **트랜잭션만 종료하고 연결은 닫지 않는다**는 점을 반영하여 SQLite 검사/마이그레이션 제품 코드 및 해당 합성 테스트들에 `contextlib.closing` 추가. 재시작 후 기존 데이터는 임의 변경하지 않음.
+- Windows 추가 FAIL: `test_stage96_platform_format_audit` POSIX `stat().st_mode & 0o777==0o600`은 NTFS DACL 권한 기준과 동일하지 않아 Windows만 명시 SKIP (별도 실제 Windows ACL 검증은 여전히 NOT_RUN; 보안 합격 주장 금지). Test reopened store에서 새 연결을 cleanup에 등록하지 않는 문제도 수정.
+- 후속 후보는 Python 전체 테스트를 실행시키되 Windows에서는 각 `test_*.py` 모듈을 독립 프로세스로 기한 150초, 개별 결과/log와 summary JSON으로 보존하고 전체를 탐색한다. Linux는 한 프로세스 테스트도 유지하여 cross-test 결함을 계속 감지. 후보 CI 결과가 종료 전까지 PASS 선언 금지.
+- #38822818948 실제 Windows GGUF 네이티브 종료 코드 `3221226356`(heap corruption)에 대한 **가설적 완화로 단일 스레드/단일 배치 스레드 사용**을 후보로 시험한다. 기존 런타임 결함을 해결했다고 단정하지 않으며 반복 CI 결과를 확인해야 한다.
+
+
 ## 2026-10-16 — EPUB 참고작 입력 실제 파이프라인 통합 후보 (최종 CI 검증 대기)
 
 - 이 변경은 `references/epub_parser.py`의 방어적 ZIP/OPF/XHTML spine 파서 및 합성 테스트를 실제 import→Reference Profile→SQLite 연결 경로에 추가하고 Linux·Windows 검증 워크플로에 신설 테스트를 포함한다. 참조 문장·설정은 프로필/SQLite에 저장하지 않고 합성 EPUB만 시험한다.

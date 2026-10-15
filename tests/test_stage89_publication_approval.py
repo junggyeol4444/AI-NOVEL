@@ -1,5 +1,6 @@
 """Stage 89 / ANF-REQ-067: local review/consent gate, no publisher."""
 from __future__ import annotations
+from contextlib import closing
 
 from dataclasses import replace
 from hashlib import sha256
@@ -214,7 +215,7 @@ class PublicationApprovalTests(unittest.TestCase):
             self.store.begin_review(self.pid, self.evidence())
 
     def test_missing_version_blocks(self):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute('DELETE FROM bible_manuscript_versions WHERE project_id=? AND episode=2', (self.pid,))
         with self.assertRaises(PublicationApprovalError):
             self.store.begin_review(self.pid, self.evidence())

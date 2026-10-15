@@ -1,5 +1,6 @@
 """Stage 68: offline task-control and monitoring regression coverage."""
 from __future__ import annotations
+from contextlib import closing
 
 import importlib.util
 from pathlib import Path
@@ -231,7 +232,7 @@ class TaskMonitorTests(unittest.TestCase):
 
     def test_legacy_queue_migration_retains_rows(self):
         old = Path(self.tmp.name) / 'legacy.db'
-        with sqlite3.connect(old) as db:
+        with closing(sqlite3.connect(old)) as db, db:
             db.execute("CREATE TABLE local_tasks (task_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, episode_number INTEGER NOT NULL, status TEXT NOT NULL, attempts INTEGER NOT NULL, error_code TEXT)")
             db.execute("INSERT INTO local_tasks VALUES ('legacy','old',2,'QUEUED',0,NULL)")
         migrated=LocalTaskQueue(old)

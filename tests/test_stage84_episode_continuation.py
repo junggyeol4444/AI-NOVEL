@@ -1,3 +1,4 @@
+from contextlib import closing
 """Stage 84 / ANF-REQ-049: bounded, idempotent next-episode queue handoff."""
 import sqlite3
 import tempfile
@@ -239,7 +240,7 @@ class ContinuationTests(unittest.TestCase):
     def test_no_task_on_no_confirmation(self):
         with self.assertRaises(ContinuationError):
             self.advance(confirmation_asserted=False)
-        with sqlite3.connect(self.queue.path) as db:
+        with closing(sqlite3.connect(self.queue.path)) as db, db:
             self.assertEqual(db.execute('SELECT COUNT(*) FROM local_tasks').fetchone()[0], 0)
 
     def test_different_project_queue_isolation(self):

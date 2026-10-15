@@ -1,5 +1,6 @@
 """Stage 41: real offline SQLite canon persistence and precedence tests."""
 from __future__ import annotations
+from contextlib import closing
 
 from contextlib import redirect_stdout
 from io import StringIO
@@ -80,7 +81,7 @@ class BibleTests(unittest.TestCase):
     def test_reference_stats_are_not_persisted(self):
         self.store.save_rule(self.project.project_id, "canon", "독립 창작")
         self.store.resolve_context(self.project.project_id, {FEATURE_KEYS[0]: 123456.0})
-        with sqlite3.connect(self.path) as conn:
+        with closing(sqlite3.connect(self.path)) as conn, conn:
             rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
             self.assertEqual({r[0] for r in rows}, {"bible_projects", "bible_rules"})
             values = conn.execute("SELECT rule_value FROM bible_rules").fetchall()

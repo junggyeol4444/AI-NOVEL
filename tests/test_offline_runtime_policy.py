@@ -82,6 +82,10 @@ class OfflineRuntimePolicyTests(unittest.TestCase):
                     self.assertEqual(catalog.count(), 1)
 
     def test_packaged_source_has_no_github_workflow(self):
+        # This contract applies to an extracted release source package, not
+        # the Git checkout used by the full CI regression workflow.
+        if (ROOT / ".git").exists():
+            self.skipTest("Release-archive-only assertion; CI checkout contains .git/.github")
         self.assertFalse((ROOT / ".github").exists())
         self.assertFalse((ROOT / ".git").exists())
 
