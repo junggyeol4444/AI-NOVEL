@@ -20,9 +20,10 @@ sys.path.insert(0, str(ROOT / 'src'))
 class UserFirstStudioTests(unittest.TestCase):
     def test_create_write_version_reopen_with_visible_buttons(self):
         os.environ['QT_QPA_PLATFORM'] = 'offscreen'
-        from PySide6.QtCore import Qt, QStandardPaths
+        from PySide6.QtCore import Qt, QStandardPaths, QTimer
         from PySide6.QtTest import QTest
-        from PySide6.QtWidgets import QApplication, QPushButton
+        from PySide6.QtWidgets import (
+            QApplication, QPushButton, QListWidget, QPlainTextEdit, QDialog)
         from ai_novel_factory.database.episodes import EpisodeStore
         from ai_novel_factory.manuscript_versions import ManuscriptVersionStore
         from ai_novel_factory.desktop.app import MainWindow
@@ -122,6 +123,32 @@ class UserFirstStudioTests(unittest.TestCase):
             self.assertEqual(restarted.studio.editor.toPlainText(), revised)
             with EpisodeStore(path) as store:
                 self.assertEqual(store.get_episode(pid, 1).draft, revised)
+
+            # Actual Qt button/accessible dialog shows two persisted drafts
+            # without editing either record.
+            restarted.studio._show(2)
+            modal_check = {}
+            def inspect_version_dialog():
+                dialogs = [w for w in QApplication.topLevelWidgets()
+                           if isinstance(w, QDialog)
+                           and w.objectName() == 'studioVersionHistoryDialog']
+                if dialogs:
+                    dlg = dialogs[0]
+                    entries = dlg.findChild(QListWidget, 'studioVersionHistoryEntries')
+                    preview = dlg.findChild(QPlainTextEdit, 'studioVersionHistoryPreview')
+                    modal_check['count'] = entries.count()
+                    modal_check['readonly'] = preview.isReadOnly()
+                    entries.setCurrentRow(0)
+                    modal_check['old_text'] = preview.toPlainText()
+                    dlg.reject()
+                else:
+                    modal_check['error'] = 'Version history dialog was not found'
+            QTimer.singleShot(0, inspect_version_dialog)
+            QTest.mouseClick(restarted.studio.findChild(
+                QPushButton, 'studioVersionHistoryButton'), Qt.MouseButton.LeftButton)
+            self.assertEqual(modal_check.get('count'), 2, modal_check)
+            self.assertTrue(modal_check.get('readonly'), modal_check)
+            self.assertEqual(modal_check.get('old_text'), original)
 
             # Restore is append-only and must be explicitly authorized.
             with ManuscriptVersionStore(path) as versions:
