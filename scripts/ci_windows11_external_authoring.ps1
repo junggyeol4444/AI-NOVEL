@@ -44,13 +44,15 @@ function Element([System.Windows.Automation.AutomationElement]$root,[string]$aut
     authoring_bible = '설정'
     createProjectButton = '새 작품 생성'
     authoring_save_bible = '설정 저장'
+    openAuthoringProjectButton = '기존 작품 열기'
   }[$automationId]
   if (-not $displayName) { return $null }
   $cond = [System.Windows.Automation.PropertyCondition]::new(
     [System.Windows.Automation.AutomationElement]::NameProperty, $displayName)
   $matches = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,$cond)
   $wantButton = $automationId -eq 'createProjectButton' -or
-                $automationId -eq 'authoring_save_bible'
+                $automationId -eq 'authoring_save_bible' -or
+                $automationId -eq 'openAuthoringProjectButton'
   foreach ($candidate in $matches) {
     $t = $candidate.Current.ControlType.ProgrammaticName
     if ($wantButton -and $t -like '*Button') { return $candidate }
@@ -158,7 +160,12 @@ try {
 
   # The Windows 11 user-facing QA job must not need installed Python.
   # Inspect the native SQLite database header using built-in .NET only.
-  $stream = [System.IO.File]::OpenRead($database)
+  # SQLite may keep an open WAL/shared DB handle while the application runs.
+  # Open the header with FileShare.ReadWrite, not File.OpenRead's restrictive
+  # Read-only sharing mode. This must never require closing the user's app.
+  $stream = [System.IO.FileStream]::new(
+    $database, [System.IO.FileMode]::Open,
+    [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
   try {
     $header = [byte[]]::new(16)
     $read = $stream.Read($header,0,16)
@@ -166,6 +173,69 @@ try {
   $magic = [System.Text.Encoding]::ASCII.GetString($header)
   Step 'external_sqlite_header_verified_without_python' (
     $read -eq 16 -and $magic -eq ("SQLite format 3" + [char]0))
+
+  # A user closes the EXE and starts it again: verify the same project opens
+  # through the native UIA button, with original settings and Bible restored.
+  Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class ANFGuiClose {
+    [DllImport("user32.dll")] public static extern bool PostMessage(
+       IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+}
+'@
+  Step 'external_gui_close_button_message_sent' ([ANFGuiClose]::PostMessage(
+    $handle, [uint32]0x0010, [IntPtr]::Zero, [IntPtr]::Zero))
+  $closed = $false
+  for ($i=0;$i -lt 60;$i++) {
+    Start-Sleep -Milliseconds 300
+    $proc.Refresh()
+    if ($proc.HasExited) { $closed = $true; break }
+  }
+  Step 'external_gui_first_exe_closed_cleanly' $closed
+  $reopenedProc = Start-Process -FilePath $exe -PassThru
+  try {
+    $newHwnd = [IntPtr]::Zero
+    for ($i=0;$i -lt 60;$i++) {
+      Start-Sleep -Milliseconds 400
+      $reopenedProc.Refresh()
+      if ($reopenedProc.HasExited) {
+        throw 'Standalone reopened GUI EXE unexpectedly exited'
+      }
+      foreach ($candidate in @(Get-Process -Name AI_Novel_Factory -ErrorAction SilentlyContinue)) {
+        $candidate.Refresh()
+        if ($candidate.MainWindowHandle -ne [IntPtr]::Zero -and
+            $candidate.MainWindowHandle -ne $handle -and
+            $candidate.MainWindowTitle -match 'AI Novel Factory') {
+          $newHwnd = $candidate.MainWindowHandle
+          break
+        }
+      }
+      if ($newHwnd -ne [IntPtr]::Zero) { break }
+    }
+    Step 'external_gui_separate_exe_restarted' ($newHwnd -ne [IntPtr]::Zero)
+    $newWindow = [System.Windows.Automation.AutomationElement]::FromHandle($newHwnd)
+    Set-AccessibleText $newWindow 'authoring_db' $database
+    Invoke-Accessible $newWindow 'openAuthoringProjectButton'
+    Start-Sleep -Milliseconds 500
+    $values = @{}
+    foreach ($field in @('authoring_title','authoring_genre','authoring_bible')) {
+      $el = Element $newWindow $field
+      Step ("reopened_input_"+$field) ($null -ne $el)
+      $pattern = $null
+      Step ("reopened_value_pattern_"+$field) ($el.TryGetCurrentPattern(
+        [System.Windows.Automation.ValuePattern]::Pattern,[ref]$pattern))
+      $values[$field] = ([System.Windows.Automation.ValuePattern]$pattern).Current.Value
+    }
+    Step 'external_user_reopened_saved_novel_from_real_gui' (
+       $values['authoring_title'] -eq 'Synthetic Windows 11 Novel' -and
+       $values['authoring_genre'] -eq 'fantasy' -and
+       $values['authoring_bible'] -eq 'Original fictional bridge and secret lantern; synthetic canon only')
+  } finally {
+    if ($reopenedProc -and -not $reopenedProc.HasExited) {
+      Stop-Process -Id $reopenedProc.Id -Force -ErrorAction SilentlyContinue
+    }
+  }
   $completed = $true
 } catch {
   Write-Host ('EXTERNAL_GUI_TEST_FAILURE_CATEGORY '+$_.Exception.GetType().Name)
