@@ -27,9 +27,12 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.korean_font_supported = apply_korean_ui_font()
-        self.setWindowTitle('AI Novel Factory — 개발 중')
-        self.resize(1420, 850)
-        self.setMinimumSize(940, 600)
+        self.setWindowTitle('AI Novel Factory — 작품 집필')
+        screen = QApplication.primaryScreen()
+        available = screen.availableGeometry() if screen is not None else None
+        self.setMinimumSize(820, 560)
+        self.resize(min(1360, max(820, available.width() - 40)) if available else 1160,
+                    min(840, max(560, available.height() - 50)) if available else 760)
         central = QWidget(self)
         self.setCentralWidget(central)
         outer = QHBoxLayout(central)
@@ -191,9 +194,8 @@ class MainWindow(QMainWindow):
                 current = self._current_project()
                 if current is not None:
                     path, _pid = current
-                    if getattr(self, '_plot_synced_path', None) != path:
+                    if getattr(self.plot_editor.session, '_path', None) != path:
                         self.plot_editor.open_database(str(path))
-                        self._plot_synced_path = path
             if key in self.canon_panels:
                 self.canon_panels[key].refresh()
             elif key in self.additional_panels:
