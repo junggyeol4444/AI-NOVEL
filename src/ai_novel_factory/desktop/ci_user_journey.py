@@ -105,6 +105,21 @@ def run(args):
               and len(reopened.get('steps', [])) >= 6
               and all(s.get('result') == 'PASS' for s in reopened.get('steps', [])))
         report['reopen_steps'] = reopened['steps']
+        # Run an acceptance navigation audit over all 12 visible user menus.
+        # A page containing the existing pending label is NOT a working feature.
+        from ai_novel_factory.desktop.navigation import SECTIONS
+        from PySide6.QtWidgets import QLabel
+        unconnected = []
+        for index, section in enumerate(SECTIONS):
+            item = window.sidebar.item(index)
+            QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
+                             pos=window.sidebar.visualItemRect(item).center())
+            app.processEvents()
+            page = window.pages.currentWidget()
+            if page.findChild(QLabel, 'pending_' + section.key) is not None:
+                unconnected.append(section.key)
+        report['unconnected_user_menus'] = unconnected
+        check('all_twelve_user_menus_implemented', not unconnected)
         report['whole_user_journey'] = 'PASS'
     except BaseException as exc:
         report['blocker_type'] = type(exc).__name__
