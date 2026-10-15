@@ -1,5 +1,13 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-15 23시 KST — 신규 Windows Qt 실패 즉시 수정 및 전경 점유자 확인
+
+- 직전 검증 커밋 [`37887965`](https://github.com/junggyeol4444/AI-NOVEL/commit/37887965be327571aa9dcf56b4ad5fa93ff84843)의 Linux Qt [#38748476593](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38748476593), PG/Redis/Celery [#38748476562](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38748476562), Windows EXE·실 로컬 GGUF [#38748476575](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38748476575) **SUCCESS**. Linux Qt에서 새 `test_reference_coverage.py` 8개 전부 실행·통과 로그 확인.
+- Windows fast Qt [#38748476764](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38748476764) **FAILURE**: 새 합성 SQLite 테스트 8개가 `PermissionError: [WinError 32]`로 정리 실패. 원인은 테스트의 `with sqlite3.connect(path) as db:`가 커밋만 하고 연결은 닫지 않아 Windows에서 `TemporaryDirectory` 삭제 시 DB 파일 잠금 유지. 제품의 `read_reference_coverage`는 이미 `closing(...)`을 사용함.
+- 회귀 테스트 7곳을 `with closing(sqlite3.connect(path)) as db, db:`로 변경하여 **트랜잭션 커밋 후 연결 명시 종료**. Linux 격리 합성 SQLite 7 PASS, GUI 1 SKIP(PySide6 미설치), compileall PASS. 수정된 테스트의 신규 Windows CI 결과는 실행 완료 전 **NOT_RUN**.
+- Windows 11 외부 UIAutomation [#38748476592](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38748476592) **FAILURE**: `SelectedUnique=12`, `NativeSelectionClicks=12` PASS, `ForegroundRequestAccepted=False`, `QtForeground=False`, `ForegroundBlockerProcess=WWAHost; ForegroundBlockerPid=7580` 확인. Windows Web App Host가 전경을 점유한 것은 확인됐지만 화면의 구체적인 내용은 해당 실행 로그만으로 단정하지 않음. OS 창 강제 종료/우회 금지, 전경 실패 판정 유지.
+- 보호 `main` SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 불변. 기존 사용자 데이터/키/설정/계정/예약 변경·전송·재활성화 없음. **RELEASE_BLOCKED**: 물리 Windows 10/11 사람 인수, 참고작 전수 Similarity/재작성, 실 모델 30/100/250화 장편 품질, 01~100 통합/명시 승인 후 출판 미완.
+
 ## 2026-10-15 23:04 KST — 로컬 보강 재검증 및 Windows 11 전경 진단 (검증 브랜치 전용)
 
 - 검증 HEAD `1fcd2397d2ef408e30057d53ec174f01bccc05cd`, 보호 `main` `69225edeed0a09ded5f847dad9b9ea63bc45367c` 읽기 재확인. 해당 HEAD Linux Qt #38724889966, Windows Qt #38724889882, PG/Redis/Celery #38724890183, Windows EXE/GGUF #38724889916 모두 SUCCESS; Windows 11 외부 UIAutomation #38724889869 FAILURE (실제 잡 로그 확인).

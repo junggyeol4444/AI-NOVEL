@@ -1,5 +1,6 @@
 """Synthetic-only coverage tests; never open a user's reference catalog."""
 from pathlib import Path
+from contextlib import closing
 import importlib.util
 import os
 import sqlite3
@@ -23,7 +24,7 @@ class ReferenceCoverageTests(unittest.TestCase):
     def test_registered_counts_and_no_write(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "catalog.sqlite"
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.execute("CREATE TABLE reference_files (status TEXT)")
                 db.executemany("INSERT INTO reference_files VALUES (?)",
                                [("analyzed",), ("registered",), ("failed",)])
@@ -36,7 +37,7 @@ class ReferenceCoverageTests(unittest.TestCase):
     def test_valid_empty_catalog_is_zero_but_not_clear(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "catalog.sqlite"
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.execute("CREATE TABLE reference_files (status TEXT)")
             result = read_reference_coverage(path)
             self.assertEqual((result.registered, result.analyzed), (0, 0))
@@ -45,7 +46,7 @@ class ReferenceCoverageTests(unittest.TestCase):
     def test_bad_schema_fails_closed(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "catalog.sqlite"
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.execute("CREATE TABLE other (id INTEGER)")
             result = read_reference_coverage(path)
             self.assertIsNone(result.registered)
@@ -55,7 +56,7 @@ class ReferenceCoverageTests(unittest.TestCase):
         self.assertEqual(read_reference_coverage(Path("relative.sqlite")).reason, "INVALID_PATH")
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "catalog.sqlite"
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.execute("CREATE TABLE reference_files (status TEXT)")
             link = Path(root) / "link.sqlite"
             try:
@@ -69,7 +70,7 @@ class ReferenceCoverageTests(unittest.TestCase):
         for invalid in ("complete", None):
             with self.subTest(invalid=invalid), tempfile.TemporaryDirectory() as root:
                 path = Path(root) / "legacy.sqlite"
-                with sqlite3.connect(path) as db:
+                with closing(sqlite3.connect(path)) as db, db:
                     db.execute("CREATE TABLE reference_files (status TEXT)")
                     db.executemany("INSERT INTO reference_files VALUES (?)",
                                    [("analyzed",), (invalid,)])
@@ -84,7 +85,7 @@ class ReferenceCoverageTests(unittest.TestCase):
     def test_all_documented_statuses_are_counted_without_claiming_similarity(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "catalog.sqlite"
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.execute("CREATE TABLE reference_files (status TEXT)")
                 db.executemany("INSERT INTO reference_files VALUES (?)",
                                [(s,) for s in ("registered", "analyzing", "analyzed", "failed")])
@@ -103,7 +104,7 @@ class ReferenceCoverageGuiTests(unittest.TestCase):
         app = QApplication.instance() or QApplication([])
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "synthetic.sqlite"
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.execute("CREATE TABLE reference_files (status TEXT)")
                 db.executemany("INSERT INTO reference_files VALUES (?)",
                                [("analyzed",), ("registered",)])
