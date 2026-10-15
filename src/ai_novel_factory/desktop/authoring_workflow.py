@@ -81,6 +81,7 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         self.episodes.setCurrentIndex(self.episodes.findData(self.session.episode_number))
         self.episodes.blockSignals(False)
         self._sync_episode()
+        self.auto_panel.refresh_defaults()
 
     def _sync_episode(self):
         db, pid = self.session.required()

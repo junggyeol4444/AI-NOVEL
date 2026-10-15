@@ -102,6 +102,12 @@ class MainWindow(QMainWindow):
         # No network request happens automatically. Publishing and AI remain disabled.
 
     def closeEvent(self, event) -> None:
+        authoring = getattr(self, 'authoring', None)
+        if authoring is not None and authoring.auto_panel.is_running():
+            authoring.auto_panel.request_stop()
+            self.statusBar().showMessage('로컬 AI 집필 작업 중단 요청 중 · 프로세스 완료 후 종료해 주세요.')
+            event.ignore()
+            return
         editor = getattr(self, 'plot_editor', None)
         if editor is not None:
             if not editor._warn_unsaved():

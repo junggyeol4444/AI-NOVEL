@@ -1,4 +1,6 @@
 """Manual authoring form construction; all side effects are button initiated."""
+from .auto_batch_panel import AutoBatchPanel
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QFormLayout, QGroupBox, QLabel, QLineEdit,
     QPlainTextEdit, QPushButton, QSpinBox, QComboBox, QCheckBox, QScrollArea,
@@ -82,6 +84,8 @@ class AuthoringControls:
                      lambda: self.session.export(self._text('export_dir'), self._text('price')),
                      'exportAuthoringTxtEpubButton')
         self.form.addRow(QLabel('게시·원격 업로드·출판 승인 없음. 기존 파일 덮어쓰기 금지.'))
+        self.auto_panel = AutoBatchPanel(self, self)
+        self.layout.addWidget(self.auto_panel)
         self.layout.addStretch(1)
         self.episodes.currentIndexChanged.connect(self._select_episode)
         self.scenes.currentIndexChanged.connect(self._select_scene)
