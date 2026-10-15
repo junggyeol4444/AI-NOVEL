@@ -166,3 +166,14 @@
 - `test_studio_gui_optional.py`: 합성 두 번째 회차 생성 후 검색 필터·일치 회차 수·검색 결과 없음·이전/다음 이동·미저장 원고 이동 취소 시 DB 초고 유지 검증 추가.
 - 코드 커밋 `f3b80af63ed1aee289610c168832911bf80d4739`, 필터 후 선택 안정성 수정 `780862724363671c638f3408b89568f603cf4031`. 최신 QA Linux run `38689275922`, Windows 11 네이티브 `38689275917` 및 Windows EXE `38689275823`은 조회 시 **queued/pending**. **이 코드 버전의 테스트 PASS 주장 금지.**
 - 이전 `efbda1a515992688a830a947781b8a26f42454a5` 코드 기반 Linux GUI run `38688203975` SUCCESS, 서비스 run `38688203900` SUCCESS만 확인. Win11 실제 화면/OOBE 가림/장편 100·250화 고품질/01~100 요구사항 전체는 계속 `RELEASE_BLOCKED`. `main` 무변경 `69225edeed0a09ded5f847dad9b9ea63bc45367c`.
+
+
+### 2026-10-15 한국시간 15시 무렵: 자율 즉시 개발 재개 / GUI 원고 보존 추가
+
+- 사용자가 **"계속"** 이라고 말하면 즉시 코드/검증을 수행하라는 뜻이며, 자동화나 예약을 새로 만들라는 요청이 아니다. 이전 답변에서 임의로 만든 AI NOVEL Factory 정기 작업은 **비활성화**됐으며, 이 차례에는 어떤 예약도 새로 만들지 않았다.
+- GitHub run `38689275922`, commit `780862724363671c638f3408b89568f603cf4031`의 **Linux Qt offscreen GUI, 원고 편집, 최근 작품 재실행 및 회차 검색/이동 회귀 검사 SUCCESS** 직접 확인. 이것은 물리 Windows EXE/사용자 인수 합격이 아니다. `main` SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 무변경.
+- `project_studio._restore_version()`: 이전에는 미저장 원고를 복원 처리 **전에** 지우므로, 승인 후 취소/버전 충돌/오류가 나면 미저장 텍스트를 상실할 위험이 있었다. 현재 사용자 승인 문구에 미저장 원고 폐기 조건을 고지하되 *실제 저장이 성공할 때만* 편집기를 새 복원본으로 교체한다. DB rollback 또는 거부 시 라이브 텍스트 보존. 회귀 테스트는 승인 거절/강제 롤백/정상 복원 3상태를 검사한다.
+- `project_studio.confirm_discard(apply=False)`: 프로젝트 열기/생성, 첫 회차/새 회차 생성, 목록의 다른 회차 선택에서 **작업을 시도하기 전 편집기 텍스트를 지우지 않는다**. DB 작업 성공과 화면 교체가 확정되기 전에는 원고를 보존한다. 특히 `_create_episode`에서 입력 모달을 취소하면 원고 폐기 확인도 보여주지 않는다. `tests/test_studio_gui_optional.py`에서 실제 Qt 클릭으로 회차 변경 실패 및 새 회차 모달 취소 시 원고 보존 확인 시나리오 추가.
+- `authoring_session.select_episode`: 회차와 소속 장면을 모두 조회 완료한 뒤에만 세션의 활성 회차를 바꾸도록 변경. 장면 조회 오류가 나면 기존 회차/원고가 유지되는 직접 로컬 테스트 `tests/test_authoring_session_safety.py` 추가.
+- 최신 소스 검증 커밋 `4b4b5ccd1c4e3a10543d52490a47602f3790e762`. 이에 대한 Linux GUI run `38689911337`, Windows 11 화면 run `38689911375`, EXE 실제 사용 시나리오 run `38689911343`은 마지막 확인 시 `QUEUED`; 결과가 완성되기 전 PASS로 표시 금지. Linux/Windows 외부 runner 장기 대기열에는 구형 in_progress job 다수가 남아 있다.
+- 01~100 전면 기능 및 실제 Windows 10/11 x64 foreground 조작, 30/100/250화 장편 품질과 참고작 유사성 전수 검증 등은 아직 미충족. **RELEASE_BLOCKED** 유지.
