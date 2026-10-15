@@ -161,7 +161,9 @@ class MainWindow(QMainWindow):
         self.advanced_nav_button.setObjectName('showAdvancedNavigationButton')
         self.advanced_nav_button.setAccessibleName('세부 도구 보기')
         self.advanced_nav_button.setCheckable(True)
-        self.advanced_nav_button.clicked.connect(self._toggle_advanced_navigation)
+        # Windows UIA TogglePattern changes checked state without necessarily
+        # emitting clicked(). The toggled signal handles mouse, keyboard and UIA.
+        self.advanced_nav_button.toggled.connect(self._toggle_advanced_navigation)
         nav_layout.addWidget(self.advanced_nav_button)
         nav_layout.addWidget(self.sidebar)
         nav_layout.addStretch(1)

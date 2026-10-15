@@ -1,5 +1,15 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-15 18시 KST 정기 실행 후속 결함 수정 — UIA TogglePattern과 Qt `toggled` 신호 연결
+
+- 검증 브랜치 [첫 수정 `951a83d71cc953c234a17ee08f0b1c7074e8b9c9`](https://github.com/junggyeol4444/AI-NOVEL/commit/951a83d71cc953c234a17ee08f0b1c7074e8b9c9) 후 실제 CI를 기다려 확인했다. [Windows 11 외부 UIA #38710410703](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38710410703) **FAIL**: 기존 메뉴 제어 실패 단계는 통과해 `AdvancedMenuControlType=ControlType.CheckBox`가 실제 로그로 확정됐으나, `AutomationElements=120; MatchedMenuItems=1; NativeSelectionClicks=0`으로 **실제 사이드바가 펼쳐지지 않음**. 단순 UIA 패턴 성공은 화면 동작 증거가 아니다.
+- 원인 가설(신규 Windows 11 CI 검증 필요): Qt `QPushButton.setCheckable(True)`에 대해 UIA `TogglePattern.Toggle()`이 `checked` 상태만 바꾸고 `clicked`는 발생시키지 않을 수 있다. 기존 `app.py`는 `clicked.connect(self._toggle_advanced_navigation)`에만 연결돼 있어 실제 `sidebar.setVisible(expanded)`가 누락된다. 이번 수정은 **`toggled.connect`로 연결을 변경**해 UIA 체크 상태 변화와 마우스/키보드 클릭을 모두 지원하도록 한다. `tests/test_desktop_gui_optional.py`에 `setChecked(True/False)`로 펼침·접힘과 접근성 버튼 문구를 실제 Qt 위젯에서 검증하는 회귀 테스트를 추가했다.
+- 첫 수정 SHA의 나머지 CI: [Linux Qt #38710410754](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38710410754) **SUCCESS**, [Windows fast Qt #38710410622](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38710410622) **SUCCESS**, [실 PG/Redis/Celery #38710410467](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38710410467) **SUCCESS**, [compiled Windows EXE/로컬 GGUF/Windows11 오프라인 #38710410488](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38710410488) **SUCCESS**. 마지막 Windows 빌드까지 **완료를 확인한 후** 두 번째 커밋을 작성해 진행 중 빌드 취소를 피했다.
+- 이번 두 번째 수정의 신규 CI 결과는 아직 미확정. 다음 회차에서 `MatchedMenuItems`, `NativeSelectionClicks`, `PublicationPageActionsVisibleViaUIA`, `QtForeground`를 실제 로그로 확인하라. Windows 11 OOBE/privacy 오버레이 및 물리 Windows 10/11 인간 전경 인수, 30/100/250화 문학 품질, 등록 참고작 전수 검사, 100단계 완전 통합은 **RELEASE_BLOCKED**. 검증 브랜치만 수정, `main`/사용자 원고·SQLite/실계정/실출판/기존 예약 변경 없음.
+
+---
+
+
 ## 2026-10-15 18시 KST 정기 실행 1회차 — Windows 11 UIA 메뉴 제어 결함 수정 및 재검증 요청
 
 - 사용자가 2026-10-15 한국시간에 명시적으로 `예약`을 지시해 **매시간 개발·검증 정기 작업 1개가 이미 생성/활성화**되었다. 아래 이전 인수인계의 '예약 없음/아직 생성 안 함' 문장은 과거 시점의 기록이다. 추가 예약 생성/기존 비활성 오전 8시 예약 재활성화 금지.

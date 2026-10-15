@@ -26,6 +26,17 @@ class DesktopGuiTests(unittest.TestCase):
         self.assertEqual(window.studio.pages.currentIndex(), 0)
         self.assertFalse(window.sidebar.isVisible())
         self.assertIsNotNone(window.advanced_nav_button)
+        # Simulate Windows UIAutomation TogglePattern: it may change the Qt
+        # check state directly without emitting QPushButton.clicked().
+        self.assertFalse(window.advanced_nav_button.isChecked())
+        window.advanced_nav_button.setChecked(True)
+        app.processEvents()
+        self.assertTrue(window.sidebar.isVisible())
+        self.assertIn('닫기', window.advanced_nav_button.text())
+        window.advanced_nav_button.setChecked(False)
+        app.processEvents()
+        self.assertFalse(window.sidebar.isVisible())
+        self.assertIn('보기', window.advanced_nav_button.text())
         # Primary writing navigation leads new users to the creation wizard.
         from PySide6.QtWidgets import QPushButton
         from PySide6.QtCore import Qt
