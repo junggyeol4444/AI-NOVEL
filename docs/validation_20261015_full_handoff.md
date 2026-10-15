@@ -158,3 +158,11 @@
 - **GitHub Actions run `38688066922` at `e156fa9e` = SUCCESS**: Linux Qt 첫 실행/작품 생성·SQLite 경쟁 보호·두 번 원고 저장 및 버전 원형 보존·재실행·미저장 종료 차단·동시 편집 충돌·버전 복원, 합성 4개 GUI 화면 모두 통과. `03-novel-writer.png`와 `02-create-wizard.png` 직접 시각 검토: 한글 폰트 정상 출력 확인, 820x750 픽셀, 우측 설정 검수 패널은 버튼으로 접근 가능. 본 결과는 **Ubuntu Qt offscreen**임; 실제 Windows 사용자 인수 아님.
 - **GitHub Actions run `38688203975` at `efbda1a5` = SUCCESS**: 명시적 Qt 창 정리·faulthandler 계측 추가 후 Linux 스모크/단위·GUI 회귀·합성 Qt 캡처 다시 모두 통과. 이번 버전의 Windows EXE/진짜 UIAutomation 및 물리 사용자 검증은 실행 미완료.
 - 최신 구현 SHA `efbda1a515992688a830a947781b8a26f42454a5` validation-only. 최신 Windows 11 실사용 UIA run `38688203854`, Windows EXE run `38688203843`, 빠른 Windows GUI run `38688203856` 결과를 다음에 확인. `main`은 `69225edeed0a09ded5f847dad9b9ea63bc45367c`로 유지해야 함.
+
+
+### 2026-10-15 14:50 KST: 명시적 사용자 의도 및 현재 개발
+- 사용자가 예약/일정 설정을 강하게 거부하고, `계속`은 **이 대화에서 당장 개발/검증을 수행하라**는 뜻이라고 재강조했다. 앞서 잘못 추가된 `AI Novel Factory 완성 개발` 정기 작업을 **명시적으로 비활성화**했다. 이후 사용자 요청 없이 어떠한 스케줄도 만들지 말 것.
+- `project_studio.py`: 수십~수백 회차 장기 원고 탐색을 위해 `studioEpisodeSearch`(번호·상태 텍스트 검색), `studioEpisodeMatches`(검색 결과/전체 수), `studioPreviousEpisode`, `studioNextEpisode` 추가. 검색은 회차 라벨만 읽고 원고 본문이나 다른 사용자 개인 데이터를 색인·서버 전송하지 않는다. 필터 결과가 없으면 회차 이동하지 않음. QListWidget의 필터 뒤 오래된 선택을 믿지 않고 `session.episode_number`에 근거한 직접 선택으로 미저장 원고 보호/페이지 재표시 경로를 사용.
+- `test_studio_gui_optional.py`: 합성 두 번째 회차 생성 후 검색 필터·일치 회차 수·검색 결과 없음·이전/다음 이동·미저장 원고 이동 취소 시 DB 초고 유지 검증 추가.
+- 코드 커밋 `f3b80af63ed1aee289610c168832911bf80d4739`, 필터 후 선택 안정성 수정 `780862724363671c638f3408b89568f603cf4031`. 최신 QA Linux run `38689275922`, Windows 11 네이티브 `38689275917` 및 Windows EXE `38689275823`은 조회 시 **queued/pending**. **이 코드 버전의 테스트 PASS 주장 금지.**
+- 이전 `efbda1a515992688a830a947781b8a26f42454a5` 코드 기반 Linux GUI run `38688203975` SUCCESS, 서비스 run `38688203900` SUCCESS만 확인. Win11 실제 화면/OOBE 가림/장편 100·250화 고품질/01~100 요구사항 전체는 계속 `RELEASE_BLOCKED`. `main` 무변경 `69225edeed0a09ded5f847dad9b9ea63bc45367c`.
