@@ -1,5 +1,22 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-15 후속 실개발·최신 CI 성공 — 검증 SHA 8e0d87e (신규 대화 우선 확인)
+
+- 사용자 `계속`의 뜻은 이 자리에서 실제 개발·검증 계속하기이며 **예약/자동화가 아니다**. 향후 사용자가 정확히 `예약`이라고 지시할 때만 그 시점 한국시간 1시간 후 시작, 매시간 반복하는 작업을 만들어야 한다. 아직 **신규 자동화 생성 안 함**. 이전 비활성 오전 8시 예약 재활성화 금지.
+- 최신 기능 수정 [`db0f99a82032e03cd72eb91fd2e09fa97633c5e3`](https://github.com/junggyeol4444/AI-NOVEL/commit/db0f99a82032e03cd72eb91fd2e09fa97633c5e3): `src/ai_novel_factory/desktop/authoring_session.py`에서 기존 작품 SQLite를 선택할 때 `get_project`, `list_rules`, 현재 회차/장면/검수 기록까지 **기존 작품 세션을 닫기 전 사전 조회**. 중간 실패 시 기존 선택 작품/회차/`pending_draft` 보존. `tests/test_authoring_session_safety.py`에 세 종류의 합성 손상 규칙/검수 메타데이터 예외 회귀 검증. 사용자 파일 변경 없이 합성 DB로 확인.
+- 최신 CI 시작 커밋 [`8e0d87e210bd7b1372e61b0112320c8673e4f58a`](https://github.com/junggyeol4444/AI-NOVEL/commit/8e0d87e210bd7b1372e61b0112320c8673e4f58a): 두 Windows 검증 워크플로에서 **Windows 빌드·스모크 로그 및 실행 보고서만** `if: always()` 아티팩트로 보존하도록 변경(원고/DB/키/실 GGUF 모델 업로드 금지). 직전 스크립트 `_run_logged`/타임아웃 변경도 함께 실제 CI 검증을 위해 `[skip ci]` 없는 이 단 한 번의 검증 커밋에 포함.
+- **이 SHA 8e0d87e에서 실제 성공 확인:**
+  - [Linux Qt & synthetic data safety #38700360880](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38700360880) **SUCCESS**.
+  - [Windows fast Qt·SQLite·원고 TXT·레거시 DB #38700360830](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38700360830) **SUCCESS**. 실제 GUI Qt 위젯 클릭·버전 저장/복원 등 보조 테스트 성공이나 포그라운드 Windows 사용자 인수 아님.
+  - [PG/pgvector/Redis/Celery #38700360855](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38700360855) **SUCCESS**.
+- **아직 결과 미확정:** [Windows 11 실제 GUI #38700361014](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38700361014)는 `qa-exe-x64-build` 단계에서 `IN_PROGRESS`; [compiled Windows EXE + real local GGUF #38700360835](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38700360835)는 의존성 설치/이후 EXE 빌드·검증을 수행할 예정. 최신 상태를 가장 먼저 재조회해 결과와 로그/아티팩트 확인. **미완료 PASS로 주장 금지**.
+- 이전 SHA `6a18d9ca`의 Windows 11 GUI [#38694356766](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38694356766)는 `CANCELLED`/후속 검증 `SKIPPED`; compiled GGUF [#38694356849](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38694356849)도 장시간 빌드 진행이었고 새 커밋에 따른 취소 가능성이 있으므로 최신 job 결론 재확인. 취소를 사용자 사용승인 실패/합격으로 오해하지 말 것.
+- `main`은 재확인 시 정확히 `69225edeed0a09ded5f847dad9b9ea63bc45367c`, 절대 변경·병합·삭제 금지. 사용자의 실제 원고·SQLite·환경설정·비밀키·연동 앱·실계정·출판/기존 자동화 무단 변경 없음.
+- **현재 상태 `RELEASE_BLOCKED`.** 실제 Windows 10/11 네이티브 물리 PC 사용자 전경 검증, 기존 OS OOBE/개인정보 오버레이, 전 참조작 유사성, 01~100 완전 통합 및 30/100/250화×약 5000자 문학 품질 미완. 새 스크립트나 문서가 완료/출시 증거가 아니다.
+
+---
+
+
 ## 2026-10-15 후속 대화 실제 개발·Windows 빌드 검증 추가 (원본 아래 전문 유지)
 
 - 사용자는 현재 대화의 "계속"을 **즉시 개발**로 정의. 새로운 "예약" 지시가 들어올 때만 **그 시점 KST 기준 1시간 후 첫 실행 및 이후 매시간** 정기 작업을 설정하기로 새로 지시함. 아직 예약 요청은 없으므로 신규 예약은 만들지 않았다. 기존 비활성화된 오전 8시 일일 자동화도 건드리지 않았다. 반복 자동화는 새 지시가 들어오는 미래 시점에만 만들 것.
