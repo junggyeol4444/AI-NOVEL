@@ -117,7 +117,39 @@ class MainWindow(QMainWindow):
                 layout.addWidget(pending)
                 layout.addStretch(1)
             self.pages.addWidget(page)
-        outer.addWidget(self.sidebar)
+        # Common authoring tasks are the primary navigation. The original
+        # twelve specialist tools remain available only on deliberate expand.
+        nav = QWidget(central)
+        nav.setFixedWidth(195)
+        nav_layout = QVBoxLayout(nav)
+        nav_layout.setContentsMargins(0, 0, 0, 0)
+        nav_layout.setSpacing(6)
+        nav_label = QLabel('내 작업', nav)
+        nav_label.setStyleSheet('font-size: 15px; font-weight: 700; padding: 12px;')
+        nav_layout.addWidget(nav_label)
+        for label, target, name in (
+            ('작품 홈', 'home', 'primaryHomeButton'),
+            ('원고 집필', 'writing', 'primaryWritingButton'),
+            ('참고작 분석', 'references', 'primaryReferenceButton'),
+            ('검수 현황', 'similarity', 'primaryQualityButton'),
+            ('내보내기', 'publication', 'primaryExportButton'),
+        ):
+            button = QPushButton(label, nav)
+            button.setObjectName(name)
+            button.setAccessibleName(label)
+            button.setMinimumHeight(42)
+            button.clicked.connect(
+                lambda _checked=False, key=target: self._open_primary(key))
+            nav_layout.addWidget(button)
+        self.advanced_nav_button = QPushButton('세부 도구 보기 ▾', nav)
+        self.advanced_nav_button.setObjectName('showAdvancedNavigationButton')
+        self.advanced_nav_button.setAccessibleName('세부 도구 보기')
+        self.advanced_nav_button.setCheckable(True)
+        self.advanced_nav_button.clicked.connect(self._toggle_advanced_navigation)
+        nav_layout.addWidget(self.advanced_nav_button)
+        nav_layout.addWidget(self.sidebar, stretch=1)
+        self.sidebar.hide()
+        outer.addWidget(nav)
         outer.addWidget(self.pages, stretch=1)
         self.sidebar.currentRowChanged.connect(self._change_page)
         # Windows UIAutomation SelectionItemPattern may change selection
@@ -182,6 +214,25 @@ class MainWindow(QMainWindow):
         index = self.sidebar.row(selected[0])
         if index >= 0 and index != self.pages.currentIndex():
             self._change_page(index)
+
+    def _toggle_advanced_navigation(self, expanded: bool) -> None:
+        self.sidebar.setVisible(expanded)
+        self.advanced_nav_button.setText(
+            '세부 도구 닫기 ▴' if expanded else '세부 도구 보기 ▾')
+        # Keep a stable accessible name for external Windows UI automation.
+        self.advanced_nav_button.setAccessibleName('세부 도구 보기')
+
+    def _open_primary(self, target: str) -> None:
+        if target in ('home', 'writing'):
+            self._go_to_key('novels')
+            if self.pages.currentIndex() != 0:
+                return  # the unsaved-editor navigation guard was rejected
+            self.novel_tabs.setCurrentIndex(0)
+            if self.novel_tabs.currentIndex() != 0:
+                return
+            self.studio._show(0 if target == 'home' else 2)
+        else:
+            self._go_to_key(target)
 
     def _on_novel_tab_changed(self, index: int) -> None:
         if index == 1 and not self.studio.confirm_discard():

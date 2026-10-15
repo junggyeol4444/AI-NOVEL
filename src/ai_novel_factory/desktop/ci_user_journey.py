@@ -39,6 +39,9 @@ def run(args):
         QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
                          pos=window.sidebar.visualItemRect(item).center())
         check('novels_navigation', window.pages.currentIndex() == 0)
+        QTest.mouseClick(window.advanced_nav_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        check('advanced_tools_expanded_explicitly', window.sidebar.isVisible())
         window.novel_tabs.setCurrentIndex(1)  # explicit existing tools in the new studio
         app.processEvents()
         ui = window.authoring

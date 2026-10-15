@@ -22,6 +22,8 @@ class DesktopGuiTests(unittest.TestCase):
         self.assertIn('내 컴퓨터에 안전하게 보관', window.statusBar().currentMessage())
         self.assertIsNotNone(window.studio)
         self.assertEqual(window.studio.pages.currentIndex(), 0)
+        self.assertFalse(window.sidebar.isVisible())
+        self.assertIsNotNone(window.advanced_nav_button)
         window.close()
         self.assertIsNotNone(app)
 

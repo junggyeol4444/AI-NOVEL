@@ -44,6 +44,26 @@ try {
   Add-Type -AssemblyName UIAutomationClient
   $root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
   if ($null -eq $root) { throw 'Windows UIAutomation could not attach to the Qt EXE' }
+  $expand = [System.Windows.Automation.PropertyCondition]::new(
+    [System.Windows.Automation.AutomationElement]::NameProperty,
+    '세부 도구 보기')
+  $buttons = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                            $expand)
+  $expanded = $false
+  foreach ($button in $buttons) {
+    $pattern = $null
+    if ($button.Current.ControlType.ProgrammaticName -like '*Button' -and
+        $button.TryGetCurrentPattern(
+            [System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
+      ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
+      $expanded = $true
+      break
+    }
+  }
+  if (-not $expanded) {
+    throw 'Windows UIAutomation cannot expand the advanced twelve-tool menu'
+  }
+  Start-Sleep -Milliseconds 350
   $wanted = @('작품 홈', '작품 설정', '등장인물', '세계관', '시간선', '인물 관계', '복선 관리', '참고소설', '참고 패턴', '회차 기획', '유사성 검사', '내보내기·출판')
   $found = 0
   $clicks = 0

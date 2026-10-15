@@ -39,8 +39,18 @@ def run(output_dir: str) -> int:
         check('korean_font_has_real_glyphs_not_boxes', window.korean_font_supported)
         check('real_qt_window_visible_in_virtual_display', window.isVisible()
               and window.width() >= 760 and window.height() >= 500)
+        check('primary_workflow_visible_and_legacy_tools_collapsed',
+              window.findChild(QPushButton, 'primaryHomeButton') is not None
+              and not window.sidebar.isVisible())
+        first_run = output / 'ui_00_primary_home.png'
+        check('render_primary_first_run_home',
+              window.grab().save(str(first_run), 'PNG')
+              and first_run.stat().st_size > 1024)
         check('all_twelve_navigation_entries', window.sidebar.count() == 12
               and len(SECTIONS) == 12)
+        QTest.mouseClick(window.advanced_nav_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        check('user_can_expand_all_legacy_tools', window.sidebar.isVisible())
         for idx, item in enumerate(SECTIONS):
             sidebar = window.sidebar.item(idx)
             QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
@@ -56,6 +66,12 @@ def run(output_dir: str) -> int:
                   and snap.height() > 400
                   and snap.save(str(image), 'PNG')
                   and image.stat().st_size > 1024)
+
+        # Test the primary entry point as the actual user sees it, with
+        # twelve specialist tools collapsed again.
+        QTest.mouseClick(window.advanced_nav_button, Qt.MouseButton.LeftButton)
+        app.processEvents()
+        check('advanced_sidebar_collapses_again', not window.sidebar.isVisible())
         # Exercise the new first-run UI on synthetic local data, not just its widget tree.
         window.sidebar.setCurrentRow(0)
         window.novel_tabs.setCurrentIndex(0)
