@@ -38,6 +38,10 @@ def main(argv):
                              capture_output=True, text=True, encoding='utf-8',
                              errors='replace', cwd=folder, env=env, timeout=145)
     if process.returncode:
+        # The sidecar emits only sanitized codes. Never show model prompts.
+        print('Bridge exit:', process.returncode,
+              'Native status:', process.stderr.strip()[-300:],
+              'Output bytes:', len(process.stdout))
         raise AssertionError('bundle model binary did not complete')
     try:
         result = json.loads(process.stdout)

@@ -100,6 +100,9 @@ def main(argv=None) -> int:
                               capture_output=True, text=True, encoding='utf-8',
                               errors='replace', timeout=110, check=False)
         if proc.returncode != 0:
+            # Only the numeric native process exit status is emitted. stderr
+            # can include user inputs or command-line prompts, so discard it.
+            print('LLAMA_NATIVE_EXIT=' + str(proc.returncode), file=sys.stderr)
             raise ValueError('model process failed')
         draft = proc.stdout.strip()
         # Some llama.cpp builds emit terminal control codes; fail instead of
