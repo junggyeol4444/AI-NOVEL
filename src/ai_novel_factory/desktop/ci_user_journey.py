@@ -253,6 +253,8 @@ def run(args):
                   newly is not None and newly.draft.strip()
                   and original.draft == draft
                   and panel.status.text().startswith('작업 완료:'))
+            check('real_local_ai_whole_story_preview_saved',
+                  bool(db.get_rule(pid, 'ai_story_outline_preview').value.strip()))
             check('new_episode_persistent_qc_and_review',
                   len(checks) >= 6
                   and any(c.category == 'reference_similarity'
