@@ -40,10 +40,16 @@ def read_reference_coverage(path: Path) -> ReferenceCoverage:
         # URI read-only mode must never initialize an absent database.
         with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=1)) as db:
             db.execute("PRAGMA query_only=ON")
-            registered, analyzed = db.execute(
-                "SELECT COUNT(*), COUNT(CASE WHEN status='analyzed' THEN 1 END) "
+            registered, analyzed, invalid = db.execute(
+                "SELECT COUNT(*), "
+                "COUNT(CASE WHEN status='analyzed' THEN 1 END), "
+                "COUNT(CASE WHEN status IS NULL OR status NOT IN "
+                "('registered','analyzing','analyzed','failed') THEN 1 END) "
                 "FROM reference_files"
             ).fetchone()
+            if invalid:
+                # Legacy/corrupt metadata must never be presented as valid coverage.
+                return ReferenceCoverage(None, None, "INVALID_STATUS")
             return ReferenceCoverage(registered, analyzed)
     except (OSError, sqlite3.Error, ValueError):
         return ReferenceCoverage(None, None, "UNAVAILABLE")

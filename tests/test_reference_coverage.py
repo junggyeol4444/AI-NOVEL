@@ -65,6 +65,35 @@ class ReferenceCoverageTests(unittest.TestCase):
             self.assertEqual(read_reference_coverage(link).reason, "INVALID_PATH")
 
 
+    def test_unrecognized_or_null_status_never_claims_coverage(self):
+        for invalid in ("complete", None):
+            with self.subTest(invalid=invalid), tempfile.TemporaryDirectory() as root:
+                path = Path(root) / "legacy.sqlite"
+                with sqlite3.connect(path) as db:
+                    db.execute("CREATE TABLE reference_files (status TEXT)")
+                    db.executemany("INSERT INTO reference_files VALUES (?)",
+                                   [("analyzed",), (invalid,)])
+                before = path.read_bytes()
+                result = read_reference_coverage(path)
+                self.assertEqual(result.reason, "INVALID_STATUS")
+                self.assertIsNone(result.registered)
+                self.assertIsNone(result.analyzed)
+                self.assertIn("NOT_RUN", result.label)
+                self.assertEqual(path.read_bytes(), before)
+
+    def test_all_documented_statuses_are_counted_without_claiming_similarity(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "catalog.sqlite"
+            with sqlite3.connect(path) as db:
+                db.execute("CREATE TABLE reference_files (status TEXT)")
+                db.executemany("INSERT INTO reference_files VALUES (?)",
+                               [(s,) for s in ("registered", "analyzing", "analyzed", "failed")])
+            result = read_reference_coverage(path)
+            self.assertEqual(result.reason, "AVAILABLE")
+            self.assertEqual((result.registered, result.analyzed), (4, 1))
+            self.assertIn("NOT_RUN", result.label)
+
+
 @unittest.skipUnless(importlib.util.find_spec("PySide6"), "PySide6 not installed")
 class ReferenceCoverageGuiTests(unittest.TestCase):
     def test_similarity_page_never_calls_it_full_similarity(self):

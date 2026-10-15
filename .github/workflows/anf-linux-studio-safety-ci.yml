@@ -42,6 +42,8 @@ jobs:
         run: python -m unittest discover -s tests -p test_authoring_session_safety.py -v
       - name: Explicit TXT safety-copy, no-overwrite, atomic failure regression
         run: python -m unittest discover -s tests -p test_draft_backup_safety.py -v
+      - name: Reference catalog read-only coverage and Qt fail-closed regression
+        run: python -m unittest discover -s tests -p test_reference_coverage.py -v
       - name: Actual Qt offscreen buttons create, edit, persist, reopen and reject conflict
         run: python -X faulthandler -m unittest discover -s tests -p test_studio_gui_optional.py -v
       - name: Synthetic GUI screenshots with real Qt widgets

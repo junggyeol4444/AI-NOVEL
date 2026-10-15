@@ -38,5 +38,7 @@ jobs:
         run: python -m unittest discover -s tests -p test_authoring_session_safety.py -v
       - name: Explicit Windows TXT safety-copy and file-lock regression
         run: python -m unittest discover -s tests -p test_draft_backup_safety.py -v
+      - name: Reference catalog read-only coverage and Qt fail-closed regression
+        run: python -m unittest discover -s tests -p test_reference_coverage.py -v
       - name: Real local Qt widget clicks and SQLite versioned user journey
         run: python -m unittest discover -s tests -p test_studio_gui_optional.py -v

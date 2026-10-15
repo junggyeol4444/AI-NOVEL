@@ -312,6 +312,7 @@ public static class ANFWin32 {
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd, int show);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(
         IntPtr hwnd, IntPtr order, int x, int y, int width, int height, uint flags);
 }
@@ -344,10 +345,19 @@ public static class ANFWin32 {
   # Try to make the app actually visible on the disposable desktop.
   [ANFWin32]::ShowWindow($hwnd, 9) | Out-Null
   [ANFWin32]::SetWindowPos($hwnd, [IntPtr]::new(-1), 0, 0, 1000, 700, [uint32]0x0040) | Out-Null
-  [ANFWin32]::SetForegroundWindow($hwnd) | Out-Null
+  $foregroundRequestAccepted = [ANFWin32]::SetForegroundWindow($hwnd)
+  Write-Host ("ForegroundRequestAccepted={0}" -f $foregroundRequestAccepted)
   Start-Sleep -Seconds 2
   $front = [ANFWin32]::GetForegroundWindow()
   Write-Host ("QtForeground={0}; ForegroundHandle={1}" -f ($front -eq $hwnd), $front)
+  if ($front -ne $hwnd -and $front -ne [IntPtr]::Zero) {
+    # Diagnostics only: do not dismiss, kill, or bypass OS foreground UI.
+    $frontPid = [uint32]0
+    [ANFWin32]::GetWindowThreadProcessId($front, [ref]$frontPid) | Out-Null
+    $frontProcess = Get-Process -Id $frontPid -ErrorAction SilentlyContinue
+    $frontName = if ($frontProcess) { $frontProcess.ProcessName } else { 'unavailable' }
+    Write-Host ("ForegroundBlockerProcess={0}; ForegroundBlockerPid={1}" -f $frontName, $frontPid)
+  }
   $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
   if ($bounds.Width -lt 800 -or $bounds.Height -lt 600) { throw 'No usable interactive display' }
   $bitmap = [System.Drawing.Bitmap]::new($bounds.Width, $bounds.Height)

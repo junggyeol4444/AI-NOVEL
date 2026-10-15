@@ -1,5 +1,13 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-15 23:04 KST — 로컬 보강 재검증 및 Windows 11 전경 진단 (검증 브랜치 전용)
+
+- 검증 HEAD `1fcd2397d2ef408e30057d53ec174f01bccc05cd`, 보호 `main` `69225edeed0a09ded5f847dad9b9ea63bc45367c` 읽기 재확인. 해당 HEAD Linux Qt #38724889966, Windows Qt #38724889882, PG/Redis/Celery #38724890183, Windows EXE/GGUF #38724889916 모두 SUCCESS; Windows 11 외부 UIAutomation #38724889869 FAILURE (실제 잡 로그 확인).
+- Windows 11 실패 로그: `SelectedUnique=12`, `NativeSelectionClicks=12` PASS, `QtForeground=False` FAIL. OS 개인정보/OOBE 점유는 추정이지 이번 로그로 확정되지 않음. 구형 Windows EXE #38701708258 SUCCESS 확인.
+- 기존 로컬 패치의 참고작 상태 이상/NULL `INVALID_STATUS` + `NOT_RUN`, Linux/Windows Qt CI 테스트 연결, Windows 11 `ForegroundRequestAccepted` 및 실제 전경 점유 프로세스 이름/PID 진단을 통합. 실제 OS 창 강제 종료/우회 없음, 전경 실패 판정 유지.
+- 격리 합성 SQLite Python 단위 테스트 **7 PASS / 1 SKIP(PySide6 미설치)** 및 compileall PASS. Windows 11 진단 코드 실제 실행은 신규 CI 완료 전 **NOT_RUN**. 실제 전수 유사성 검사는 **NOT_RUN**.
+- **RELEASE_BLOCKED** 유지: 물리 Win10/11 사용자 전경 인수, 등록 참고작 전수 검사/위험 장면 재작성, 실제 30/100/250화×약 5000자 문학 품질, 01~100 통합, 승인 후 출판 미완. 사용자 원고/SQLite/키/계정/기존 예약과 보호 main 변경 금지.
+
 ## 2026-10-15 20:02 KST — 등록 참고작 범위 읽기 전용 표시 연결 (검증 브랜치 전용)
 
 - 시작 상태: 검증 브랜치 `15cae25ed12d6dbaa8a86d7768c27cde8b8348cd`, 보호 `main` `69225edeed0a09ded5f847dad9b9ea63bc45367c` 확인. 검증 브랜치 최근 5개 CI 모두 종료, 진행 중인 검증 없음. [Linux Qt #38713802843](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38713802843), [Windows Qt #38713802611](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38713802611), [실 PG/Redis/Celery #38713802634](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38713802634), [Windows EXE/로컬 GGUF #38713803500](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38713803500) **PASS**. [Windows 11 외부 UIA #38713802649](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38713802649) **FAIL**: 12/12 UIA 메뉴 선택 PASS, 실제 OS 전경 인수는 Windows 11 OOBE 개인정보 설정 화면으로 **BLOCKED**. 구형 #38701708258은 SUCCESS 확인.
