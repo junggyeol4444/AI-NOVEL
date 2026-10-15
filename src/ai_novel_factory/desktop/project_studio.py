@@ -230,6 +230,8 @@ class ProjectStudio(QWidget):
         self.pages.addWidget(page)
 
     def _show(self, index):
+        if index == 2 and not self.workflow.session.project_id:
+            index = 1  # No novel yet: show the creation wizard instead of an inert editor.
         if index != 2 and not self.confirm_discard():
             return
         self.pages.setCurrentIndex(index)

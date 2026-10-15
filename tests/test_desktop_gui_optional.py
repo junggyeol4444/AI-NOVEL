@@ -31,6 +31,11 @@ class DesktopGuiTests(unittest.TestCase):
         QTest.mouseClick(window.findChild(QPushButton, 'primaryWritingButton'),
                          Qt.MouseButton.LeftButton)
         self.assertEqual(window.studio.pages.currentIndex(), 1)
+        # The studio's secondary writing shortcut must behave identically.
+        window.studio._show(0)
+        QTest.mouseClick(window.studio.findChild(QPushButton, 'studioWritingButton'),
+                         Qt.MouseButton.LeftButton)
+        self.assertEqual(window.studio.pages.currentIndex(), 1)
         window.close()
         self.assertIsNotNone(app)
 
