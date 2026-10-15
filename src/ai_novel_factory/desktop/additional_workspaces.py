@@ -14,8 +14,10 @@ from uuid import uuid4
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
-    QPushButton, QListWidget, QComboBox, QFileDialog,
+    QPushButton, QListWidget, QComboBox, QFileDialog, QMessageBox, QCheckBox,
 )
+from PySide6.QtCore import QThread, Signal
+from ai_novel_factory.wordpress_draft_api import post_private_draft
 
 from ai_novel_factory.database.reference_catalog import ReferenceCatalog
 from ai_novel_factory.database.genre_patterns import GenrePatternStore
@@ -156,6 +158,29 @@ class SimilarityWorkspace(QWidget):
             self.status.setPlainText('비교를 완료하지 못했습니다. 입력 범위와 원고를 확인하세요.')
 
 
+class _WordPressDraftWorker(QThread):
+    completed = Signal(str)
+    failed = Signal(str)
+
+    def __init__(self, site, username, app_password, title, final_text, parent=None):
+        super().__init__(parent)
+        self.site, self.username, self.app_password = site, username, app_password
+        self.title, self.final_text = title, final_text
+
+    def run(self):
+        try:
+            receipt = post_private_draft(
+                self.site, self.username, self.app_password,
+                title=self.title, approved_final_text=self.final_text,
+                explicitly_authorized=True)
+            self.completed.emit('WordPress 비공개 초안 저장 확인: 게시물 ID ' + str(receipt.post_id))
+        except Exception:
+            self.failed.emit('WordPress 초안 전송 실패. 주소·권한·네트워크 상태를 확인하세요.')
+        finally:
+            self.app_password = ''
+            self.final_text = ''
+
+
 class PublicationWorkspace(QWidget):
     """Private TXT/EPUB preparation only; no platform publishing capability."""
 
@@ -187,13 +212,94 @@ class PublicationWorkspace(QWidget):
         self.status = QLabel('초고 저장 후 별도 폴더에 안전하게 내보낼 수 있습니다.')
         self.status.setWordWrap(True)
         root.addWidget(self.status)
+        root.addWidget(QLabel(
+            '선택적 공식 WordPress REST API 초안 전송 (한국 웹소설 플랫폼 자동 출판 아님). '
+            '완성한 최종본만 사용하며 실제 인터넷 전송 전 별도 확인합니다.'))
+        self.wordpress_site = QLineEdit()
+        self.wordpress_site.setObjectName('publicationWordPressSite')
+        self.wordpress_site.setPlaceholderText('https://내-워드프레스-사이트.example')
+        root.addWidget(self.wordpress_site)
+        self.wordpress_username = QLineEdit()
+        self.wordpress_username.setObjectName('publicationWordPressUser')
+        self.wordpress_username.setPlaceholderText('WordPress 계정 아이디')
+        root.addWidget(self.wordpress_username)
+        self.wordpress_app_password = QLineEdit()
+        self.wordpress_app_password.setObjectName('publicationWordPressAppPassword')
+        self.wordpress_app_password.setEchoMode(QLineEdit.Password)
+        self.wordpress_app_password.setPlaceholderText('WordPress Application Password (저장되지 않음)')
+        root.addWidget(self.wordpress_app_password)
+        self.wp_episodes = QComboBox()
+        self.wp_episodes.setObjectName('publicationApprovedFinalEpisode')
+        root.addWidget(self.wp_episodes)
+        self.wp_owner_consent = QCheckBox(
+            '선택한 최종 원고의 권리자이며 내 WordPress 사이트에 비공개 초안 업로드를 승인합니다')
+        self.wp_owner_consent.setObjectName('publicationWordPressOwnerConsent')
+        root.addWidget(self.wp_owner_consent)
+        self.wp_send_button = QPushButton('WordPress 비공개 초안 전송 (추가 확인)')
+        self.wp_send_button.setObjectName('publicationWordPressCreateDraft')
+        root.addWidget(self.wp_send_button)
+        self.wp_send_button.clicked.connect(self._send_wp_draft)
+        self.wp_worker = None
         root.addStretch(1)
         self.export_button.clicked.connect(self._export)
 
     def refresh(self):
         s = self.session()
+        prev = self.wp_episodes.currentData()
+        self.wp_episodes.clear()
         if s is None or s.project_id is None:
             self.status.setText('작품 메뉴에서 먼저 소설을 생성하거나 열어 주세요.')
+            return
+        for item in s.store.list_episodes(s.project_id):
+            if item.final_text.strip():
+                self.wp_episodes.addItem(str(item.episode) + '화 최종본', item.episode)
+        i = self.wp_episodes.findData(prev)
+        if i >= 0:
+            self.wp_episodes.setCurrentIndex(i)
+
+    def _send_wp_draft(self):
+        if self.wp_worker is not None and self.wp_worker.isRunning():
+            return
+        session = self.session()
+        number = self.wp_episodes.currentData()
+        if session is None or session.store is None or number is None:
+            self.status.setText('먼저 최종 원고를 저장하고 회차를 선택하세요.')
+            return
+        if not self.wp_owner_consent.isChecked():
+            self.status.setText('권리 보유 및 비공개 초안 업로드 승인이 필요합니다.')
+            return
+        self.wp_owner_consent.setChecked(False)
+        episode = session.store.get_episode(session.project_id, number)
+        if not episode.final_text.strip():
+            self.status.setText('초고는 전송하지 않습니다. 검수 후 최종본을 저장하세요.')
+            return
+        # A second, synchronous user confirmation for the actual remote POST.
+        answer = QMessageBox.question(
+            self, '외부 서버 전송 확인',
+            f'선택한 {number}화 최종본을 입력한 WordPress 서버로 전송합니다. '
+            '공개 게시가 아니라 비공개 초안을 새로 작성합니다. 전송할까요?',
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if answer != QMessageBox.Yes:
+            self.status.setText('외부 전송 취소됨. 원고는 로컬에 유지됩니다.')
+            return
+        self.wp_worker = _WordPressDraftWorker(
+            self.wordpress_site.text(), self.wordpress_username.text(),
+            self.wordpress_app_password.text(),
+            session.store.get_project(session.project_id).title + ' — ' + str(number) + '화',
+            episode.final_text, self)
+        self.wordpress_app_password.clear()
+        self.wp_send_button.setEnabled(False)
+        self.wp_worker.completed.connect(self.status.setText)
+        self.wp_worker.failed.connect(self.status.setText)
+        self.wp_worker.finished.connect(self._wp_finished)
+        self.status.setText('공식 WordPress API로 비공개 초안 전송 요청 중...')
+        self.wp_worker.start()
+
+    def _wp_finished(self):
+        self.wp_send_button.setEnabled(True)
+        if self.wp_worker is not None:
+            self.wp_worker.deleteLater()
+            self.wp_worker = None
 
     def _choose(self):
         path = QFileDialog.getExistingDirectory(self, '비공개 내보내기 폴더 선택')
