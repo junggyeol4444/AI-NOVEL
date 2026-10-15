@@ -39,6 +39,8 @@ def run(args):
         QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
                          pos=window.sidebar.visualItemRect(item).center())
         check('novels_navigation', window.pages.currentIndex() == 0)
+        window.novel_tabs.setCurrentIndex(1)  # explicit existing tools in the new studio
+        app.processEvents()
         ui = window.authoring
         db_path = output / 'synthetic_novel.db'
         ui._set('db', str(db_path))
