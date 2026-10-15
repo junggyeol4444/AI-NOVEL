@@ -1,5 +1,20 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-15 후속 대화 실제 개발·Windows 빌드 검증 추가 (원본 아래 전문 유지)
+
+- 사용자는 현재 대화의 "계속"을 **즉시 개발**로 정의. 새로운 "예약" 지시가 들어올 때만 **그 시점 KST 기준 1시간 후 첫 실행 및 이후 매시간** 정기 작업을 설정하기로 새로 지시함. 아직 예약 요청은 없으므로 신규 예약은 만들지 않았다. 기존 비활성화된 오전 8시 일일 자동화도 건드리지 않았다. 반복 자동화는 새 지시가 들어오는 미래 시점에만 만들 것.
+- 검증 브랜치 `validation/gui-authoring-e2e-20261014`, `main` 보호 SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 재확인. 실사용자 SQLite/원고/키/환경설정/게시/출판 변경 없음.
+- **커밋 `e3f7b549f8fa6cb64fdab79257ab660d49d155b2`:** `scripts/ci_windows11_external_authoring.ps1`에서 Windows UIA 대체 접근성 이름 2개를 실제 `project_studio.py` 라벨(`작가/필명 (선택)`, `최상위 작품 설정 *`)과 일치시킴. 이름 5개를 정적으로 비교해 일치 확인. 실제 Windows UIA 실행 PASS를 주장하지 않는다.
+- **커밋 `24c08f17f3323381091cc9d4993da9f8ad650dc1`:** `authoring_workflow.py`의 기존 SQLite 열기/동기화가 누락된 오래된 `author` 및 `premise` 규칙에서 예외를 내지 않도록 읽기 전용 빈 값 대체. `project_studio._open_path` 오류 시 고급 도구의 DB 경로를 실제 열린 세션/기존 값으로 되돌리고 미저장 원고 보존. `tests/test_studio_gui_optional.py`에 합성 레거시 DB와 잘못된 경로 회귀 검사 추가. 새 코드의 Windows CI 실행은 아직 미검증.
+- **Windows 11 실제 Actions run [38694356766](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38694356766):** 2026-10-15 16:15 KST 무렵 `CANCELLED`. `qa-exe-x64-build`에서 `Build unsigned x64 Windows EXE`가 약 29분 동안 추가 출력 없이 지속되다가 설정된 잡 30분 제한 무렵 취소. 후속 Windows 11 UIA·전경 검사 잡은 `SKIPPED`. 로그에 `The operation was canceled`와 종료 시 `AI_Novel_Factory` orphan 프로세스 청소가 있음. 정체 원인 확정은 금지. 새로운 코드나 물리 Windows PC의 합격 근거가 아님.
+- **커밋 `49b9b449747f1940aff69b757cb7dad48e3122ea`:** 빌드 정체 대응으로 `scripts/build_windows_exe.py` PyInstaller·EXE smoke의 `capture_output` 파이프 수집 대신 새 파일 직접 리디렉션(`xb`)을 사용. Windows PyInstaller onefile 부트로더 자식이 타임아웃 뒤 파이프 EOF를 붙잡는 경우 무한 대기 위험 완화, 단계별 `ANF_WINDOWS_BUILD_STEP` 표식·900초 빌드 타임아웃 보고를 추가. `tests/test_stage97_windows_packaging.py`에 출력·덮어쓰기·타임아웃 격리 검사 추가. 실제 Windows 새 빌드/검증이 필요하며 원인 확정과 성공 선언 금지.
+- 기존 장시간 [compiled Windows EXE+GGUF run 38694356849](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38694356849)는 최종 확인 시 `IN_PROGRESS`, 구 코드 `6a18d9ca`의 `Build actual Windows EXE` 단계. 이 실행에서 새 3개 코드 커밋이 검증되는 것은 아니다. 상태·실패 로그를 재확인해야 한다.
+- 세 커밋 모두 장기 러너 취소를 피하려고 `[skip ci]` 적용. 따라서 최신 소스의 Linux/Windows GUI 테스트 `PASS` 또는 출시 승인 주장은 **금지**. 이전 SHA `6a18d9ca`의 Linux Qt `38694356844`, Windows Qt `38694356896`, 서비스 `38694356784`만 성공 증거다.
+- **다음 과제:** 실제 Windows 빌드 정체 원인 재현·파일 로그 수집·30분 제한 내 실제 패키징→외부 UIA/전경 검증; 신규 합성 레거시 SQLite와 오류 경로 회귀 테스트; 전체 Reference→Bible→Arc/Scene→real local AI→전수 검수/재작성/Memory Delta→30/100/250화 문학 품질→EPUB/명시 승인 출판 통합. `RELEASE_BLOCKED` 유지. 절대 `main` 변경·기존 DB/원고 손상·무단 출판 금지.
+
+---
+
+
 **인수인계 작성:** 2026-10-15 15:54 KST 이후, 다음 대화용 / **개발 상태: RELEASE_BLOCKED**
 
 > **이 파일의 첫 부분은 2026-10-15 최신 대화에서 새롭게 반영된 내용입니다. 아래 부록에는 그 이전까지의 통합 인수인계(67KB)와 사용자 원본 57개 섹션 기획안 전문을 수정하지 않고 이어 붙였습니다.** 다음 대화에서는 위아래 모두 확인하고 실제 GitHub의 최신 상태를 재조회해야 합니다. 이 문서 자체가 완제품, 실사용 Windows QA, 사용자 인수를 의미하지 않습니다.
