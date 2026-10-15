@@ -40,6 +40,9 @@ function Element([System.Windows.Automation.AutomationElement]$root,[string]$aut
     studioNewSubject = '소재와 주인공'
     studioNewPremise = '최상위 작품 설정'
     studioCreateProjectButton = '로컬 작품 생성'
+    studioFirstEpisodeButton = '첫 회차 바로 시작'
+    studioManuscriptEditor = '회차 원고 편집기'
+    studioSaveManuscript = '원고 버전 저장'
     authoring_db = '로컬 DB 파일 경로'
     authoring_title = '작품 제목'
     authoring_author = '작가 이름'
@@ -58,7 +61,7 @@ function Element([System.Windows.Automation.AutomationElement]$root,[string]$aut
   $cond = [System.Windows.Automation.PropertyCondition]::new(
     [System.Windows.Automation.AutomationElement]::NameProperty, $displayName)
   $matches = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,$cond)
-  $wantButton = $automationId -in @('studioAdvancedButton','studioNewButton','studioCreateProjectButton') -or $automationId -eq 'createProjectButton' -or
+  $wantButton = $automationId -in @('studioAdvancedButton','studioNewButton','studioCreateProjectButton','studioFirstEpisodeButton','studioSaveManuscript') -or $automationId -eq 'createProjectButton' -or
                 $automationId -eq 'authoring_save_bible' -or
                 $automationId -eq 'openAuthoringProjectButton'
   foreach ($candidate in $matches) {
@@ -154,6 +157,15 @@ try {
     'Synthetic Studio Windows11 Novel')
   Step 'native_studio_created_selected_project' (
     $null -ne $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $titleCheck))
+
+  Invoke-Accessible $window 'studioFirstEpisodeButton'
+  Set-AccessibleText $window 'studioManuscriptEditor' 'Original synthetic test manuscript; first chapter'
+  Invoke-Accessible $window 'studioSaveManuscript'
+  $savedLabel = [System.Windows.Automation.PropertyCondition]::new(
+    [System.Windows.Automation.AutomationElement]::NameProperty,
+    '로컬 SQLite에 새 원고 버전을 저장했습니다. 자동 검수는 별도입니다.')
+  Step 'native_studio_writer_saved_real_version_through_button' (
+    $null -ne $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $savedLabel))
 
   Invoke-Accessible $window 'studioAdvancedButton'
   Set-AccessibleText $window 'authoring_db' $database
