@@ -95,6 +95,21 @@ def _write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 
+def _run_logged(cmd: list[str], *, cwd: Path, env: dict[str, str],
+                stdout_path: Path, stderr_path: Path, timeout: int | float) -> int:
+    """Capture subprocess output in unique files instead of inherited pipes.
+
+    A one-file Windows GUI EXE starts a bootloader child. If the parent times
+    out, that child can retain inherited stdout/stderr pipe handles and make
+    subprocess.run(capture_output=True) block indefinitely during cleanup.
+    File redirection has no pipe EOF wait; no existing log is overwritten.
+    """
+    with stdout_path.open('xb') as out, stderr_path.open('xb') as err:
+        return subprocess.run(
+            cmd, cwd=cwd, env=env, stdout=out, stderr=err, timeout=timeout,
+        ).returncode
+
+
 def build(*, report_path: Path | None = None) -> tuple[int, dict]:
     preflight = current_preflight()
     if not preflight.permitted:
@@ -113,12 +128,23 @@ def build(*, report_path: Path | None = None) -> tuple[int, dict]:
     cmd = [sys.executable, '-m', 'PyInstaller', '--noconfirm', '--distpath', str(output),
            '--workpath', str(work), str(SPEC)]
     # No shell invocation, pip, external process service or network API.
-    attempt = subprocess.run(cmd, cwd=ROOT, env=_sanitized_environment(),
-                             capture_output=True, text=True, errors='replace', timeout=900)
+    # Report a bounded failure instead of hanging forever behind a one-file
+    # PyInstaller bootloader descendant holding a capture pipe open.
     work.mkdir(parents=True, exist_ok=True)
-    (work / 'build_stdout.txt').write_text(attempt.stdout, encoding='utf-8')
-    (work / 'build_stderr.txt').write_text(attempt.stderr, encoding='utf-8')
-    if attempt.returncode or not is_pe_executable(exe):
+    print('ANF_WINDOWS_BUILD_STEP pyinstaller_start', flush=True)
+    try:
+        build_code = _run_logged(
+            cmd, cwd=ROOT, env=_sanitized_environment(),
+            stdout_path=work / 'build_stdout.txt',
+            stderr_path=work / 'build_stderr.txt', timeout=900)
+    except subprocess.TimeoutExpired:
+        result = make_report(BuildPreflight(('pyinstaller_timed_out',), False))
+        if report_path:
+            _write_json(report_path, result)
+        print('ANF_WINDOWS_BUILD_STEP pyinstaller_timeout', flush=True)
+        return 1, result
+    print('ANF_WINDOWS_BUILD_STEP pyinstaller_finished', flush=True)
+    if build_code or not is_pe_executable(exe):
         result = make_report(BuildPreflight(('pyinstaller_build_or_pe_check_failed',), False))
         if report_path:
             _write_json(report_path, result)
@@ -126,14 +152,18 @@ def build(*, report_path: Path | None = None) -> tuple[int, dict]:
     checks = {}
     for mode, expected in (('--check', 'UI section contract OK: 12 sections'),
                            ('--gui-smoke', 'ANF GUI smoke OK: 12 sections')):
+        stdout_path = work / ('smoke_' + mode[2:] + '_stdout.txt')
+        stderr_path = work / ('smoke_' + mode[2:] + '_stderr.txt')
+        print('ANF_WINDOWS_BUILD_STEP smoke_' + mode[2:] + '_start', flush=True)
         try:
-            check = subprocess.run([str(exe), mode], cwd=ROOT, env=_sanitized_environment(),
-                                   capture_output=True, text=True, errors='replace', timeout=30)
-            checks[mode] = check.returncode == 0 and expected in check.stdout
-            (work / ('smoke_' + mode[2:] + '_stdout.txt')).write_text(check.stdout, encoding='utf-8')
-            (work / ('smoke_' + mode[2:] + '_stderr.txt')).write_text(check.stderr, encoding='utf-8')
+            smoke_code = _run_logged(
+                [str(exe), mode], cwd=ROOT, env=_sanitized_environment(),
+                stdout_path=stdout_path, stderr_path=stderr_path, timeout=30)
+            smoke_output = stdout_path.read_text(encoding='utf-8', errors='replace')
+            checks[mode] = smoke_code == 0 and expected in smoke_output
         except (OSError, subprocess.TimeoutExpired):
             checks[mode] = False
+        print('ANF_WINDOWS_BUILD_STEP smoke_' + mode[2:] + '_finished', flush=True)
     with exe.open('rb') as stream:
         digest = hashlib.file_digest(stream, 'sha256').hexdigest()
     result = make_report(preflight, built=True, checks=checks, sha256=digest)

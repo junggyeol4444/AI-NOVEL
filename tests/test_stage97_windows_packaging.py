@@ -84,6 +84,39 @@ class Stage97BuildTests(unittest.TestCase):
             p=Path(td)/'fake.exe';data=bytearray(140);data[:2]=b'MZ';data[60:64]=(1).to_bytes(4,'little');p.write_bytes(data)
             self.assertFalse(builder.is_pe_executable(p))
 
+    def test_logged_windows_build_helper_uses_files_not_capture_pipes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stdout = Path(tmp) / 'stdout.txt'
+            stderr = Path(tmp) / 'stderr.txt'
+            result = builder._run_logged(
+                [sys.executable, '-c', "print('synthetic process output')"],
+                cwd=ROOT, env=os.environ.copy(),
+                stdout_path=stdout, stderr_path=stderr, timeout=10)
+            self.assertEqual(result, 0)
+            self.assertEqual(stdout.read_text(encoding='utf8').strip(),
+                             'synthetic process output')
+            self.assertEqual(stderr.read_bytes(), b'')
+            with self.assertRaises(FileExistsError):
+                builder._run_logged(
+                    [sys.executable, '-c', "print('DONT OVERWRITE')"],
+                    cwd=ROOT, env=os.environ.copy(),
+                    stdout_path=stdout, stderr_path=Path(tmp) / 'other_stderr.txt',
+                    timeout=10)
+            self.assertIn('synthetic process output',
+                          stdout.read_text(encoding='utf8'))
+
+    def test_logged_build_timeout_returns_without_capture_pipe_deadlock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stdout = Path(tmp) / 'timeout_stdout.txt'
+            stderr = Path(tmp) / 'timeout_stderr.txt'
+            with self.assertRaises(subprocess.TimeoutExpired):
+                builder._run_logged(
+                    [sys.executable, '-c', 'import time; time.sleep(2)'],
+                    cwd=ROOT, env=os.environ.copy(),
+                    stdout_path=stdout, stderr_path=stderr, timeout=0.05)
+            self.assertTrue(stdout.is_file())
+            self.assertTrue(stderr.is_file())
+
     def test_local_launcher_check_works_without_pyside(self):
         env={**os.environ,'PYTHONPATH':str(ROOT/'src')}
         result=subprocess.run([sys.executable,str(ROOT/'packaging/windows/launcher.py'),'--check'],cwd=ROOT,env=env,capture_output=True,text=True,timeout=12)
