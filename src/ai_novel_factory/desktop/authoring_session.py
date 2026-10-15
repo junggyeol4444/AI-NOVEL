@@ -108,11 +108,25 @@ class AuthoringSession:
         if not projects:
             raise AuthoringError('DB에 작품이 없습니다.')
         db = EpisodeStore(filename)
+        try:
+            project_id = projects[0][0]
+            # Completely validate the next project/episode/scene BEFORE
+            # closing the current user's session. A damaged import must
+            # never close the manuscript the person was already editing.
+            episodes = db.list_episodes(project_id)
+            episode_number = episodes[0].episode if episodes else None
+            if episode_number is not None:
+                db.get_episode(project_id, episode_number)
+                scenes = db.list_scenes(project_id, episode_number)
+                scene_id = scenes[0].scene_id if scenes else None
+            else:
+                scene_id = None
+        except BaseException:
+            db.close()
+            raise
         self.close()
-        self.store, self.path, self.project_id = db, Path(filename), projects[0][0]
-        episodes = db.list_episodes(self.project_id)
-        if episodes:
-            self.select_episode(episodes[0].episode)
+        self.store, self.path, self.project_id = db, Path(filename), project_id
+        self.episode_number, self.scene_id = episode_number, scene_id
 
     def rule(self, key):
         db, pid = self.required()

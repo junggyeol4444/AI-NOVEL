@@ -74,6 +74,23 @@ class AuthoringCreationSafetyTests(TestCase):
             self.create(title='  ')
         self.assertFalse(self.path.exists())
 
+    def test_failed_existing_project_open_preserves_current_work(self):
+        old_pid = self.create()
+        old_path = self.session.path
+        self.session.create_episode(1, '기존 작업의 회차')
+        other = Path(self.temp.name) / 'synthetic-other.sqlite'
+        from ai_novel_factory.database.episodes import EpisodeStore
+        with EpisodeStore(other) as storage:
+            storage.create_project('외부 가상 작품')
+        with patch('ai_novel_factory.desktop.authoring_session.EpisodeStore.list_episodes',
+                   side_effect=ValueError('synthetic malformed chapter list')):
+            with self.assertRaises(ValueError):
+                self.session.open_project(str(other))
+        self.assertEqual(self.session.project_id, old_pid)
+        self.assertEqual(self.session.path, old_path)
+        self.assertEqual(self.session.episode_number, 1)
+        self.assertEqual(self.session.episode().plot, '기존 작업의 회차')
+
     def test_failed_scene_load_keeps_active_episode(self):
         self.create()
         self.session.create_episode(1, '')
