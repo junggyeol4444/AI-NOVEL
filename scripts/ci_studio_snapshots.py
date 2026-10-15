@@ -23,6 +23,8 @@ def main(directory: str) -> int:
     output.mkdir(parents=True, exist_ok=True)
     window = MainWindow()
     try:
+        if not window.korean_font_supported:
+            raise AssertionError('Synthetic screenshots require Korean font glyphs')
         window.show()
         app.processEvents()
         studio = window.studio

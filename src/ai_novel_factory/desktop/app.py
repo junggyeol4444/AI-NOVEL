@@ -120,7 +120,23 @@ class MainWindow(QMainWindow):
         # Common authoring tasks are the primary navigation. The original
         # twelve specialist tools remain available only on deliberate expand.
         nav = QWidget(central)
+        nav.setObjectName('primaryNavigationRail')
         nav.setFixedWidth(195)
+        nav.setStyleSheet("""
+            QWidget#primaryNavigationRail { background: #f4f7fb; }
+            QWidget#primaryNavigationRail QPushButton {
+                text-align: left; padding-left: 14px;
+                color: #263c58; background: transparent;
+                border: 1px solid transparent; border-radius: 7px;
+                font-size: 13px; font-weight: 500;
+            }
+            QWidget#primaryNavigationRail QPushButton:hover {
+                background: #e0eaf9; border-color: #d0dceb;
+            }
+            QWidget#primaryNavigationRail QPushButton:pressed {
+                background: #cdddf4;
+            }
+        """)
         nav_layout = QVBoxLayout(nav)
         nav_layout.setContentsMargins(0, 0, 0, 0)
         nav_layout.setSpacing(6)
@@ -147,7 +163,8 @@ class MainWindow(QMainWindow):
         self.advanced_nav_button.setCheckable(True)
         self.advanced_nav_button.clicked.connect(self._toggle_advanced_navigation)
         nav_layout.addWidget(self.advanced_nav_button)
-        nav_layout.addWidget(self.sidebar, stretch=1)
+        nav_layout.addWidget(self.sidebar)
+        nav_layout.addStretch(1)
         self.sidebar.hide()
         outer.addWidget(nav)
         outer.addWidget(self.pages, stretch=1)

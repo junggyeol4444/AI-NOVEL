@@ -38,6 +38,15 @@ def apply_korean_ui_font() -> bool:
         if _FONT_FAMILY:
             font = QFont(_FONT_FAMILY, 10)
             app.setFont(font)
+    else:
+        # Developer/CI Linux installations do not necessarily bundle the
+        # Windows font. Prefer an explicitly installed Korean-capable face.
+        families = set(QFontDatabase.families())
+        for family in ('Noto Sans CJK KR', 'Noto Sans KR', 'Malgun Gothic',
+                       'NanumGothic', 'Apple SD Gothic Neo', 'UnDotum'):
+            if family in families:
+                app.setFont(QFont(family, 10))
+                break
     return korean_glyphs_renderable()
 
 
