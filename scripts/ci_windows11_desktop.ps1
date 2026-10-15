@@ -33,6 +33,7 @@ try {
   $clicks = 0
   $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
   foreach ($entry in $all) {
+    $pattern = $null
     $name = $entry.Current.Name
     if ($name -and $wanted -contains $name) {
       $found++
