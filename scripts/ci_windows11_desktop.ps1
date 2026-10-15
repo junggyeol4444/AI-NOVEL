@@ -64,6 +64,22 @@ try {
   if ($clicks -lt 12) {
     throw "Windows UIAutomation failed to select all twelve visible sidebar pages; this is NOT a passing GUI review"
   }
+  # Merely highlighting the 'Publication' sidebar item is insufficient: the
+  # stacked content page must really switch, exposing its action controls.
+  $after = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                         [System.Windows.Automation.Condition]::TrueCondition)
+  $publicationActions = 0
+  foreach ($element in $after) {
+    $label = $element.Current.Name
+    if ($label -and ($label -like '*TXT + EPUB 비공개 내보내기*' -or
+                     $label -like '*WordPress 비공개 초안 전송*')) {
+      $publicationActions++
+    }
+  }
+  Write-Host ("PublicationPageActionsVisibleViaUIA=" + $publicationActions)
+  if ($publicationActions -lt 1) {
+    throw "UI Automation selected Publication sidebar row but the actual publication page did not open"
+  }
   # Real Win32 window capture, independent of the Qt offscreen screenshot test.
   # On disposable hosted Windows 11, OS setup/OOBE can be in front of our EXE.
   Add-Type -AssemblyName System.Drawing
