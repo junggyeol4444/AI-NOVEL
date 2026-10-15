@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from ai_novel_factory.manuscript_versions import ManuscriptVersionStore
+from ai_novel_factory.desktop.draft_backup import write_draft_copy, DraftBackupError
 
 
 class ProjectStudio(QWidget):
@@ -289,6 +290,11 @@ class ProjectStudio(QWidget):
         actions.addWidget(save)
         actions.addWidget(tools)
         center.addLayout(actions)
+        backup = QPushButton('현재 원고를 TXT로 별도 보관')
+        backup.setObjectName('studioBackupCurrentDraft')
+        backup.setAccessibleName('편집 중인 현재 원고를 TXT로 별도 보관')
+        backup.clicked.connect(self._backup_current_draft)
+        center.addWidget(backup)
         history_button = QPushButton('이전 원고·버전 이력')
         history_button.setObjectName('studioVersionHistoryButton')
         history_button.setAccessibleName('이전 원고·버전 이력')
@@ -769,6 +775,29 @@ class ProjectStudio(QWidget):
         except (ValueError, OSError):
             self._show_error('복원할 수 없습니다. 원고 버전 또는 동시 수정 상태를 확인하세요.')
             return False
+
+    def _backup_current_draft(self) -> None:
+        # This manual safety copy is available even when another program
+        # changed the SQLite revision. Copy exactly what the user can see.
+        prose = self.editor.toPlainText()
+        if not prose.strip():
+            self._show_error('별도로 보관할 원고가 없습니다.')
+            return
+        number = self.workflow.session.episode_number or '임시'
+        filename, _ = QFileDialog.getSaveFileName(
+            self, '현재 원고 별도 보관 (덮어쓰기 금지)',
+            f'원고_{number}화_임시보관.txt', '텍스트 파일 (*.txt)')
+        if not filename:
+            return
+        try:
+            write_draft_copy(filename, prose)
+        except (DraftBackupError, OSError):
+            self._show_error('원고 보관에 실패했습니다. 기존 파일은 변경하지 않습니다.')
+            return
+        # Not a manuscript version, not a database write or publishing.
+        self.editor_status.setText(
+            '현재 보이는 원고를 TXT 파일에 별도 보관했습니다. SQLite 버전 저장은 별도입니다.')
+        self._update_manuscript_stats()
 
     def _save_manuscript(self):
         session = self.workflow.session

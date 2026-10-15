@@ -83,6 +83,32 @@ class UserFirstStudioTests(unittest.TestCase):
             with EpisodeStore(path) as store:
                 self.assertEqual(store.get_episode(pid, 1).draft, revised)
 
+            # Explicit backup of the LIVE unsaved editor text, not the
+            # potentially stale SQLite draft; no version or overwrite.
+            from tempfile import TemporaryDirectory
+            with TemporaryDirectory() as backup_tmp:
+                safety_path = Path(backup_tmp) / '현재 원고.txt'
+                visible_copy = revised + ' 현재 집필 중인 내용'
+                studio.editor.setPlainText(visible_copy)
+                with patch('ai_novel_factory.desktop.project_studio.QFileDialog.getSaveFileName',
+                           return_value=(str(safety_path), '텍스트 파일 (*.txt)')):
+                    QTest.mouseClick(studio.findChild(
+                        QPushButton, 'studioBackupCurrentDraft'), Qt.MouseButton.LeftButton)
+                self.assertEqual(safety_path.read_text(encoding='utf-8'), visible_copy)
+                self.assertIn('미저장', studio.manuscript_stats.text())
+                with ManuscriptVersionStore(path) as versions:
+                    self.assertEqual(len(versions.list_versions(pid, 1)), 2)
+                with (
+                    patch('ai_novel_factory.desktop.project_studio.QFileDialog.getSaveFileName',
+                          return_value=(str(safety_path), '텍스트 파일 (*.txt)')),
+                    patch('ai_novel_factory.desktop.project_studio.QMessageBox.warning'),
+                ):
+                    QTest.mouseClick(studio.findChild(
+                        QPushButton, 'studioBackupCurrentDraft'), Qt.MouseButton.LeftButton)
+                self.assertEqual(safety_path.read_text(encoding='utf-8'), visible_copy)
+                self.assertEqual(studio.editor.toPlainText(), visible_copy)
+                studio.editor.setPlainText(revised)
+
             # Real Qt search/replace works on a single selected occurrence
             # without silently persisting any unsaved prose to SQLite.
             studio.manuscript_find.setText('창작한')
