@@ -24,6 +24,13 @@ class DesktopGuiTests(unittest.TestCase):
         self.assertEqual(window.studio.pages.currentIndex(), 0)
         self.assertFalse(window.sidebar.isVisible())
         self.assertIsNotNone(window.advanced_nav_button)
+        # Primary writing navigation leads new users to the creation wizard.
+        from PySide6.QtWidgets import QPushButton
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        QTest.mouseClick(window.findChild(QPushButton, 'primaryWritingButton'),
+                         Qt.MouseButton.LeftButton)
+        self.assertEqual(window.studio.pages.currentIndex(), 1)
         window.close()
         self.assertIsNotNone(app)
 

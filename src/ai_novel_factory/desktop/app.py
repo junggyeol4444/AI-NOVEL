@@ -230,7 +230,10 @@ class MainWindow(QMainWindow):
             self.novel_tabs.setCurrentIndex(0)
             if self.novel_tabs.currentIndex() != 0:
                 return
-            self.studio._show(0 if target == 'home' else 2)
+            if target == 'writing' and not self.authoring.session.project_id:
+                self.studio._show(1)  # New authors first see the creation flow.
+            else:
+                self.studio._show(0 if target == 'home' else 2)
         else:
             self._go_to_key(target)
 

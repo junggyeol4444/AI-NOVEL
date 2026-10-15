@@ -126,6 +126,8 @@ def run(args):
             index = next(i for i, section in enumerate(SECTIONS)
                          if section.key == key)
             item = window.sidebar.item(index)
+            window.sidebar.scrollToItem(item)
+            app.processEvents()
             QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
                              pos=window.sidebar.visualItemRect(item).center())
             app.processEvents()
@@ -196,6 +198,8 @@ def run(args):
             index = next(i for i, section in enumerate(SECTIONS)
                          if section.key == key)
             item = window.sidebar.item(index)
+            window.sidebar.scrollToItem(item)
+            app.processEvents()
             QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
                              pos=window.sidebar.visualItemRect(item).center())
             app.processEvents()
@@ -240,6 +244,8 @@ def run(args):
         unconnected = []
         for index, section in enumerate(SECTIONS):
             item = window.sidebar.item(index)
+            window.sidebar.scrollToItem(item)
+            app.processEvents()
             QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
                              pos=window.sidebar.visualItemRect(item).center())
             app.processEvents()

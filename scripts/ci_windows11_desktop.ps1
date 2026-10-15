@@ -121,6 +121,23 @@ try {
   if (-not $homeSelected) { throw 'Native UIAutomation did not select project home' }
   Start-Sleep -Milliseconds 300
   Write-Host 'PASS: External Windows UIAutomation returned to user-facing project home for screenshot.'
+  # Default user experience hides specialist tools; return the advanced
+  # drawer to its default collapsed state before taking the desktop capture.
+  $collapseButtons = $root.FindAll(
+      [System.Windows.Automation.TreeScope]::Descendants, $expand)
+  $collapsed = $false
+  foreach ($button in $collapseButtons) {
+    $pattern = $null
+    if ($button.Current.ControlType.ProgrammaticName -like '*Button' -and
+        $button.TryGetCurrentPattern(
+          [System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
+      ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
+      $collapsed = $true
+      break
+    }
+  }
+  if (-not $collapsed) { throw 'Could not restore collapsed user-facing navigation' }
+  Start-Sleep -Milliseconds 250
   # Real Win32 window capture, independent of the Qt offscreen screenshot test.
   # On disposable hosted Windows 11, OS setup/OOBE can be in front of our EXE.
   Add-Type -AssemblyName System.Drawing

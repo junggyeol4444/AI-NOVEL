@@ -53,6 +53,8 @@ def run(output_dir: str) -> int:
         check('user_can_expand_all_legacy_tools', window.sidebar.isVisible())
         for idx, item in enumerate(SECTIONS):
             sidebar = window.sidebar.item(idx)
+            window.sidebar.scrollToItem(sidebar)
+            app.processEvents()
             QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
                              pos=window.sidebar.visualItemRect(sidebar).center())
             app.processEvents()
