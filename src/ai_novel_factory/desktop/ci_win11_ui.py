@@ -77,11 +77,14 @@ def run(output_dir: str) -> int:
         check('studio_create_click_persisted_private_sqlite',
               bool(session.project_id) and session.path.is_file()
               and studio.pages.currentIndex() == 2)
-        # The standalone new-episode dialog is covered separately; this setup
-        # scopes the editor test to the actual visible manuscript save click.
-        session.create_episode(1, '합성 회차 플롯')
-        window.authoring._sync()
-        studio.refresh()
+        # A user starts the first chapter with a visible GUI button, without
+        # programmatic EpisodeStore writes or dialogs.
+        QTest.mouseClick(studio.findChild(QPushButton, 'studioFirstEpisodeButton'),
+                         Qt.MouseButton.LeftButton)
+        app.processEvents()
+        check('studio_click_started_first_chapter',
+              session.episode_number == 1 and studio.episode_list.count() == 1
+              and studio.editor.isEnabled())
         studio.editor.setPlainText('창작 원고 — 기존 작품을 복사하지 않은 합성 테스트')
         QTest.mouseClick(studio.findChild(QPushButton, 'studioSaveManuscript'),
                          Qt.MouseButton.LeftButton)
