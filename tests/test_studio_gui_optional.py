@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT / 'src'))
 class UserFirstStudioTests(unittest.TestCase):
     def test_create_write_version_reopen_with_visible_buttons(self):
         os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+        from unittest.mock import patch
         from PySide6.QtCore import Qt, QStandardPaths, QTimer, QCoreApplication, QEvent
         from PySide6.QtTest import QTest
         from PySide6.QtWidgets import (
@@ -169,7 +170,6 @@ class UserFirstStudioTests(unittest.TestCase):
                              Qt.MouseButton.LeftButton)
             self.assertEqual(session.episode_number, 1)
             self.assertEqual(studio.editor.toPlainText(), revised)
-            from unittest.mock import patch
             from PySide6.QtWidgets import QMessageBox
             temporary = revised + ' 회차 이동 중 임시 메모'
             studio.editor.setPlainText(temporary)
@@ -185,7 +185,6 @@ class UserFirstStudioTests(unittest.TestCase):
 
             # A running AI worker blocks closing BEFORE asking to discard.
             # A declined/blocked shutdown must leave the user's draft intact.
-            from unittest.mock import patch
             uncommitted = revised + ' 저장하지 않은 테스트 문장'
             studio.editor.setPlainText(uncommitted)
             self.assertIn('미저장', studio.manuscript_stats.text())
@@ -271,7 +270,6 @@ class UserFirstStudioTests(unittest.TestCase):
 
             # Regression: declining to discard must keep the current editor;
             # confirming discard must restore only the last persisted version.
-            from unittest.mock import patch
             from PySide6.QtWidgets import QMessageBox
             unsaved = revised + ' 저장하지 않은 임시 메모'
             restarted.studio.editor.setPlainText(unsaved)
