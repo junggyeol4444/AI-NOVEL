@@ -127,9 +127,9 @@ class ProjectStudio(QWidget):
         self.new_characters.setRange(1, 500000)
         self.new_characters.setValue(5000)
         for text, field in (
-            ('작품 제목 *', self.new_title), ('작가/필명', self.new_author),
+            ('작품 제목 *', self.new_title), ('작가/필명 (선택)', self.new_author),
             ('장르', self.new_genre), ('소재와 주인공', self.new_subject),
-            ('최상위 작품 설정', self.new_premise), ('분위기', self.new_mood),
+            ('최상위 작품 설정 *', self.new_premise), ('분위기', self.new_mood),
             ('목표 회차', self.new_target), ('회차당 목표 글자 수', self.new_characters),
         ):
             field.setAccessibleName(text)
@@ -316,6 +316,10 @@ class ProjectStudio(QWidget):
         title = self.new_title.text().strip()
         if not title:
             self.create_status.setText('작품 제목을 입력하세요.')
+            return
+        if not self.new_premise.toPlainText().strip():
+            self.create_status.setText('최상위 작품 설정을 입력하세요.')
+            self.new_premise.setFocus()
             return
         try:
             location = QStandardPaths.writableLocation(

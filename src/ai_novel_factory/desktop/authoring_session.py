@@ -55,17 +55,45 @@ class AuthoringSession:
         if (not path.is_absolute() or path.exists() or path.is_symlink()
                 or not path.parent.is_dir() or path.suffix.lower() not in ('.db', '.sqlite')):
             raise AuthoringError('기존 파일이 없는 로컬 SQLite 경로를 선택하세요.')
-        db = EpisodeStore(path)
+        if type(premise) is not str or not premise.strip():
+            raise AuthoringError('최상위 작품 설정을 입력하세요.')
+        # The pen name is optional while drafting. Store an explicit
+        # 'undecided' marker so EPUB metadata is never a fabricated author.
+        if type(author) is not str:
+            raise AuthoringError('작가 이름의 형식이 올바르지 않습니다.')
+        author = author.strip() or '미정'
+        # Reserve the exact target exclusively, not just path.exists():
+        # another process may have created a user's file after our check.
+        db = None
+        reserved_identity = None
         try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
+            try:
+                metadata = os.fstat(fd)
+                reserved_identity = (metadata.st_dev, metadata.st_ino)
+            finally:
+                os.close(fd)
+            db = EpisodeStore(path)
             project = db.create_project(title)
             db.save_rule(project.project_id, 'author', author)
             db.save_rule(project.project_id, 'premise', premise)
             for key, value in extra_rules.items():
                 if value.strip():
                     db.save_rule(project.project_id, key, value)
+        except FileExistsError:
+            raise AuthoringError('기존 작품 파일을 덮어쓸 수 없습니다.') from None
         except BaseException:
-            db.close()
-            path.unlink(missing_ok=True)
+            if db is not None:
+                db.close()
+            # Remove only the empty/new DB file reserved by *this* call.
+            # If the path was replaced, never unlink that other file.
+            if reserved_identity is not None:
+                try:
+                    current = path.lstat()
+                    if (current.st_dev, current.st_ino) == reserved_identity:
+                        path.unlink()
+                except FileNotFoundError:
+                    pass
             raise
         self.close()
         self.store, self.path, self.project_id = db, path, project.project_id
