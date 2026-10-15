@@ -99,3 +99,17 @@
 - 확인한 `main` head: `69225edeed0a09ded5f847dad9b9ea63bc45367c` (수정/병합 없음). 사용자 실계정/원고/키·기존 연결·비활성 자동화에 손대지 않음.
 - 미해결: 새 GUI 정식 Windows 10/11 사용자 검수, 12개 독립 메뉴 전체를 통합한 UI 전면 개편, 등록 참고작→자동 기획/Writer→전수 검사/기억·재작성→30/100/250화 장편 실품질·출판까지 종단 연결. 기존 Windows 11 OOBE 화면 전경 가림 문제도 FAIL로 보존.
 
+
+
+### 2026-10-15 새 대화 추가 진행: 원고 유실 방지·작업 중심 내비게이션·QA 대기
+
+제품은 여전히 **RELEASE_BLOCKED**이며, 다음은 신규 코드 반영 사실이다. 실행 테스트 PASS나 물리 Windows 사용자 인수를 의미하지 않는다.
+
+- `project_studio.py`: 편집기에서 회차·작품·탭을 전환할 때 **저장되지 않은 입력이 있을 경우** 변경 폐기 확인. 거절하면 내용과 위치 유지, 승인하면 마지막 저장본으로 에디터 복구. 단축키 `Ctrl+S` 명시적 `QKeySequence` 구성. 코드와 테스트 수정 완료, 실제 Win11 Qt 테스트 결과는 미확정.
+- `app.py`: 시작 작품 화면의 중복 기술적 안내문을 줄이고, 기본 좌측 메뉴를 **작품 홈 / 원고 집필 / 참고작 분석 / 검수 현황 / 내보내기** 다섯 사용자 작업으로 변경. 12개 기존 기능은 삭제하지 않고 사용자가 클릭하여 펼치는 `세부 도구` 아래 유지. 첫 사용자가 `원고 집필`을 누르고 작품이 없으면 빈 원고 에디터 대신 작품 생성 화면으로 안내.
+- `ci_user_journey.py`, `ci_win11_ui.py`, `ci_windows11_desktop.ps1`: 새 구조에서 전문 도구를 명시적으로 펼쳐 테스트하고 작은 창에서는 스크롤 후 각 메뉴를 클릭하도록 수정. Windows 실제 HWND 화면 캡처 전 좌측 전문 도구를 접어 기본 UX를 검수하도록 수정. `ci_win11_ui.py`에 원래 첫 화면 `ui_00_primary_home.png` 신규 캡처 단계 추가. 실제 스크린샷 리뷰는 **새로운 Actions 실행 완료/아티팩트 확인 후** 진행해야 한다.
+- `tests/test_studio_gui_optional.py`: 첫 GUI 생성→원고 두 번 저장/이전 버전 보존→창 종료→재실행·최근 작품 열기 검증과, 저장하지 않은 원고를 두고 이동/폐기를 시도하는 회귀 테스트를 포함. `test_desktop_gui_optional.py` 초기 사용자 집필 버튼 경로 확인.
+- `.github/workflows/anf-studio-fast-ci.yml`: Windows Qt 오프스크린 단축 회귀 테스트. 2026-10-15 추가 푸시로 여러 대형 Windows Actions가 누적 대기 중이어서 **결과를 추정하지 말 것**. 검증 브랜치의 네 개 **활성 validation-only** 워크플로에 `concurrency cancel-in-progress` 적용하여 앞으로 이전 커밋의 중복 검증이 새 빌드를 압도하지 않게 변경. 기존 `hourly-ci.yml` 스케줄 또는 비활성 자동화는 수정·재활성화하지 않음.
+- 마지막 구현 커밋 `a23f55e3b365bb7371f3f859c6b844e428aff579` (검증 브랜치만). 최신 결과는 `https://github.com/junggyeol4444/AI-NOVEL/actions?query=branch%3Avalidation%2Fgui-authoring-e2e-20261014`에서 반드시 재확인.
+- 확인된 과거 Windows 11 ARM64 hosted VM에서 x64 EXE 에뮬레이션/UIAutomation 입력·저장·종료·재실행 성공과 전경 Windows 개인정보 초기 화면으로 인한 최종 네이티브 검증 실패는 그대로 유효하다. 새 GUI의 **실제** OS 화면 조작·직접 캡처·물리 Windows 10/11 x64 PC 인수는 여전히 미검증.
+- 제품 전체 요구 기준으로 처음 입력→참고작 전수 구조 분석→Reference Profile/가중치 Pattern→Novel Bible/전체 기획→진짜 장편 AI 집필→모든 검수/자동 재작성/장기 기억→최종본/EPUB/사용자 승인 출판의 종단 자동화는 미완성. 단위·오프스크린 결과로 완성 주장 금지.
