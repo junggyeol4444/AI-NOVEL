@@ -32,6 +32,7 @@ function Element([System.Windows.Automation.AutomationElement]$root,[string]$aut
   # Real Qt on Windows 11 may provide NO AutomationId even when objectName is
   # set. Use the localized accessible name and semantic control type instead.
   $displayName = @{
+    studioAdvancedButton = '세부 작업 도구'
     authoring_db = '로컬 DB 파일 경로'
     authoring_title = '작품 제목'
     authoring_author = '작가 이름'
@@ -50,7 +51,7 @@ function Element([System.Windows.Automation.AutomationElement]$root,[string]$aut
   $cond = [System.Windows.Automation.PropertyCondition]::new(
     [System.Windows.Automation.AutomationElement]::NameProperty, $displayName)
   $matches = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,$cond)
-  $wantButton = $automationId -eq 'createProjectButton' -or
+  $wantButton = $automationId -eq 'studioAdvancedButton' -or $automationId -eq 'createProjectButton' -or
                 $automationId -eq 'authoring_save_bible' -or
                 $automationId -eq 'openAuthoringProjectButton'
   foreach ($candidate in $matches) {
@@ -132,6 +133,7 @@ try {
   }
   Write-Host ('External UIA safe control labels: '+($sample -join ' | '))
 
+  Invoke-Accessible $window 'studioAdvancedButton'
   Set-AccessibleText $window 'authoring_db' $database
   Set-AccessibleText $window 'authoring_title' 'Synthetic Windows 11 Novel'
   Set-AccessibleText $window 'authoring_author' 'Synthetic Test Author'
@@ -215,6 +217,7 @@ public static class ANFGuiClose {
     }
     Step 'external_gui_separate_exe_restarted' ($newHwnd -ne [IntPtr]::Zero)
     $newWindow = [System.Windows.Automation.AutomationElement]::FromHandle($newHwnd)
+    Invoke-Accessible $newWindow 'studioAdvancedButton'
     Set-AccessibleText $newWindow 'authoring_db' $database
     Invoke-Accessible $newWindow 'openAuthoringProjectButton'
     Start-Sleep -Milliseconds 500
