@@ -28,6 +28,21 @@ jobs:
         run: python scripts/prepare_gui_font.py
       - name: Build unsigned x64 Windows EXE
         run: python scripts/build_windows_exe.py --report build/ci/windows11-build.json
+      - name: Keep synthetic Windows build diagnostics (never include novels or credentials)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-windows-build-diagnostics
+          retention-days: 3
+          if-no-files-found: warn
+          path: |
+            build/stage97/build_stdout.txt
+            build/stage97/build_stderr.txt
+            build/stage97/smoke_check_stdout.txt
+            build/stage97/smoke_check_stderr.txt
+            build/stage97/smoke_gui-smoke_stdout.txt
+            build/stage97/smoke_gui-smoke_stderr.txt
+            build/ci/windows11-build.json
       - uses: actions/upload-artifact@v4
         with:
           name: anf-x64-exe-to-windows11-qa
