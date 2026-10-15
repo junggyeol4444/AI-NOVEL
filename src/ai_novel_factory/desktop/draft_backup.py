@@ -14,7 +14,7 @@ class DraftBackupError(ValueError):
 def write_draft_copy(destination: str | Path, prose: str) -> Path:
     if type(prose) is not str or not prose.strip():
         raise DraftBackupError('별도로 보관할 원고가 없습니다.')
-    if type(destination) not in (str, Path):
+    if not isinstance(destination, (str, Path)):
         raise DraftBackupError('로컬 TXT 저장 경로가 올바르지 않습니다.')
     dest = Path(destination)
     if (not dest.is_absolute() or dest.suffix.lower() != '.txt'
