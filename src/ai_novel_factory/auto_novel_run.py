@@ -113,6 +113,34 @@ def run_auto_novel(
                 raise AutoNovelRunError('로컬 AI 모델이 빈 초고를 반환했습니다.')
             return draft
 
+        # Generate a genuine model-written *unapproved whole-story synopsis*
+        # once before the first missing episode. It is visible in Novel Bible
+        # under a clearly preview-only key; it is NOT canon or approved facts.
+        missing = any(n not in existing for n in range(1, through_episode + 1))
+        story_preview = rules.get('ai_story_outline_preview', '')
+        if missing and not story_preview.strip():
+            emit(0, '전체 스토리 기획 초안 로컬 AI 생성')
+            try:
+                story_preview = model(
+                    1, 1, canon,
+                    f'{project.title}: {genre} 장편소설 {total}화의 독창적인 전체 줄거리 '
+                    f'({subject}), 주인공 목표와 결말, 주요 Arc 전환점, 세계관을 '
+                    '일관되게 기획. 문장·고유명사 복제 금지. 검토 전 초안.',
+                    f'{mood} 분위기와 인물 동기를 고려한 전체 갈등',
+                    f'가상의 {genre} 세계')
+            except InterruptedError:
+                return AutoNovelRunReport(
+                    through_episode, (), (), (), True, calls)
+            with EpisodeStore(database_path) as safe:
+                if any(rule.key == 'ai_story_outline_preview'
+                       for rule in safe.list_rules(project_id)):
+                    raise AutoNovelRunError('다른 창에서 전체 스토리 초안을 저장했습니다. 재확인하세요.')
+                safe.save_rule(project_id, 'ai_story_outline_preview',
+                               story_preview[:3500])
+        if story_preview.strip():
+            canon = (canon + '\n전체 스토리 AI 계획 초안(미확정·검수 전): '
+                     + story_preview[:3500])[:19000]
+
         for n in range(1, through_episode + 1):
             if n in existing:
                 skipped.append(n)
