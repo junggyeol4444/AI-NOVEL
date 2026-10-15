@@ -15,7 +15,7 @@ analysis = Analysis(
     binaries=[],
     datas=[],
     # The desktop entry point lazily imports app.py so static tracing misses it.
-    hiddenimports=['ai_novel_factory.desktop.app', 'ai_novel_factory.desktop.ci_user_journey', 'ai_novel_factory.desktop.ci_win11_ui'],
+    hiddenimports=['ai_novel_factory.desktop.app', 'ai_novel_factory.desktop.ci_user_journey', 'ai_novel_factory.desktop.ci_win11_ui', 'ai_novel_factory.desktop.ci_portable_gui'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

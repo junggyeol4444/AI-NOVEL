@@ -84,6 +84,23 @@ jobs:
         run: |
           python scripts/ci_portable_model_e2e.py build/ci/portable-bundle
           if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Drive packaged GUI with bundled real GGUF model and restart saved novel
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+        run: |
+          $exe = (Resolve-Path build/ci/portable-bundle/AI_Novel_Factory.exe).Path
+          $out = Join-Path (Get-Location).Path 'build/ci/portable-gui'
+          python -c "import subprocess,sys;sys.exit(subprocess.run(sys.argv[1:], timeout=270).returncode)" $exe --ci-portable-gui $out
+          $code = $LASTEXITCODE
+          if (Test-Path build/ci/portable-gui/portable_gui_report.json) {
+            Get-Content build/ci/portable-gui/portable_gui_report.json
+          }
+          if ($code -ne 0) { exit 1 }
+          python -c "import json; r=json.load(open('build/ci/portable-gui/portable_gui_report.json',encoding='utf-8'));assert r['result']=='PASS' and all(s['result']=='PASS' for s in r['steps'])"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Upload full offline Windows portable QA bundle with public GGUF weights
         if: success()
         uses: actions/upload-artifact@v4
@@ -103,3 +120,5 @@ jobs:
             build/ci/compiled_build.json
             build/ci/journey/compiled_exe_user_journey.json
             build/ci/portable_model_e2e.json
+            build/ci/portable-gui/portable_gui_report.json
+            build/ci/portable-gui/restarted_report.json
