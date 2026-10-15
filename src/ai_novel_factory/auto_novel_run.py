@@ -84,8 +84,6 @@ def run_auto_novel(
         plans = {e.episode_number: e for e in episodes}
         by_arc = {arc.number: arc for arc in arcs.arcs}
         existing = {e.episode: e for e in db.list_episodes(project_id)}
-        first = max(1, min((n for n in range(1, through_episode + 1)
-                            if n not in existing), default=through_episode + 1))
         # User-written project canon has higher priority than AI suggestions.
         canon_rules = ['%s: %s' % (k, v) for k, v in rules.items()
                        if k not in {'author'} and v.strip()]
@@ -178,8 +176,9 @@ def run_auto_novel(
             # No source novel's raw passages are stored. The reference-similarity
             # gate cannot claim PASS without full, reloaded source coverage.
             # Continuity/logic/reader checks likewise need fresh evidence.
-            requires_review = (not enough or bool(repetition.findings)
-                               or bool(repetition.unexamined) or True)
+            # Scope-limited tests cannot establish comprehensive quality or
+            # clearance against registered reference novels.
+            requires_review = True
             # Never clobber an episode created by another session while model ran.
             with EpisodeStore(database_path) as safe:
                 if any(e.episode == n for e in safe.list_episodes(project_id)):
@@ -209,7 +208,7 @@ def run_auto_novel(
                                    '전체 증거가 없어 자동 승인하지 않음',
                                    expected_revision=current.revision)
             created.append(n)
-            existing[n] = saved
+            existing[n] = current
             if requires_review:
                 review.append(n)
             emit(n, '미승인 초고 저장 및 수동 검수 대기')
