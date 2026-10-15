@@ -154,8 +154,21 @@ class AutoBatchPanel(QGroupBox):
             f'로컬 AI 실행 {result.local_model_invocations}회. '
             f'검수 필수 {len(result.review_required_episodes)}개. '
             + ('중단 요청 반영됨.' if result.stopped else '비공개 초고만 저장됨.'))
-        # The authoring form's SQLite connection may be stale; reload current
-        # episode lists without overwriting unsaved user-entered text.
+        # Keep existing form edits untouched, but show the newly generated
+        # saved episodes in the selector immediately. Preserve selection.
+        session = self.authoring.session
+        if session.store is not None and session.project_id is not None:
+            selector = self.authoring.episodes
+            selected = selector.currentData()
+            selector.blockSignals(True)
+            try:
+                selector.clear()
+                for episode in session.store.list_episodes(session.project_id):
+                    selector.addItem(str(episode.episode) + '화', episode.episode)
+                index = selector.findData(selected)
+                selector.setCurrentIndex(index if index >= 0 else -1)
+            finally:
+                selector.blockSignals(False)
 
     def _failed(self, message):
         self.status.setText('집필 실패/보류: ' + message)
