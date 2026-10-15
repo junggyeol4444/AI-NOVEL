@@ -1,5 +1,16 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 약 08:51 KST — 전체 120모듈 Linux/Windows 실 CI PASS 및 남은 물리 전경 차단
+
+- EPUB 통합 `f6c97ee366aaefb11a9c7a9402bcaf6632596a15`: import→Profile→SQLite 등록/복원/안전 거부, EPUB 합성 테스트 20/20가 Linux Qt #38822239110 / Windows Qt #38822239075에서 각각 PASS. 기존 PostgreSQL·Redis·Celery #38822239077 PASS, Windows EXE·로컬 GGUF #38822239105 PASS.
+- 전체 120 테스트 모듈 추가 `de5873f7fe9b2049ced9783eb4abef10f6bf1517` 뒤 #38822819078: Linux 3389 tests 4 FAIL, Windows 3377 tests 5 FAIL + 21 ERROR + 2 SKIP. 핵심 Windows 오류는 임시 SQLite 연결 미종료에 따른 `WinError 32`; 실제 로그 근거 있음.
+- 후속 수정 `d17d657874144126980b9a2b6057807104a47eb1`: SQLite `contextlib.closing` 제품 마이그레이션/120화 MOCK trial 경로 및 영향을 받은 테스트에서 명시 닫기; 재개방한 Foreshadow/Publisher Asset Store cleanup 등록; 지원된 EPUB 형식에 맞춰 구식 테스트 교체; UI 모듈 독립 import subprocess 검사; 개발 체크아웃과 배포 패키지 구분; 한글 글꼴 번들 검증 수정. Windows 전용 POSIX 파일권한 확인은 NTFS DACL을 대신할 수 없어서 명시 SKIP, 실제 ACL 검증 NOT_RUN.
+- **실제 신규 GitHub [전체 CI #38824690496](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38824690496): Linux 3389 tests, FAIL 0, SKIP 1 → PASS; Windows 독립된 120개 테스트 모듈 3389 tests, FAIL 0, SKIP 4 → PASS.** Windows 개별 로그와 요약 아티팩트 저장. 이는 합성 자동 단위 테스트 완주, 실제 Windows 사용자 인수나 완벽 품질 보증이 아님.
+- `d17d657`의 나머지 CI: [Linux Qt #38824690533](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38824690533) PASS, [Windows Qt #38824690516](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38824690516) PASS, [PG/Redis/Celery #38824690495](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38824690495) PASS, [Windows EXE + GGUF #38824690498](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38824690498)의 compiled/Windows11 offline 두 작업 모두 PASS. 이전 `de5873f` #38822818948에서 네이티브 `llama-cli.exe` 종료 3221226356 heap corruption FAIL이 있었으며 이번 단일 스레드 후보에서는 비재발. 다회 장시간 안정성 증명이 없어 재발 위험 미해소.
+- [Windows 11 외부 전경/UIA #38824690505](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38824690505) **FAIL**: `SelectedUnique=12` / `NativeSelectionClicks=12` PASS, `ForegroundRequestAccepted=False`, `QtForeground=False`, `ForegroundBlockerProcess=WWAHost`. Qt offscreen과 실제 OS 전경 인수 혼동 금지; OOBE 강제 종료/우회 금지.
+- 기존 사용자 원고/SQLite/키/연동 앱/계정/출판/게시/예약 접근·변경 없음. 보호 대상 `main=69225edeed0a09ded5f847dad9b9ea63bc45367c` 변경 없음. 실제 로컬 AI의 30/100/250회×약 5000자 문학 품질, 등록 참고작 전수 Similarity/위험 Scene 재작성/재검사, 01~100 전체 사용자 흐름과 물리 Windows 10/11 사람 인수 **NOT_RUN/RELEASE_BLOCKED**. 실제 출시 완료 절대 선언 금지.
+
+
 ## 2026-10-16 오전 추가 — Windows 3377 전체 검증 실패의 직접 근거와 SQLite 잠금 처리
 - [전체 CI #38822819078](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38822819078): 기존 한 프로세스 실행 Linux 3389 tests, 4 FAIL; Windows 3377 tests, 5 FAIL + 21 ERROR + 2 SKIP, 따라서 전체 검증 FAIL. Windows 21 오류의 실제 로그는 테스트 임시 SQLite 파일에서 `PermissionError: [WinError 32]`. `with sqlite3.connect(...) as conn`이 **트랜잭션만 종료하고 연결은 닫지 않는다**는 점을 반영하여 SQLite 검사/마이그레이션 제품 코드 및 해당 합성 테스트들에 `contextlib.closing` 추가. 재시작 후 기존 데이터는 임의 변경하지 않음.
 - Windows 추가 FAIL: `test_stage96_platform_format_audit` POSIX `stat().st_mode & 0o777==0o600`은 NTFS DACL 권한 기준과 동일하지 않아 Windows만 명시 SKIP (별도 실제 Windows ACL 검증은 여전히 NOT_RUN; 보안 합격 주장 금지). Test reopened store에서 새 연결을 cleanup에 등록하지 않는 문제도 수정.
