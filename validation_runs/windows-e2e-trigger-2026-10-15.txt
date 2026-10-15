@@ -1,0 +1,3 @@
+Windows packaged EXE real user journey E2E re-run requested 2026-10-15.
+Validation branch only. Do not touch main.
+Do not include manuscripts or user data.
