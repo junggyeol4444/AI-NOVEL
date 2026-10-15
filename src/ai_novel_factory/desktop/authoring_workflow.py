@@ -10,6 +10,22 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         super().__init__(parent)
         self.session = AuthoringSession()
         self.build_controls()
+        # The optional portable QA bundle includes both the console IPC bridge
+        # and real GGUF weights. Detect only sibling files: never download
+        # models or run unknown processes just by opening the GUI.
+        import sys
+        from pathlib import Path
+        if getattr(sys, 'frozen', False):
+            base = Path(sys.executable).resolve().parent
+            bridge = base / 'ANF_Local_Model.exe'
+            model = base / 'models' / 'SmolLM2-135M-Instruct-Q4_K_M.gguf'
+            runtime = base / 'runtime' / 'llama-cli.exe'
+            if bridge.is_file() and model.is_file() and runtime.is_file():
+                self._set('executable', str(bridge))
+                self._set('arguments', '')
+                self.status.setText(
+                    '오프라인 CPU AI 번들 발견. 별도 Python이나 API 키 없이 '
+                    '로컬 모델을 사용할 수 있습니다. 실행할 때마다 직접 승인해야 합니다.')
 
     def _run(self, fn, message):
         try:
