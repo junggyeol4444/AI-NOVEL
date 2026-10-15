@@ -42,6 +42,8 @@ jobs:
           python-version: '3.12'
       - name: Install actual PostgreSQL pgvector Redis and Celery clients
         run: python -m pip install -e ".[database,queue]"
+      - name: Prove official WordPress DRAFT adapter fails closed using local no-network requests
+        run: python -m unittest discover -s tests -p test_validation_wordpress_draft.py -v
       - name: Prove SQL insertion + filtered pgvector query + Redis worker consumption
         run: python -m ai_novel_factory.service_integration_ci
       - name: Save anonymized validation status only
