@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 from .navigation import SECTIONS
 from .font_support import apply_korean_ui_font
+from .project_studio import ProjectStudio
 from .api_client import check_local_health
 from .reference_picker import ReferencePickerWidget
 from .reference_profile_browser import ReferenceProfileBrowser
@@ -27,8 +28,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.korean_font_supported = apply_korean_ui_font()
         self.setWindowTitle('AI Novel Factory — 개발 중')
-        self.resize(1120, 720)
-        self.setMinimumSize(760, 500)
+        self.resize(1420, 850)
+        self.setMinimumSize(940, 600)
         central = QWidget(self)
         self.setCentralWidget(central)
         outer = QHBoxLayout(central)
@@ -37,6 +38,8 @@ class MainWindow(QMainWindow):
         self.sidebar.setFixedWidth(215)
         self.sidebar.addItems([s.label for s in SECTIONS])
         self.canon_panels = {}
+        self.studio = None
+        self.plot_editor = None
         self.additional_panels = {}
         self.pages = QStackedWidget()
         self.pages.setObjectName('sectionPages')
@@ -55,7 +58,16 @@ class MainWindow(QMainWindow):
             layout.addWidget(description)
             if section.key == 'novels':
                 self.authoring = AuthoringWorkflowWidget(page)
-                layout.addWidget(self.authoring)
+                self.novel_tabs = QTabWidget(page)
+                self.novel_tabs.setObjectName('novelStudioTabs')
+                self.studio = ProjectStudio(
+                    self.authoring, self._go_to_key,
+                    lambda: self.novel_tabs.setCurrentIndex(1), page)
+                self.novel_tabs.addTab(self.studio, '작품 홈 · 집필실')
+                self.novel_tabs.addTab(self.authoring, '기존 기능 · 상세 작업')
+                layout.addWidget(self.novel_tabs)
+                # The detailed existing tools remain available without replacing
+                # user data or changing their Qt automation object names.
             elif section.key in STORES:
                 panel = CanonWorkspace(section.key, self._current_project, page)
                 self.canon_panels[section.key] = panel
@@ -99,15 +111,18 @@ class MainWindow(QMainWindow):
         # accessibility selection and pointer/keyboard navigation as paths.
         self.sidebar.itemSelectionChanged.connect(self._change_page_from_selection)
         self.sidebar.setCurrentRow(0)
-        self.api_check_button = QPushButton('로컬 API 연결 확인')
+        self.api_check_button = QPushButton('고급: 연결 확인')
         self.api_check_button.setObjectName('checkLocalApiButton')
         self.api_check_button.setToolTip('버튼을 눌렀을 때만 로컬 API에 연결합니다.')
         self.api_check_button.clicked.connect(self._check_api)
         self.statusBar().addPermanentWidget(self.api_check_button)
-        self.statusBar().showMessage('로컬 UI 준비됨 · API 미연결 · AI는 개별 승인 필요 · 외부 전송은 최종본 별도 승인')
+        self.statusBar().showMessage('내 컴퓨터에 안전하게 보관 · AI 실행과 외부 게시에는 별도 승인이 필요합니다.')
         # No network request happens automatically. Publishing and AI remain disabled.
 
     def closeEvent(self, event) -> None:
+        if self.studio is not None and not self.studio.confirm_discard():
+            event.ignore()
+            return
         authoring = getattr(self, 'authoring', None)
         if authoring is not None and authoring.auto_panel.is_running():
             authoring.auto_panel.request_stop()
@@ -154,10 +169,31 @@ class MainWindow(QMainWindow):
         if index >= 0 and index != self.pages.currentIndex():
             self._change_page(index)
 
+    def _go_to_key(self, key: str) -> None:
+        for index, section in enumerate(SECTIONS):
+            if section.key == key:
+                self.sidebar.setCurrentRow(index)
+                return
+
     def _change_page(self, index: int) -> None:
         if 0 <= index < self.pages.count():
+            if (self.pages.currentIndex() == 0 and index != 0 and
+                    self.studio is not None and not self.studio.confirm_discard()):
+                self.sidebar.blockSignals(True)
+                self.sidebar.setCurrentRow(0)
+                self.sidebar.blockSignals(False)
+                return
             self.pages.setCurrentIndex(index)
             key = SECTIONS[index].key
+            if key == 'novels' and self.studio is not None:
+                self.studio.refresh()
+            if key == 'episodes' and self.plot_editor is not None:
+                current = self._current_project()
+                if current is not None:
+                    path, _pid = current
+                    if getattr(self, '_plot_synced_path', None) != path:
+                        self.plot_editor.open_database(str(path))
+                        self._plot_synced_path = path
             if key in self.canon_panels:
                 self.canon_panels[key].refresh()
             elif key in self.additional_panels:
