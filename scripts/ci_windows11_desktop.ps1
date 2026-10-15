@@ -80,6 +80,27 @@ try {
   if ($publicationActions -lt 1) {
     throw "UI Automation selected Publication sidebar row but the actual publication page did not open"
   }
+  # Inspect the actual entry screen, not only the legacy publishing form.
+  # Select the first localized sidebar item through native Windows UIA.
+  $homeName = [System.Windows.Automation.PropertyCondition]::new(
+    [System.Windows.Automation.AutomationElement]::NameProperty, '작품 홈')
+  $homeCandidates = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                                  $homeName)
+  $homeSelected = $false
+  foreach ($candidate in $homeCandidates) {
+    $selectionPattern = $null
+    if ($candidate.Current.ControlType.ProgrammaticName -like '*ListItem' -and
+        $candidate.TryGetCurrentPattern(
+          [System.Windows.Automation.SelectionItemPattern]::Pattern,
+          [ref]$selectionPattern)) {
+      ([System.Windows.Automation.SelectionItemPattern]$selectionPattern).Select()
+      $homeSelected = $true
+      break
+    }
+  }
+  if (-not $homeSelected) { throw 'Native UIAutomation did not select project home' }
+  Start-Sleep -Milliseconds 300
+  Write-Host 'PASS: External Windows UIAutomation returned to user-facing project home for screenshot.'
   # Real Win32 window capture, independent of the Qt offscreen screenshot test.
   # On disposable hosted Windows 11, OS setup/OOBE can be in front of our EXE.
   Add-Type -AssemblyName System.Drawing
