@@ -126,8 +126,10 @@ class AuthoringSession:
     def select_episode(self, number):
         db, pid = self.required()
         db.get_episode(pid, number)
-        self.episode_number = number
+        # Load *all* dependent data before switching active chapter, so
+        # failed/corrupt scene reads cannot leave a half-selected session.
         scenes = db.list_scenes(pid, number)
+        self.episode_number = number
         self.scene_id = scenes[0].scene_id if scenes else None
         self.pending_draft = None
 

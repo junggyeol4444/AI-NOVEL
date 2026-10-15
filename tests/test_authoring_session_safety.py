@@ -74,6 +74,18 @@ class AuthoringCreationSafetyTests(TestCase):
             self.create(title='  ')
         self.assertFalse(self.path.exists())
 
+    def test_failed_scene_load_keeps_active_episode(self):
+        self.create()
+        self.session.create_episode(1, '')
+        self.session.create_episode(2, '')
+        self.assertEqual(self.session.episode_number, 2)
+        from unittest.mock import patch
+        with patch.object(self.session.store, 'list_scenes',
+                          side_effect=ValueError('synthetic invalid scene')):
+            with self.assertRaises(ValueError):
+                self.session.select_episode(1)
+        self.assertEqual(self.session.episode_number, 2)
+
     def test_repeated_project_creation_preserves_existing_novel(self):
         pid = self.create()
         self.session.close()

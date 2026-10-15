@@ -141,6 +141,25 @@ class UserFirstStudioTests(unittest.TestCase):
             studio.editor.setPlainText(revised)
             self.assertIn('저장본과 일치', studio.manuscript_stats.text())
 
+            # Even if the person agrees to switch away, a failed chapter
+            # read must leave both the unsaved editor and active chapter.
+            session.create_episode(2, '')
+            studio.refresh()
+            unsaved_switch = '실패한 회차 이동 중 절대로 버리지 말 것'
+            studio.editor.setPlainText(unsaved_switch)
+            with (patch.object(session, 'select_episode',
+                               side_effect=ValueError('synthetic unreadable chapter')),
+                  patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                        return_value=QMessageBox.StandardButton.Yes),
+                  patch('ai_novel_factory.desktop.project_studio.QMessageBox.warning')):
+                studio.episode_list.setCurrentRow(1)
+            self.assertEqual(session.episode_number, 1)
+            self.assertEqual(studio.episode_list.currentItem().data(
+                Qt.ItemDataRole.UserRole), 1)
+            self.assertEqual(studio.editor.toPlainText(), unsaved_switch)
+            studio.editor.setPlainText(revised)
+            self.assertIn('저장본과 일치', studio.manuscript_stats.text())
+
             self.assertTrue(window.close())
             # QWidget.close() only hides a window. Explicitly dispose it
             # before opening another QApplication top-level window; otherwise

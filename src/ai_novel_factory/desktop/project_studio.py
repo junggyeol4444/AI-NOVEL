@@ -315,7 +315,7 @@ class ProjectStudio(QWidget):
     def _advanced(self):
         self.show_advanced()  # MainWindow intercepts the tab change if the draft is unsaved.
 
-    def confirm_discard(self):
+    def confirm_discard(self, *, apply=True):
         # Unsaved text still matters when the user temporarily leaves the
         # writing page. Never interpret hiding the editor as saving it.
         if self.editor.toPlainText() == self._shown_text:
@@ -328,7 +328,8 @@ class ProjectStudio(QWidget):
             return False
         # A positive discard must really discard the draft; otherwise the
         # stale modified text can survive another project/tab change.
-        self.editor.setPlainText(self._shown_text)
+        if apply:
+            self.editor.setPlainText(self._shown_text)
         return True
 
     def _update_manuscript_stats(self):
@@ -385,7 +386,7 @@ class ProjectStudio(QWidget):
             self._open_path(Path(path))
 
     def _open_path(self, path):
-        if not self.confirm_discard():
+        if not self.confirm_discard(apply=False):
             return
         try:
             self.workflow._set('db', str(path))
@@ -401,7 +402,7 @@ class ProjectStudio(QWidget):
             self._show_error(str(exc))
 
     def _create_project(self):
-        if not self.confirm_discard():
+        if not self.confirm_discard(apply=False):
             return
         title = self.new_title.text().strip()
         if not title:
@@ -456,7 +457,7 @@ class ProjectStudio(QWidget):
         # One deliberate click makes a blank first chapter: no model execution,
         # no publishing, and never overwrites an existing chapter.
         session = self.workflow.session
-        if not session.project_id or not self.confirm_discard():
+        if not session.project_id or not self.confirm_discard(apply=False):
             if not session.project_id:
                 self._show_error('작품을 먼저 열어 주세요.')
             return
@@ -554,7 +555,7 @@ class ProjectStudio(QWidget):
         session = self.workflow.session
         if not session.project_id or number == self._loaded_episode:
             return
-        if not self.confirm_discard():
+        if not self.confirm_discard(apply=False):
             self.episode_list.blockSignals(True)
             for i in range(self.episode_list.count()):
                 if self.episode_list.item(i).data(Qt.ItemDataRole.UserRole) == self._loaded_episode:
@@ -568,6 +569,15 @@ class ProjectStudio(QWidget):
             self._loaded_episode = None
             self.refresh()
         except (OSError, ValueError) as exc:
+            # A failed chapter load must not strand selection on a different
+            # chapter while the editor still shows the prior manuscript.
+            self.episode_list.blockSignals(True)
+            for i in range(self.episode_list.count()):
+                if (self.episode_list.item(i).data(Qt.ItemDataRole.UserRole)
+                        == session.episode_number):
+                    self.episode_list.setCurrentRow(i)
+                    break
+            self.episode_list.blockSignals(False)
             self._show_error(str(exc))
 
     def _open_version_history(self):
