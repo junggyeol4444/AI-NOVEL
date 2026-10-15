@@ -13,18 +13,34 @@ $env:QT_QPA_PLATFORM = 'windows'
 $proc = Start-Process -FilePath $exe -PassThru
 try {
   $hwnd = [IntPtr]::Zero
+  $windowTitle = ''
   for ($i=0; $i -lt 45; $i++) {
     Start-Sleep -Seconds 1
     $proc.Refresh()
     if ($proc.HasExited) { throw ("Packaged EXE exited unexpectedly with " + $proc.ExitCode) }
-    if ($proc.MainWindowHandle -ne [IntPtr]::Zero) {
-      $hwnd = $proc.MainWindowHandle
-      break
+    # PyInstaller --onefile starts a parent extraction/monitor process and
+    # then a CHILD process that owns the Qt window. MainWindowHandle on the
+    # extraction parent is typically zero even on a valid interactive desktop.
+    $candidates = @(Get-Process -Name AI_Novel_Factory -ErrorAction SilentlyContinue)
+    foreach ($candidate in $candidates) {
+      $candidate.Refresh()
+      if ($candidate.MainWindowHandle -ne [IntPtr]::Zero -and
+          $candidate.MainWindowTitle -match 'AI Novel Factory') {
+        $hwnd = $candidate.MainWindowHandle
+        $windowTitle = $candidate.MainWindowTitle
+        break
+      }
     }
+    if ($hwnd -ne [IntPtr]::Zero) { break }
   }
-  if ($hwnd -eq [IntPtr]::Zero) { throw 'No real desktop window exposed: cannot claim visual or interactive verification' }
-  Write-Host ("NativeMainWindowHandle={0}; Title={1}" -f $hwnd, $proc.MainWindowTitle)
-  if ($proc.MainWindowTitle -notmatch 'AI Novel Factory') { throw 'Wrong main window title' }
+  if ($hwnd -eq [IntPtr]::Zero) {
+    $counts = @(Get-Process -Name AI_Novel_Factory -ErrorAction SilentlyContinue).Count
+    Write-Host ("PyInstaller matching EXE process count=" + $counts +
+                "; parent MainWindowHandle=" + $proc.MainWindowHandle)
+    throw 'No real desktop window exposed by parent or child: interactive GUI acceptance UNVERIFIED'
+  }
+  Write-Host ("NativeMainWindowHandle={0}; Title={1}" -f $hwnd, $windowTitle)
+  if ($windowTitle -notmatch 'AI Novel Factory') { throw 'Wrong main window title' }
   Add-Type -AssemblyName UIAutomationClient
   $root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
   if ($null -eq $root) { throw 'Windows UIAutomation could not attach to the Qt EXE' }
