@@ -5,6 +5,7 @@ Existing EpisodeStore revision checks prevent overwriting concurrent edits.
 """
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
@@ -69,7 +70,10 @@ class PlotEditorSession:
         # never silently initialize the Novel Bible schema.
         try:
             uri = 'file:' + quote(str(target.resolve()), safe='/') + '?mode=ro'
-            with sqlite3.connect(uri, uri=True) as probe:
+            # sqlite3.Connection.__exit__ commits/rolls back but does NOT close.
+            # Leaving read-only probes open locks synthetic and user DB files
+            # on Windows until GC. Explicitly close on all exit paths.
+            with closing(sqlite3.connect(uri, uri=True)) as probe:
                 tables = {row[0] for row in probe.execute(
                     "SELECT name FROM sqlite_master WHERE type='table' ")}
                 if not {'bible_projects', 'bible_episodes'} <= tables:
