@@ -16,6 +16,7 @@ from .reference_profile_browser import ReferenceProfileBrowser
 from .plot_editor import PlotEditorWidget
 from .authoring_workflow import AuthoringWorkflowWidget
 from .canon_workspace import CanonWorkspace, STORES
+from .additional_workspaces import PatternWorkspace, SimilarityWorkspace, PublicationWorkspace
 from .task_monitor_widget import TaskMonitorWidget
 from .operations_monitor_widget import OperationsMonitorWidget
 from ai_novel_factory.settings import load_settings, ConfigurationError
@@ -34,6 +35,7 @@ class MainWindow(QMainWindow):
         self.sidebar.setFixedWidth(215)
         self.sidebar.addItems([s.label for s in SECTIONS])
         self.canon_panels = {}
+        self.additional_panels = {}
         self.pages = QStackedWidget()
         self.pages.setObjectName('sectionPages')
         for section in SECTIONS:
@@ -76,6 +78,13 @@ class MainWindow(QMainWindow):
                 self.operations_monitor = OperationsMonitorWidget(page)
                 tabs.addTab(self.operations_monitor, '작업 로그·비용·오류')
                 layout.addWidget(tabs)
+            elif section.key in ('patterns', 'similarity', 'publication'):
+                cls = {'patterns': PatternWorkspace, 'similarity': SimilarityWorkspace,
+                       'publication': PublicationWorkspace}[section.key]
+                panel = (cls(page) if section.key == 'patterns' else
+                         cls(lambda: self.authoring.session, page))
+                self.additional_panels[section.key] = panel
+                layout.addWidget(panel)
             else:
                 layout.addWidget(pending)
                 layout.addStretch(1)
@@ -124,6 +133,8 @@ class MainWindow(QMainWindow):
             key = SECTIONS[index].key
             if key in self.canon_panels:
                 self.canon_panels[key].refresh()
+            elif key in self.additional_panels:
+                self.additional_panels[key].refresh()
 
 def run() -> int:
     app = QApplication.instance()
