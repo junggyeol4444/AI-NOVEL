@@ -83,6 +83,46 @@ class UserFirstStudioTests(unittest.TestCase):
             with EpisodeStore(path) as store:
                 self.assertEqual(store.get_episode(pid, 1).draft, revised)
 
+            # Chapter filters and neighboring buttons operate on synthetic
+            # real SQLite episodes; they do not search private draft text.
+            session.create_episode(2, '합성 2화 기획')
+            session.select_episode(1)
+            window.authoring._sync()
+            studio._loaded_episode = None
+            studio.refresh()
+            self.assertEqual(studio.episode_list.count(), 2)
+            studio.episode_search.setText('2화')
+            self.assertTrue(studio.episode_list.item(0).isHidden())
+            self.assertFalse(studio.episode_list.item(1).isHidden())
+            self.assertIn('1 / 전체 2', studio.episode_matches.text())
+            studio.episode_search.setText('없는 회차')
+            self.assertTrue(studio.episode_list.item(0).isHidden())
+            self.assertTrue(studio.episode_list.item(1).isHidden())
+            QTest.mouseClick(studio.findChild(QPushButton, 'studioNextEpisode'),
+                             Qt.MouseButton.LeftButton)
+            self.assertEqual(session.episode_number, 1)  # no matching item
+            studio.episode_search.clear()
+            QTest.mouseClick(studio.findChild(QPushButton, 'studioNextEpisode'),
+                             Qt.MouseButton.LeftButton)
+            self.assertEqual(session.episode_number, 2)
+            QTest.mouseClick(studio.findChild(QPushButton, 'studioPreviousEpisode'),
+                             Qt.MouseButton.LeftButton)
+            self.assertEqual(session.episode_number, 1)
+            self.assertEqual(studio.editor.toPlainText(), revised)
+            from unittest.mock import patch
+            from PySide6.QtWidgets import QMessageBox
+            temporary = revised + ' 회차 이동 중 임시 메모'
+            studio.editor.setPlainText(temporary)
+            with patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                       return_value=QMessageBox.StandardButton.No):
+                QTest.mouseClick(studio.findChild(QPushButton, 'studioNextEpisode'),
+                                 Qt.MouseButton.LeftButton)
+            self.assertEqual(session.episode_number, 1)
+            self.assertEqual(studio.editor.toPlainText(), temporary)
+            with EpisodeStore(path) as store:
+                self.assertEqual(store.get_episode(pid, 1).draft, revised)
+            studio.editor.setPlainText(revised)
+
             # A running AI worker blocks closing BEFORE asking to discard.
             # A declined/blocked shutdown must leave the user's draft intact.
             from unittest.mock import patch

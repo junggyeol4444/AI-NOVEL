@@ -182,10 +182,32 @@ class ProjectStudio(QWidget):
         episodes_side.setMaximumWidth(180)
         episodes_layout = QVBoxLayout(episodes_side)
         episodes_layout.addWidget(QLabel('회차'))
+        self.episode_search = QLineEdit()
+        self.episode_search.setObjectName('studioEpisodeSearch')
+        self.episode_search.setAccessibleName('회차 검색')
+        self.episode_search.setPlaceholderText('번호·상태 검색')
+        episodes_layout.addWidget(self.episode_search)
         self.episode_list = QListWidget()
         self.episode_list.setObjectName('studioEpisodeList')
         self.episode_list.currentRowChanged.connect(self._select_episode)
         episodes_layout.addWidget(self.episode_list)
+        self.episode_search.textChanged.connect(self._filter_episodes)
+        self.episode_matches = QLabel('회차를 선택하세요.')
+        self.episode_matches.setObjectName('studioEpisodeMatches')
+        self.episode_matches.setWordWrap(True)
+        episodes_layout.addWidget(self.episode_matches)
+        movement = QHBoxLayout()
+        previous_episode = QPushButton('이전')
+        previous_episode.setObjectName('studioPreviousEpisode')
+        previous_episode.setAccessibleName('이전 회차')
+        previous_episode.clicked.connect(lambda: self._jump_episode(-1))
+        next_episode = QPushButton('다음')
+        next_episode.setObjectName('studioNextEpisode')
+        next_episode.setAccessibleName('다음 회차')
+        next_episode.clicked.connect(lambda: self._jump_episode(1))
+        movement.addWidget(previous_episode)
+        movement.addWidget(next_episode)
+        episodes_layout.addLayout(movement)
         self.first_episode = QPushButton('첫 회차 바로 시작')
         self.first_episode.setObjectName('studioFirstEpisodeButton')
         self.first_episode.setAccessibleName('첫 회차 바로 시작')
@@ -487,6 +509,39 @@ class ProjectStudio(QWidget):
         except (OSError, ValueError) as exc:
             self._show_error(str(exc))
 
+    def _filter_episodes(self, query: str) -> None:
+        # Search UI labels only; never inspect the writer's unpublished draft.
+        needle = query.strip().casefold()
+        visible = 0
+        for i in range(self.episode_list.count()):
+            item = self.episode_list.item(i)
+            shown = needle in item.text().casefold()
+            item.setHidden(not shown)
+            visible += int(shown)
+        total = self.episode_list.count()
+        self.episode_matches.setText(
+            f'검색된 회차 {visible} / 전체 {total}' if needle
+            else f'전체 {total}회차')
+
+    def _jump_episode(self, direction: int) -> None:
+        if direction not in (-1, 1):
+            return
+        indices = [i for i in range(self.episode_list.count())
+                   if not self.episode_list.item(i).isHidden()]
+        if not indices:
+            return
+        current = self.episode_list.currentRow()
+        if current not in indices:
+            target = indices[0] if direction > 0 else indices[-1]
+        else:
+            position = indices.index(current) + direction
+            if not 0 <= position < len(indices):
+                return
+            target = indices[position]
+        # Triggers _select_episode, which guards unsaved changes and restores
+        # the former selection if the user declines.
+        self.episode_list.setCurrentRow(target)
+
     def _select_episode(self, row):
         if row < 0:
             return
@@ -669,6 +724,7 @@ class ProjectStudio(QWidget):
             self.progress.setText('선택한 작품이 없습니다.')
             self.editor_heading.setText('집필실 · 먼저 작품을 선택하세요')
             self.episode_list.clear()
+            self._filter_episodes(self.episode_search.text())
             self.canon.setPlainText('')
             self.quality.setText('검수 상태: NOT_RUN')
             self.editor.setEnabled(False)
@@ -711,6 +767,7 @@ class ProjectStudio(QWidget):
                 selected_row = i
         self.episode_list.setCurrentRow(selected_row)
         self.episode_list.blockSignals(False)
+        self._filter_episodes(self.episode_search.text())
         self.editor.setEnabled(selected_row >= 0)
         self.first_episode.setEnabled(len(episodes) == 0)
         if selected_row < 0:
