@@ -91,6 +91,33 @@ class AuthoringCreationSafetyTests(TestCase):
         self.assertEqual(self.session.episode_number, 1)
         self.assertEqual(self.session.episode().plot, '기존 작업의 회차')
 
+    def test_invalid_import_metadata_or_checks_preserves_live_session(self):
+        # A malformed but structurally valid external novel cannot replace
+        # the current project merely because its episode list was readable.
+        pid = self.create()
+        self.session.create_episode(1, '계속 보존할 기존 회차')
+        self.session.pending_draft = '화면에 아직 저장하지 않은 가상 원고'
+        original_store = self.session.store
+        old_path = self.session.path
+        from ai_novel_factory.database.episodes import EpisodeStore
+        other = Path(self.temp.name) / 'synthetic-corrupted-external.sqlite'
+        with EpisodeStore(other) as database:
+            imported_id = database.create_project('합성 외부 작품').project_id
+            database.create_episode(imported_id, 1, plot='합성 외부 회차')
+        for broken_read in ('get_project', 'list_rules', 'list_checks'):
+            with self.subTest(read=broken_read):
+                with patch.object(EpisodeStore, broken_read,
+                                  side_effect=ValueError('synthetic corrupt import')):
+                    with self.assertRaises(ValueError):
+                        self.session.open_project(str(other))
+                self.assertIs(self.session.store, original_store)
+                self.assertEqual(self.session.project_id, pid)
+                self.assertEqual(self.session.path, old_path)
+                self.assertEqual(self.session.episode_number, 1)
+                self.assertEqual(self.session.pending_draft,
+                                 '화면에 아직 저장하지 않은 가상 원고')
+                self.assertEqual(self.session.episode().plot, '계속 보존할 기존 회차')
+
     def test_failed_scene_load_keeps_active_episode(self):
         self.create()
         self.session.create_episode(1, '')

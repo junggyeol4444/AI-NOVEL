@@ -113,12 +113,21 @@ class AuthoringSession:
             # Completely validate the next project/episode/scene BEFORE
             # closing the current user's session. A damaged import must
             # never close the manuscript the person was already editing.
+            # The user-facing studio and advanced form immediately read
+            # metadata, the current chapter, its scene and QA records. All
+            # those reads must succeed BEFORE replacing the active session.
+            # These checks are read-only and do not fill in missing rules.
+            db.get_project(project_id)
+            db.list_rules(project_id)
             episodes = db.list_episodes(project_id)
             episode_number = episodes[0].episode if episodes else None
             if episode_number is not None:
                 db.get_episode(project_id, episode_number)
                 scenes = db.list_scenes(project_id, episode_number)
                 scene_id = scenes[0].scene_id if scenes else None
+                if scene_id is not None:
+                    db.get_scene(project_id, episode_number, scene_id)
+                db.list_checks(project_id, episode_number)
             else:
                 scene_id = None
         except BaseException:
