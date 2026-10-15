@@ -1,5 +1,13 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 08시 KST — EPUB DEFLATE 손상 오류 수정 (로컬 검증, 원격 코드 미반영)
+
+- 기준 validation 브랜치 HEAD `478b16f614db2f1d82c0a0ec96416acb5ddf8ff3` (GitHub compare `identical`), 보호 main `69225edeed0a09ded5f847dad9b9ea63bc45367c`. 기존 CI Linux Qt #38749433138, Windows Qt #38749433653, PG/Redis/Celery #38749433240, Windows EXE/GGUF #38749433656 성공; Windows 11 외부 UIA #38749433493 실패(선택 12/12 PASS, OS `WWAHost` 전경 점유 및 `QtForeground=False`). 기존 CI 결과이지 이번 EPUB 후보 CI가 아님.
+- 이전 로컬 EPUB 후보에서 실제 손상된 DEFLATE 데이터를 파싱하면 `zlib.error`가 `ReferenceParseError`로 변환되지 않는 예외 누출을 합성 ZIP 변이로 재현. 파서 except에 `zlib.error`를 추가하고 DEFLATE 손상 회귀 테스트 1개를 추가.
+- 단독 합성 파서 테스트 **28/28 PASS**, Python compileall PASS. 고정 시드로 DEFLATE 바이트 1,000개 변이 검사: 안전 거부 985, 허용 15, 미처리 예외 0. 이는 일반 보안 증명이 아님. 새 프로젝트 전체 테스트 20개는 **NOT_RUN** (격리 실행 환경에는 실제 전체 저장소 패키지가 없음), 실제 GUI·Windows 신규 CI도 NOT_RUN.
+- 변경 코드 및 테스트는 대화 첨부 `anf_run15_epub_deflate_safe_local.zip`에만 존재하며 원격 소스 파일에 반영되지 않음. 기존 사용자의 원고/SQLite/비밀키/설정/실계정/게시/예약 접근·변경 없음. 물리 Windows 전경 인수, 30·100·250화×5000자 문학 품질, 참고작 전수 Similarity·위험 장면 재검사, 전체 01~100 인수가 남아 `RELEASE_BLOCKED`.
+
+
 ## 2026-10-15 23시 KST — 신규 Windows Qt 실패 즉시 수정 및 전경 점유자 확인
 
 - 직전 검증 커밋 [`37887965`](https://github.com/junggyeol4444/AI-NOVEL/commit/37887965be327571aa9dcf56b4ad5fa93ff84843)의 Linux Qt [#38748476593](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38748476593), PG/Redis/Celery [#38748476562](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38748476562), Windows EXE·실 로컬 GGUF [#38748476575](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38748476575) **SUCCESS**. Linux Qt에서 새 `test_reference_coverage.py` 8개 전부 실행·통과 로그 확인.
