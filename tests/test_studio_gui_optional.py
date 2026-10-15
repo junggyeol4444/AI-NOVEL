@@ -82,6 +82,25 @@ class UserFirstStudioTests(unittest.TestCase):
             with EpisodeStore(path) as store:
                 self.assertEqual(store.get_episode(pid, 1).draft, revised)
 
+            # Concurrent app edits must never be overwritten just because
+            # the GUI reads a newer revision at the moment of saving.
+            restarted.studio._show(2)
+            app.processEvents()
+            conflict_user_text = '창에 남은 원고, 사용자가 따로 작성함'
+            restarted.studio.editor.setPlainText(conflict_user_text)
+            with EpisodeStore(path) as external:
+                latest = external.get_episode(pid, 1)
+                external.update_episode(pid, 1, expected_revision=latest.revision,
+                                        draft='동시 작업자가 저장한 원고')
+            with patch('ai_novel_factory.desktop.project_studio.QMessageBox.warning'):
+                QTest.mouseClick(restarted.studio.findChild(
+                    QPushButton, 'studioSaveManuscript'), Qt.MouseButton.LeftButton)
+            with EpisodeStore(path) as external:
+                self.assertEqual(external.get_episode(pid, 1).draft,
+                                 '동시 작업자가 저장한 원고')
+            self.assertEqual(restarted.studio.editor.toPlainText(), conflict_user_text)
+            self.assertIn('다른 작업', restarted.studio.editor_status.text())
+
             self.assertTrue(window.close())
             window = None
             app.processEvents()

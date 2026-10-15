@@ -30,6 +30,7 @@ class ProjectStudio(QWidget):
         self.navigate = navigate
         self.show_advanced = show_advanced
         self._loaded_episode = None
+        self._loaded_revision = None
         self._shown_text = ''
         self._recent_settings = QSettings('AI Novel Factory', 'ProjectStudio')
         self.setObjectName('projectStudio')
@@ -453,6 +454,11 @@ class ProjectStudio(QWidget):
             return
         try:
             ep = session.episode()
+            # Optimistic concurrency must compare the revision loaded into
+            # the editor, not merely obtain a fresh revision at save time.
+            if self._loaded_episode != ep.episode or self._loaded_revision != ep.revision:
+                self._show_error('이 회차가 다른 작업에서 수정됐습니다. 변경 내용을 복사하여 보관하고 회차를 다시 열어 주세요.')
+                return
             if text == ep.draft:
                 self.editor_status.setText('원고가 이미 저장되어 있습니다.')
                 self._shown_text = text
@@ -504,6 +510,7 @@ class ProjectStudio(QWidget):
             self.editor.setPlainText('')
             self._shown_text = ''
             self._loaded_episode = None
+            self._loaded_revision = None
             return
         db, pid = session.required()
         title = db.get_project(pid).title
@@ -533,6 +540,7 @@ class ProjectStudio(QWidget):
         self.first_episode.setEnabled(len(episodes) == 0)
         if selected_row < 0:
             self._loaded_episode = None
+            self._loaded_revision = None
             self._shown_text = ''
             self.editor.setPlainText('')
             self.canon.setPlainText(db.get_rule(pid, 'premise').value)
@@ -541,6 +549,7 @@ class ProjectStudio(QWidget):
         ep = session.episode()
         if self._loaded_episode != ep.episode or self.editor.toPlainText() == self._shown_text:
             self._shown_text = session.pending_draft if session.pending_draft is not None else ep.draft
+            self._loaded_revision = ep.revision
             self.editor.setPlainText(self._shown_text)
         self._loaded_episode = ep.episode
         bible = db.get_rule(pid, 'premise').value
