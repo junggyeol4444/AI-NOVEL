@@ -111,6 +111,8 @@ class AuthoringControls:
     def _field(self, key, label, multiline=False):
         field = QPlainTextEdit() if multiline else QLineEdit()
         field.setObjectName('authoring_' + key)
+        field.setAccessibleName(label)
+        field.setAccessibleDescription('작품 집필 입력: ' + label)
         if multiline:
             field.setMaximumHeight(95)
         self.fields[key] = field
@@ -130,6 +132,7 @@ class AuthoringControls:
     def _button(self, key, title, fn, object_name=None):
         button = QPushButton(title)
         button.setObjectName(object_name or 'authoring_' + key)
+        button.setAccessibleName(title)
         self.buttons[key] = button
         self.form.addRow(button)
         button.clicked.connect(lambda: self._run(fn, title + ' 완료'))
