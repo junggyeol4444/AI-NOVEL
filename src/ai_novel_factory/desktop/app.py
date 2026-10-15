@@ -38,7 +38,16 @@ class MainWindow(QMainWindow):
         outer = QHBoxLayout(central)
         self.sidebar = QListWidget()
         self.sidebar.setObjectName('sectionSidebar')
-        self.sidebar.setFixedWidth(215)
+        self.sidebar.setFixedWidth(195)
+        self.sidebar.setSpacing(3)
+        self.sidebar.setStyleSheet("""
+            QListWidget { background: #f7f8fb; border: 0; padding: 10px 4px;
+                          font-size: 13px; }
+            QListWidget::item { min-height: 33px; border-radius: 6px;
+                                padding-left: 11px; color: #354153; }
+            QListWidget::item:selected { background: #deeafa; color: #152e53;
+                                         font-weight: 600; }
+        """)
         self.sidebar.addItems([s.label for s in SECTIONS])
         self.canon_panels = {}
         self.studio = None
@@ -57,8 +66,9 @@ class MainWindow(QMainWindow):
             pending = QLabel('해당 기능은 후속 개발 단계에서 연결됩니다.')
             pending.setObjectName(f'pending_{section.key}')
             pending.setStyleSheet('color: #666;')
-            layout.addWidget(title)
-            layout.addWidget(description)
+            if section.key != 'novels':
+                layout.addWidget(title)
+                layout.addWidget(description)
             if section.key == 'novels':
                 self.authoring = AuthoringWorkflowWidget(page)
                 self.novel_tabs = QTabWidget(page)

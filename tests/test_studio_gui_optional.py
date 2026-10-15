@@ -101,6 +101,27 @@ class UserFirstStudioTests(unittest.TestCase):
             app.processEvents()
             self.assertEqual(restarted.studio.editor.toPlainText(), revised)
             self.assertEqual(restarted.studio.quality.text().count('NOT_RUN') >= 1, True)
+
+            # Regression: declining to discard must keep the current editor;
+            # confirming discard must restore only the last persisted version.
+            from unittest.mock import patch
+            from PySide6.QtWidgets import QMessageBox
+            unsaved = revised + ' 저장하지 않은 임시 메모'
+            restarted.studio.editor.setPlainText(unsaved)
+            with patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                       return_value=QMessageBox.StandardButton.No):
+                QTest.mouseClick(restarted.studio.findChild(
+                    QPushButton, 'studioHomeButton'), Qt.MouseButton.LeftButton)
+            self.assertEqual(restarted.studio.pages.currentIndex(), 2)
+            self.assertEqual(restarted.studio.editor.toPlainText(), unsaved)
+            with patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                       return_value=QMessageBox.StandardButton.Yes):
+                QTest.mouseClick(restarted.studio.findChild(
+                    QPushButton, 'studioHomeButton'), Qt.MouseButton.LeftButton)
+            self.assertEqual(restarted.studio.pages.currentIndex(), 0)
+            self.assertEqual(restarted.studio.editor.toPlainText(), revised)
+            with EpisodeStore(path) as store:
+                self.assertEqual(store.get_episode(pid, 1).draft, revised)
         finally:
             if window is not None:
                 window.close()

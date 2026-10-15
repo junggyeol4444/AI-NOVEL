@@ -189,7 +189,7 @@ class ProjectStudio(QWidget):
         self.editor.setPlaceholderText('새 회차를 선택하고 이곳에 원고를 입력하거나 기존 초고를 수정하세요.')
         self.editor.setMinimumHeight(330)
         self.editor.textChanged.connect(self._mark_dirty)
-        self.save_shortcut = QShortcut(QKeySequence.StandardKey.Save, self.editor)
+        self.save_shortcut = QShortcut(QKeySequence(QKeySequence.StandardKey.Save), self.editor)
         self.save_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.save_shortcut.activated.connect(self._save_manuscript)
         center.addWidget(self.editor, 1)
@@ -238,13 +238,20 @@ class ProjectStudio(QWidget):
         self.show_advanced()  # MainWindow intercepts the tab change if the draft is unsaved.
 
     def confirm_discard(self):
-        if (self.pages.currentIndex() != 2 or
-                self.editor.toPlainText() == self._shown_text):
+        # Unsaved text still matters when the user temporarily leaves the
+        # writing page. Never interpret hiding the editor as saving it.
+        if self.editor.toPlainText() == self._shown_text:
             return True
-        return QMessageBox.question(
+        decision = QMessageBox.question(
             self, '저장하지 않은 원고', '편집 중인 원고가 있습니다. 저장하지 않고 이동하시겠습니까?',
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes
+            QMessageBox.StandardButton.No)
+        if decision != QMessageBox.StandardButton.Yes:
+            return False
+        # A positive discard must really discard the draft; otherwise the
+        # stale modified text can survive another project/tab change.
+        self.editor.setPlainText(self._shown_text)
+        return True
 
     def _mark_dirty(self):
         if self.pages.currentIndex() == 2:
