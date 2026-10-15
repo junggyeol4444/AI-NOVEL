@@ -46,6 +46,8 @@ def run(out: str) -> int:
         window = MainWindow()
         window.show()
         app.processEvents()
+        window.novel_tabs.setCurrentIndex(1)  # choose detailed authoring tools
+        app.processEvents()
         ui = window.authoring
         bundle = Path(sys.executable).resolve().parent
         expected = bundle / 'ANF_Local_Model.exe'
