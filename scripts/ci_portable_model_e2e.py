@@ -42,6 +42,35 @@ def main(argv):
         print('Bridge exit:', process.returncode,
               'Native status:', process.stderr.strip()[-300:],
               'Output bytes:', len(process.stdout))
+        # Diagnose only public synthetic inputs with native executable.
+        # Never print its stdout/stderr because they may include model prose.
+        native = folder / 'runtime' / 'llama-cli.exe'
+        known_model = str(model)
+        candidates = [
+            ('minimal', [str(native), '--model', known_model,
+                         '--prompt', 'Once upon a time', '--predict', '8']),
+            ('single_turn', [str(native), '--model', known_model,
+                             '--prompt', 'Once upon a time', '--predict', '8',
+                             '--single-turn', '--no-display-prompt']),
+        ]
+        for label, cmd in candidates:
+            try:
+                probe = subprocess.run(cmd, capture_output=True, text=True,
+                                       encoding='utf-8', errors='replace',
+                                       cwd=native.parent, timeout=35)
+                err = probe.stderr.lower()
+                classes = [tag for tag in ('unknown argument', 'invalid argument',
+                            'not recognized', 'failed to load model',
+                            'error loading model', 'could not load',
+                            'model load', 'failed to initialize', 'failed to open',
+                            'gguf', 'error:', 'unknown option') if tag in err]
+                print('Synthetic native diagnostic:', label,
+                      'exit', probe.returncode,
+                      'stderr_categories', sorted(set(classes)),
+                      'stdout_bytes', len(probe.stdout),
+                      'stderr_bytes', len(probe.stderr))
+            except subprocess.TimeoutExpired:
+                print('Synthetic native diagnostic:', label, 'TIMEOUT')
         raise AssertionError('bundle model binary did not complete')
     try:
         result = json.loads(process.stdout)
