@@ -1,5 +1,15 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-15 18시 KST 정기 실행 1회차 — Windows 11 UIA 메뉴 제어 결함 수정 및 재검증 요청
+
+- 사용자가 2026-10-15 한국시간에 명시적으로 `예약`을 지시해 **매시간 개발·검증 정기 작업 1개가 이미 생성/활성화**되었다. 아래 이전 인수인계의 '예약 없음/아직 생성 안 함' 문장은 과거 시점의 기록이다. 추가 예약 생성/기존 비활성 오전 8시 예약 재활성화 금지.
+- 작업 전 확인: 검증 브랜치 HEAD `155194488db3f864caa0dbc4b21aa0f820e19de4`, `main` HEAD `69225edeed0a09ded5f847dad9b9ea63bc45367c`. GitHub Actions [Windows 11 외부 UIA #38701708179](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38701708179)는 **FAIL**: x64 EXE 빌드, offscreen 12화면, 외부 UIA 새 작품/원고 저장/종료/재시작/SQLite·Bible 복원 단계는 PASS, 별도 `ci_windows11_desktop.ps1`의 고급 12개 메뉴 펼치기에서 `AdvancedMenuButtonCandidates=1` 이후 실패. [Windows EXE + 로컬 GGUF #38701708258](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38701708258)는 빌드/실 모델/오프라인 Windows11 단계 모두 **SUCCESS**. 같은 SHA의 Linux Qt #38701708195, Windows fast Qt #38701708202, PG/Redis/Celery #38701708227 **SUCCESS**.
+- 원인 가설(Windows 실행 재검증 필요): `app.py`는 `showAdvancedNavigationButton`을 `setCheckable(True)`한 `QPushButton`으로 만든다. 이전 PowerShell은 정확한 이름/ID로 요소 1개를 찾았으나 `ControlType.ProgrammaticName -notlike '*Button'`일 때 **TogglePattern/InvokePattern을 검사하기도 전에 건너뛰었다**. Qt의 체크 가능한 버튼은 Windows UIA에서 `ControlType.CheckBox`로 노출될 수 있다. 현재 변경은 정확히 일치한 접근성 요소에 대해 ControlType 선필터를 제거하고 TogglePattern 우선, InvokePattern 대체를 시도하며, **확장·축소 각각의 실제 ControlType만** 안전하게 로그에 남긴다. 원고·DB·입력값 로그 금지 유지. 정적 회귀 검사도 추가했다.
+- **이번 커밋의 Windows UIA/전경 CI 결과는 아직 검증 전이므로 PASS 주장 금지.** 다음 회차에서 신규 Windows11 Actions run의 `AdvancedMenuControlType`, `MatchedMenuItems`, `NativeSelectionClicks`, `PublicationPageActionsVisibleViaUIA`, `QtForeground`와 실패 단계·아티팩트를 확인하라. OOBE/privacy 전경 가림, 물리 Win10/11 사람의 인수, 30/100/250화×약 5000자 문학 품질, 전수 참고작 Similarity/100단계 통합은 여전히 **RELEASE_BLOCKED**. `main`/실사용자 데이터/실계정/출판은 변경하지 않았다.
+
+---
+
+
 ## 2026-10-15 후속 실개발·최신 CI 성공 — 검증 SHA 8e0d87e (신규 대화 우선 확인)
 
 - 사용자 `계속`의 뜻은 이 자리에서 실제 개발·검증 계속하기이며 **예약/자동화가 아니다**. 향후 사용자가 정확히 `예약`이라고 지시할 때만 그 시점 한국시간 1시간 후 시작, 매시간 반복하는 작업을 만들어야 한다. 아직 **신규 자동화 생성 안 함**. 이전 비활성 오전 8시 예약 재활성화 금지.

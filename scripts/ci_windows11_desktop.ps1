@@ -61,7 +61,10 @@ try {
   Write-Host ('AdvancedMenuButtonCandidates=' + $buttons.Count)
   $expanded = $false
   foreach ($button in $buttons) {
-    if ($button.Current.ControlType.ProgrammaticName -notlike '*Button') { continue }
+    # Qt checkable QPushButton can surface as ControlType.CheckBox rather than
+    # ControlType.Button. Match by the exact accessible name/AutomationId above
+    # and inspect supported patterns instead of filtering by ControlType.
+    Write-Host ('AdvancedMenuControlType=' + $button.Current.ControlType.ProgrammaticName)
     # Checkable QPushButton on Windows may support TogglePattern but NOT
     # InvokePattern. Never assume a checkable toggle is an ordinary button.
     $toggle = $null
@@ -155,7 +158,8 @@ try {
   }
   $collapsed = $false
   foreach ($button in $collapseButtons) {
-    if ($button.Current.ControlType.ProgrammaticName -notlike '*Button') { continue }
+    # The same Qt checkable control may be a CheckBox on Windows UIA.
+    Write-Host ('AdvancedMenuCollapseControlType=' + $button.Current.ControlType.ProgrammaticName)
     $toggle = $null
     if ($button.TryGetCurrentPattern(
         [System.Windows.Automation.TogglePattern]::Pattern, [ref]$toggle)) {

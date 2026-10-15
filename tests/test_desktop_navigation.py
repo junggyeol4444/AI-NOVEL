@@ -36,6 +36,14 @@ class NavigationTests(unittest.TestCase):
         self.assertIn('Automation.InvokePattern', source)
         self.assertIn('showAdvancedNavigationButton', source)
         self.assertIn('if ($clicks -lt 12)', source)
+        # Qt checkable QPushButton can appear as UIA CheckBox, not Button.
+        # A type-only guard previously skipped the actual toggle control.
+        self.assertIn('AdvancedMenuControlType=', source)
+        self.assertIn('AdvancedMenuCollapseControlType=', source)
+        self.assertNotIn(
+            "if ($button.Current.ControlType.ProgrammaticName -notlike '*Button')",
+            source,
+        )
 
     def test_offline_cli_contract_check(self):
         env = os.environ.copy()
