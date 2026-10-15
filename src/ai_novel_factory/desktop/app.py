@@ -94,6 +94,10 @@ class MainWindow(QMainWindow):
         outer.addWidget(self.sidebar)
         outer.addWidget(self.pages, stretch=1)
         self.sidebar.currentRowChanged.connect(self._change_page)
+        # Windows UIAutomation SelectionItemPattern may change selection
+        # without changing the QListWidget current row. Treat both native
+        # accessibility selection and pointer/keyboard navigation as paths.
+        self.sidebar.itemSelectionChanged.connect(self._change_page_from_selection)
         self.sidebar.setCurrentRow(0)
         self.api_check_button = QPushButton('로컬 API 연결 확인')
         self.api_check_button.setObjectName('checkLocalApiButton')
@@ -141,6 +145,14 @@ class MainWindow(QMainWindow):
             return None
         session = authoring.session
         return (session.path, session.project_id) if session.project_id else None
+
+    def _change_page_from_selection(self) -> None:
+        selected = self.sidebar.selectedItems()
+        if not selected:
+            return
+        index = self.sidebar.row(selected[0])
+        if index >= 0 and index != self.pages.currentIndex():
+            self._change_page(index)
 
     def _change_page(self, index: int) -> None:
         if 0 <= index < self.pages.count():
