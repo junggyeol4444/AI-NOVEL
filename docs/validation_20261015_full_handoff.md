@@ -113,3 +113,15 @@
 - 마지막 구현 커밋 `a23f55e3b365bb7371f3f859c6b844e428aff579` (검증 브랜치만). 최신 결과는 `https://github.com/junggyeol4444/AI-NOVEL/actions?query=branch%3Avalidation%2Fgui-authoring-e2e-20261014`에서 반드시 재확인.
 - 확인된 과거 Windows 11 ARM64 hosted VM에서 x64 EXE 에뮬레이션/UIAutomation 입력·저장·종료·재실행 성공과 전경 Windows 개인정보 초기 화면으로 인한 최종 네이티브 검증 실패는 그대로 유효하다. 새 GUI의 **실제** OS 화면 조작·직접 캡처·물리 Windows 10/11 x64 PC 인수는 여전히 미검증.
 - 제품 전체 요구 기준으로 처음 입력→참고작 전수 구조 분석→Reference Profile/가중치 Pattern→Novel Bible/전체 기획→진짜 장편 AI 집필→모든 검수/자동 재작성/장기 기억→최종본/EPUB/사용자 승인 출판의 종단 자동화는 미완성. 단위·오프스크린 결과로 완성 주장 금지.
+
+
+### 2026-10-15 계속 개발 지시 후 결과: 파일 보호/동시편집/실패한 Linux QA
+
+- 사용자가 "여기서 계속하라는건 개발이든 검증이든 알아서 하라는거야"라고 명시했다. 향후 "계속해"는 추가 확인 질문 없이 우선순위를 판단해 개발·검증·실패 원인 수정까지 이어가라는 의미다. 기존 모든 데이터/키/설정/자동화, `main` 불변 원칙은 유지한다.
+- `desktop/authoring_session.py`: 생성 전 빈 최상위 설정 명시 거부, 선택 필명 미입력은 공개 작가명을 지어내지 않고 `미정`으로 저장. 기존 DB 파일 덮어쓰기 금지: `os.O_EXCL|os.O_CREAT`로 배타 예약하고 초기화 실패 시 소유한 같은 inode의 신생 파일만 삭제. 기존 다른 파일과 경쟁 상황에서 생긴 데이터는 삭제 금지.
+- `tests/test_authoring_session_safety.py`에 신규/기존 경로, 필명 미입력, 생성 실패 cleanup, 동시 경쟁 파일 보존/작품 재오픈 회귀 테스트. **Linux Actions run 38685861312에서 이 파일보호 테스트는 전부 PASS**.
+- `desktop/project_studio.py`: 사용자 편집기에서 불러온 회차 revision을 별도로 추적해 외부 프로세스가 같은 회차를 바꾼 후 오래된 창이 저장을 누를 때 덮어쓰지 않도록 명시적으로 거부. 편집자 내용은 창에 남음. `test_studio_gui_optional.py`에서 외부 수정 뒤 원고 보존을 확인하는 시나리오 추가. 새 작품이 없으면 기본/보조 집필 버튼 모두 빈 편집기 대신 작품 생성 입력 화면으로 이동.
+- `.github/workflows/anf-linux-studio-safety-ci.yml`: Windows 대기열과 별개로 Ubuntu PySide6 offscreen + SQLite 원고 저장/재실행 테스트 추가. **run 38685861312 FAILURE**: 기존 탐색 및 데이터 보존 테스트는 SUCCESS, GUI 테스트 시작 때 `ImportError: libEGL.so.1` (runner Qt 시스템 라이브러리 누락) 발생. 이는 GUI 품질 통과 근거가 아니다. Ubuntu 워크플로에 `libegl1`, `libopengl0`, `libxcb-cursor0`, `libxkbcommon-x11-0` 명시적 설치 단계 추가. 수정 후 실행은 다시 확인해야 하며 **그 전에는 PASS 주장 금지**.
+- `scripts/ci_studio_snapshots.py`: 외부 네트워크/사용자 원고 없이 원본 창작 **합성 데이터**로 첫 시작/새 작품 입력/로컬 원고 집필/진척 홈 화면 PNG 캡처와 증거 JSON 생성. Ubuntu QA Artifact는 아직 생산 확인 전, 사람의 시각 인수나 Windows 물리 화면 검증이 아님.
+- 최신 검증 브랜치 코드 commit `8db0e508d79f5f22b45d396a4204e25e73b2a71e`; GitHub `https://github.com/junggyeol4444/AI-NOVEL/actions?query=branch%3Avalidation%2Fgui-authoring-e2e-20261014`에서 **최신 결과·실패 단계·업로드 스크린샷을 먼저 확인**하라. 잦은 푸시로 이전 후보가 concurrency cancel-in-progress로 CANCELLED된 상태; CANCELLED는 PASS가 아니다.
+- 물리 Windows 10/11 x64 GUI, OOBE 가려진 Windows11 hosted runner의 foreground 문제, 모든 01~100 통합·Reference→AI Writer→전수 QC/재작성→30·100·250화 장기 품질은 여전히 미완성. 제품 판정 `RELEASE_BLOCKED`.
