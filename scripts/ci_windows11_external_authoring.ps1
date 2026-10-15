@@ -33,6 +33,13 @@ function Element([System.Windows.Automation.AutomationElement]$root,[string]$aut
   # set. Use the localized accessible name and semantic control type instead.
   $displayName = @{
     studioAdvancedButton = '세부 작업 도구'
+    studioNewButton = '새 작품 만들기'
+    studioNewTitle = '작품 제목 *'
+    studioNewAuthor = '작가/필명'
+    studioNewGenre = '장르'
+    studioNewSubject = '소재와 주인공'
+    studioNewPremise = '최상위 작품 설정'
+    studioCreateProjectButton = '로컬 작품 생성'
     authoring_db = '로컬 DB 파일 경로'
     authoring_title = '작품 제목'
     authoring_author = '작가 이름'
@@ -51,7 +58,7 @@ function Element([System.Windows.Automation.AutomationElement]$root,[string]$aut
   $cond = [System.Windows.Automation.PropertyCondition]::new(
     [System.Windows.Automation.AutomationElement]::NameProperty, $displayName)
   $matches = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,$cond)
-  $wantButton = $automationId -eq 'studioAdvancedButton' -or $automationId -eq 'createProjectButton' -or
+  $wantButton = $automationId -in @('studioAdvancedButton','studioNewButton','studioCreateProjectButton') -or $automationId -eq 'createProjectButton' -or
                 $automationId -eq 'authoring_save_bible' -or
                 $automationId -eq 'openAuthoringProjectButton'
   foreach ($candidate in $matches) {
@@ -132,6 +139,21 @@ try {
     }
   }
   Write-Host ('External UIA safe control labels: '+($sample -join ' | '))
+
+  # Independently exercise the new default user-facing project flow, by OS
+  # accessibility (no Python Qt method calls or direct SQLite writes).
+  Invoke-Accessible $window 'studioNewButton'
+  Set-AccessibleText $window 'studioNewTitle' 'Synthetic Studio Windows11 Novel'
+  Set-AccessibleText $window 'studioNewAuthor' 'Original Synthetic Author'
+  Set-AccessibleText $window 'studioNewGenre' 'fantasy'
+  Set-AccessibleText $window 'studioNewSubject' 'An invented clockwork valley'
+  Set-AccessibleText $window 'studioNewPremise' 'Original characters only'
+  Invoke-Accessible $window 'studioCreateProjectButton'
+  $titleCheck = [System.Windows.Automation.PropertyCondition]::new(
+    [System.Windows.Automation.AutomationElement]::NameProperty,
+    'Synthetic Studio Windows11 Novel')
+  Step 'native_studio_created_selected_project' (
+    $null -ne $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $titleCheck))
 
   Invoke-Accessible $window 'studioAdvancedButton'
   Set-AccessibleText $window 'authoring_db' $database
