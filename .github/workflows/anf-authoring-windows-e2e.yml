@@ -165,8 +165,8 @@ jobs:
           } else {
             throw 'Compiled portable app never saved a Windows 11 GUI report'
           }
-          if ($p.ExitCode -ne 0 -or $report.result -ne 'PASS'
-              -or @($report.steps | Where-Object result -ne 'PASS').Count -gt 0) {
+          $failedChecks = @($report.steps | Where-Object { $_.result -ne 'PASS' })
+          if (($p.ExitCode -ne 0) -or ($report.result -ne 'PASS') -or ($failedChecks.Count -gt 0)) {
             throw 'Windows 11 complete offline model, Qt GUI, persistence or EPUB workflow failed'
           }
           Write-Host 'PASS: real Windows 11 ARM OS x64 emulation; Qt offscreen GUI; GGUF inference; SQLite and EPUB; independent EXE restart.'
