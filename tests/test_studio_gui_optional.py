@@ -123,6 +123,22 @@ class UserFirstStudioTests(unittest.TestCase):
             with EpisodeStore(path) as store:
                 self.assertEqual(store.get_episode(pid, 1).draft, revised)
 
+            # Restore is append-only and must be explicitly authorized.
+            with ManuscriptVersionStore(path) as versions:
+                baseline_id = versions.list_versions(pid, 1)[0].version_id
+            with patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                       return_value=QMessageBox.StandardButton.Yes):
+                self.assertTrue(restarted.studio._restore_version(baseline_id))
+            with ManuscriptVersionStore(path) as versions:
+                history = versions.list_versions(pid, 1)
+                self.assertEqual(len(history), 3)
+                self.assertEqual(history[0].draft, original)
+                self.assertEqual(history[1].draft, revised)
+                self.assertEqual(history[2].draft, original)
+            with EpisodeStore(path) as store:
+                self.assertEqual(store.get_episode(pid, 1).draft, original)
+                self.assertFalse(store.get_episode(pid, 1).final_text)
+
             # Concurrent app edits must never be overwritten just because
             # the GUI reads a newer revision at the moment of saving.
             restarted.studio._show(2)

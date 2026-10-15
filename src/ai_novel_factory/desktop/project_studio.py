@@ -211,6 +211,11 @@ class ProjectStudio(QWidget):
         actions.addWidget(save)
         actions.addWidget(tools)
         center.addLayout(actions)
+        history_button = QPushButton('이전 원고·버전 이력')
+        history_button.setObjectName('studioVersionHistoryButton')
+        history_button.setAccessibleName('이전 원고·버전 이력')
+        history_button.clicked.connect(self._open_version_history)
+        center.addWidget(history_button)
         splitter.addWidget(manuscript_side)
 
         context_side = QWidget()
@@ -450,6 +455,105 @@ class ProjectStudio(QWidget):
             self.refresh()
         except (OSError, ValueError) as exc:
             self._show_error(str(exc))
+
+    def _open_version_history(self):
+        session = self.workflow.session
+        if not session.project_id or session.episode_number is None:
+            self._show_error('먼저 원고 회차를 선택하세요.')
+            return
+        try:
+            with ManuscriptVersionStore(session.path) as store:
+                entries = store.list_versions(session.project_id, session.episode_number)
+        except (ValueError, OSError):
+            self._show_error('원고 버전 이력을 읽을 수 없습니다.')
+            return
+        if not entries:
+            self.editor_status.setText('아직 저장한 원고 버전이 없습니다.')
+            return
+        from PySide6.QtWidgets import QListWidgetItem
+        dialog = QDialog(self)
+        dialog.setObjectName('studioVersionHistoryDialog')
+        dialog.setWindowTitle(f'{session.episode_number}화 · 로컬 원고 버전')
+        dialog.resize(690, 510)
+        box = QVBoxLayout(dialog)
+        note = QLabel('과거 원고는 읽기 전용입니다. 복원은 원본 이력을 지우지 않고 새 수정본으로 저장합니다.')
+        note.setWordWrap(True)
+        box.addWidget(note)
+        versions_list = QListWidget(dialog)
+        versions_list.setObjectName('studioVersionHistoryEntries')
+        for item in entries:
+            row = QListWidgetItem(f'{item.ordinal}번째 · {item.kind} · {item.created_at[:16]}')
+            row.setData(Qt.ItemDataRole.UserRole, item.version_id)
+            versions_list.addItem(row)
+        box.addWidget(versions_list, 1)
+        preview = QPlainTextEdit(dialog)
+        preview.setObjectName('studioVersionHistoryPreview')
+        preview.setReadOnly(True)
+        preview.setPlaceholderText('확인할 이전 원고를 선택하세요.')
+        box.addWidget(preview, 2)
+
+        def selected(row):
+            preview.setPlainText(entries[row].draft or entries[row].final_text
+                                 if 0 <= row < len(entries) else '')
+
+        versions_list.currentRowChanged.connect(selected)
+        actions = QHBoxLayout()
+        restore = QPushButton('선택 버전을 새 수정본으로 복원')
+        restore.setObjectName('studioRestoreVersionButton')
+        def restore_selected():
+            row = versions_list.currentRow()
+            if 0 <= row < len(entries) and self._restore_version(entries[row].version_id):
+                dialog.accept()
+        restore.clicked.connect(restore_selected)
+        actions.addWidget(restore)
+        close = QPushButton('닫기')
+        close.clicked.connect(dialog.reject)
+        actions.addWidget(close)
+        box.addLayout(actions)
+        versions_list.setCurrentRow(len(entries) - 1)
+        dialog.exec()
+
+    def _restore_version(self, version_id: str) -> bool:
+        # This user-visible helper is intentionally never called without a
+        # positive confirmation. A previous FINAL is restored as a draft,
+        # never as automatically reviewed/publishable material.
+        session = self.workflow.session
+        if not session.project_id or session.episode_number is None:
+            self._show_error('복원할 회차를 선택하세요.')
+            return False
+        if not self.confirm_discard():
+            return False
+        try:
+            with ManuscriptVersionStore(session.path) as store:
+                ep = store.get_episode(session.project_id, session.episode_number)
+                if (self._loaded_episode != ep.episode or
+                        self._loaded_revision != ep.revision):
+                    self._show_error('다른 작업에서 회차가 변경되었습니다. 기존 편집 내용을 복사한 후 다시 열어 주세요.')
+                    return False
+                past = store.get_version(session.project_id, ep.episode, version_id)
+                if (past.draft or past.final_text) == ep.draft and not ep.final_text:
+                    self.editor_status.setText('현재 초고와 동일한 내용입니다. 복원이 필요하지 않습니다.')
+                    return False
+                answer = QMessageBox.question(
+                    self, '과거 원고 복원 확인',
+                    f'{ep.episode}화의 {past.ordinal}번째 버전을 새 수정본으로 저장합니다. '
+                    '현행 최종본 승인 상태가 있다면 해제됩니다. 원본 버전 이력은 보존합니다. 계속하시겠습니까?',
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No)
+                if answer != QMessageBox.StandardButton.Yes:
+                    return False
+                store.restore_as_revision(
+                    session.project_id, ep.episode, version_id,
+                    expected_revision=ep.revision, note='사용자 승인 이전 버전 복원')
+            session.pending_draft = None
+            self.workflow._sync()
+            self._loaded_episode = None
+            self.refresh()
+            self.editor_status.setText('이전 원고를 새 초고 버전으로 복원했습니다. 검수는 별도입니다.')
+            return True
+        except (ValueError, OSError):
+            self._show_error('복원할 수 없습니다. 원고 버전 또는 동시 수정 상태를 확인하세요.')
+            return False
 
     def _save_manuscript(self):
         session = self.workflow.session
