@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
         self.api_check_button.setToolTip('버튼을 눌렀을 때만 로컬 API에 연결합니다.')
         self.api_check_button.clicked.connect(self._check_api)
         self.statusBar().addPermanentWidget(self.api_check_button)
-        self.statusBar().showMessage('로컬 UI 준비됨 · API 미연결 · AI/출판 비활성')
+        self.statusBar().showMessage('로컬 UI 준비됨 · API 미연결 · AI는 개별 승인 필요 · 외부 전송은 최종본 별도 승인')
         # No network request happens automatically. Publishing and AI remain disabled.
 
     def closeEvent(self, event) -> None:
@@ -108,6 +108,13 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage('로컬 AI 집필 작업 중단 요청 중 · 프로세스 완료 후 종료해 주세요.')
             event.ignore()
             return
+        publisher = getattr(self, 'additional_panels', {}).get('publication')
+        if publisher is not None and getattr(publisher, 'wp_worker', None) is not None:
+            if publisher.wp_worker.isRunning():
+                self.statusBar().showMessage(
+                    '외부 초안 전송 진행 중입니다. 결과를 확인한 후 종료해 주세요.')
+                event.ignore()
+                return
         editor = getattr(self, 'plot_editor', None)
         if editor is not None:
             if not editor._warn_unsaved():
@@ -122,9 +129,9 @@ class MainWindow(QMainWindow):
     def _check_api(self) -> None:
         try:
             result = check_local_health(load_settings())
-            self.statusBar().showMessage(result.message + ' · AI/출판 비활성')
+            self.statusBar().showMessage(result.message + ' · AI는 개별 승인 필요 · 외부 전송은 별도 승인')
         except ConfigurationError:
-            self.statusBar().showMessage('API 설정 오류 · AI/출판 비활성')
+            self.statusBar().showMessage('API 설정 오류 · AI는 개별 승인 필요 · 외부 전송은 별도 승인')
 
     def _current_project(self):
         authoring = getattr(self, 'authoring', None)
