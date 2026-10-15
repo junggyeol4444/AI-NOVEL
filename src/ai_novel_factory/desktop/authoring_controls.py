@@ -19,7 +19,11 @@ class AuthoringControls:
         self.fields = {}
         self.buttons = {}
         self._section('1. 작품 생성 / 기존 DB')
-        self._field('db', '로컬 DB 절대 경로')
+        self._field('db', '로컬 DB 파일 경로')
+        self._button('choose_new_database', '새 SQLite 저장 위치 선택',
+                     self._choose_new_database)
+        self._button('choose_existing_database', '기존 SQLite 파일 선택',
+                     self._choose_existing_database)
         self._field('title', '작품 제목')
         self._field('author', '작가 이름')
         self._field('premise', '최상위 설정', multiline=True)
@@ -59,6 +63,7 @@ class AuthoringControls:
                            ('conflict', '갈등'), ('location', '장소'),
                            ('characters', '등장인물 (쉼표 구분)')]:
             self._field(key, label)
+        self._button('choose_model', '로컬 AI 실행 파일 찾기', self._choose_model_executable)
         self.approved = QCheckBox('이 로컬 실행 파일의 이번 실행을 승인합니다')
         self.approved.setObjectName('authoringLocalModelApproval')
         self.form.addRow(self.approved)
@@ -70,6 +75,8 @@ class AuthoringControls:
                      'saveAuthoringDraftButton')
         self._section('5. 비공개 TXT + EPUB')
         self._field('export_dir', '기존 출력 폴더 절대 경로')
+        self._button('choose_export_dir', '비공개 내보내기 폴더 선택',
+                     self._choose_export_directory)
         self._field('price', 'EPUB 메타데이터 KRW 가격 (명시적 입력)')
         self._button('export', '비공개 TXT + EPUB 내보내기',
                      lambda: self.session.export(self._text('export_dir'), self._text('price')),

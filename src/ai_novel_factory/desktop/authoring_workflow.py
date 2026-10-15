@@ -1,7 +1,7 @@
 """Local authoring GUI event handlers; never uploads or publishes."""
 from __future__ import annotations
 import shlex
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QFileDialog
 from .authoring_controls import AuthoringControls
 from .authoring_session import AuthoringSession
 
@@ -32,6 +32,31 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         self.session.create_project(self._text('db'), self._text('title'),
                                     self._text('author'), self._text('premise'),
                                     extra_rules=extra)
+
+    def _choose_new_database(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, '새 작품 DB 경로', '', 'SQLite (*.db *.sqlite)')
+        if path:
+            self._set('db', path)
+
+    def _choose_existing_database(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, '기존 작품 DB 선택', '', 'SQLite (*.db *.sqlite)')
+        if path:
+            self._set('db', path)
+
+    def _choose_model_executable(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, '신뢰할 수 있는 로컬 AI 실행 파일', '',
+            'Windows 실행 파일 (*.exe);;모든 파일 (*)')
+        if path:
+            self._set('executable', path)
+
+    def _choose_export_directory(self):
+        path = QFileDialog.getExistingDirectory(
+            self, '비공개 원고 출력 폴더 선택')
+        if path:
+            self._set('export_dir', path)
 
     def _open(self):
         self.session.open_project(self._text('db'))
