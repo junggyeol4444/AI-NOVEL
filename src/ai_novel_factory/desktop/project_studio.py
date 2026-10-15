@@ -635,8 +635,9 @@ class ProjectStudio(QWidget):
         if not session.project_id or session.episode_number is None:
             self._show_error('복원할 회차를 선택하세요.')
             return False
-        if not self.confirm_discard():
-            return False
+        # Do NOT discard the live editor before an atomic DB restore succeeds.
+        # Even a confirmed restore may fail (another window writes meanwhile).
+        unsaved = self.editor.toPlainText() != self._shown_text
         try:
             with ManuscriptVersionStore(session.path) as store:
                 ep = store.get_episode(session.project_id, session.episode_number)
@@ -651,7 +652,10 @@ class ProjectStudio(QWidget):
                 answer = QMessageBox.question(
                     self, '과거 원고 복원 확인',
                     f'{ep.episode}화의 {past.ordinal}번째 버전을 새 수정본으로 저장합니다. '
-                    '현행 최종본 승인 상태가 있다면 해제됩니다. 원본 버전 이력은 보존합니다. 계속하시겠습니까?',
+                    '현행 최종본 승인 상태가 있다면 해제됩니다. 원본 버전 이력은 보존합니다. '
+                    + ('복원에 성공하면 현재 저장하지 않은 편집 내용은 사라집니다. '
+                       if unsaved else '')
+                    + '계속하시겠습니까?',
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No)
                 if answer != QMessageBox.StandardButton.Yes:

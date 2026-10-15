@@ -216,9 +216,29 @@ class UserFirstStudioTests(unittest.TestCase):
             self.assertTrue(modal_check.get('readonly'), modal_check)
             self.assertEqual(modal_check.get('old_text'), original)
 
-            # Restore is append-only and must be explicitly authorized.
+            # Cancellation or failed restoration must never silently delete
+            # unsaved prose; the data remains in the editor until successful.
             with ManuscriptVersionStore(path) as versions:
                 baseline_id = versions.list_versions(pid, 1)[0].version_id
+            uncommitted_restore = '복원 중에도 잃어버리면 안 되는 편집 텍스트'
+            restarted.studio.editor.setPlainText(uncommitted_restore)
+            with patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                       return_value=QMessageBox.StandardButton.No):
+                self.assertFalse(restarted.studio._restore_version(baseline_id))
+            self.assertEqual(restarted.studio.editor.toPlainText(), uncommitted_restore)
+            with ManuscriptVersionStore(path) as versions:
+                self.assertEqual(len(versions.list_versions(pid, 1)), 2)
+            with (patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                        return_value=QMessageBox.StandardButton.Yes),
+                  patch('ai_novel_factory.manuscript_versions.ManuscriptVersionStore.restore_as_revision',
+                        side_effect=ValueError('synthetic concurrent revision')),
+                  patch('ai_novel_factory.desktop.project_studio.QMessageBox.warning')):
+                self.assertFalse(restarted.studio._restore_version(baseline_id))
+            self.assertEqual(restarted.studio.editor.toPlainText(), uncommitted_restore)
+            with ManuscriptVersionStore(path) as versions:
+                self.assertEqual(len(versions.list_versions(pid, 1)), 2)
+
+            # A deliberately accepted restore is append-only.
             with patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
                        return_value=QMessageBox.StandardButton.Yes):
                 self.assertTrue(restarted.studio._restore_version(baseline_id))
