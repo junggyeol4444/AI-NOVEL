@@ -77,7 +77,18 @@ class AuthoringControls:
         self._button('save_draft', '검토한 초고 SQLite 저장',
                      lambda: self.session.save_draft(self._text('draft')),
                      'saveAuthoringDraftButton')
-        self._section('5. 비공개 TXT + EPUB')
+        self._section('5. 사용자 직접 검수·최종 원고 저장')
+        self._field('final_text', '검수·수정한 최종 원고', multiline=True)
+        self.final_reviewed = QCheckBox('제가 원고를 직접 읽고 검수했습니다')
+        self.final_reviewed.setObjectName('authoringHumanFinalReview')
+        self.form.addRow(self.final_reviewed)
+        self.final_quality_ack = QCheckBox(
+            '자동 일관성·유사성 등 품질 검사가 미완료일 수 있음을 확인합니다')
+        self.final_quality_ack.setObjectName('authoringFinalIncompleteQualityAcknowledged')
+        self.form.addRow(self.final_quality_ack)
+        self._button('save_final', '검수한 최종본 저장 (기존 원고 덮어쓰기 금지)',
+                     self._save_final, 'saveHumanReviewedFinalButton')
+        self._section('6. 비공개 TXT + EPUB')
         self._field('export_dir', '기존 출력 폴더 절대 경로')
         self._button('choose_export_dir', '비공개 내보내기 폴더 선택',
                      self._choose_export_directory)

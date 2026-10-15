@@ -160,6 +160,56 @@ class AuthoringSession:
         db.update_episode(pid, ep.episode, expected_revision=ep.revision, draft=text)
         self.pending_draft = None
 
+    def save_final_text(self, text, *, human_reviewed=False,
+                        incomplete_qc_acknowledged=False):
+        """Explicit manual review, not an automatic quality or publication pass."""
+        if human_reviewed is not True or incomplete_qc_acknowledged is not True:
+            raise AuthoringError('직접 검수 및 미완료 품질 검사 확인이 모두 필요합니다.')
+        if type(text) is not str or not text.strip():
+            raise AuthoringError('최종 원고가 비어 있습니다.')
+        db, pid = self.required()
+        ep = self.episode()
+        if not ep.draft.strip():
+            raise AuthoringError('먼저 초고를 저장하세요.')
+        if ep.final_text.strip():
+            raise AuthoringError('기존 최종본은 덮어쓰지 않습니다.')
+        db.update_episode(pid, ep.episode,
+                          expected_revision=ep.revision, final_text=text)
+
+    def export_final(self, directory, price):
+        """Export reviewed final episodes only, privately and exclusively."""
+        db, pid = self.required()
+        parent = Path(directory)
+        if not parent.is_absolute() or parent.is_symlink() or not parent.is_dir():
+            raise AuthoringError('기존 로컬 출력 폴더를 선택하세요.')
+        chapters = tuple(Chapter(f'{ep.episode}화', ep.final_text)
+                         for ep in db.list_episodes(pid) if ep.final_text.strip())
+        if not chapters:
+            raise AuthoringError('저장된 검수 최종 원고가 없습니다.')
+        folder = parent / 'reviewed_final'
+        if folder.exists() or folder.is_symlink():
+            raise AuthoringError('검수본 출력 폴더가 이미 존재합니다. 덮어쓰지 않습니다.')
+        folder.mkdir(mode=0o700)
+        meta = MetadataDraft(pid, db.get_project(pid).title,
+                             self.rule('author'), self.rule('premise'),
+                             '소설', ('사용자검수본', '비공개'), price)
+        txt = folder / 'final.txt'
+        try:
+            epub = create_epub(meta, chapters, folder)
+            with os.fdopen(os.open(txt, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600),
+                           'w', encoding='utf-8') as out:
+                out.write('\n\n'.join(f'# {c.title}\n\n{c.text}' for c in chapters) + '\n')
+                out.flush()
+                os.fsync(out.fileno())
+            verify_epub(epub.path, expected_chapters=len(chapters),
+                        expected_sha256=epub.sha256)
+        except BaseException:
+            txt.unlink(missing_ok=True)
+            (folder / 'book.epub').unlink(missing_ok=True)
+            folder.rmdir()
+            raise
+        return txt, epub.path
+
     def export(self, directory, price):
         db, pid = self.required()
         output = Path(directory)

@@ -102,6 +102,14 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             '모델 파일은 업로드되지 않으며 실행 시 별도 승인이 필요합니다. '
             '실제 한국어 글 품질은 모델 성능에 따라 달라집니다.')
 
+    def _save_final(self):
+        self.session.save_final_text(
+            self._text('final_text'),
+            human_reviewed=self.final_reviewed.isChecked(),
+            incomplete_qc_acknowledged=self.final_quality_ack.isChecked())
+        self.final_reviewed.setChecked(False)
+        self.final_quality_ack.setChecked(False)
+
     def _choose_export_directory(self):
         path = QFileDialog.getExistingDirectory(
             self, '비공개 원고 출력 폴더 선택')
@@ -141,6 +149,9 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             ep = self.session.episode()
             self._set('plot', ep.plot)
             self._set('draft', self.session.pending_draft if self.session.pending_draft is not None else ep.draft)
+            self._set('final_text', ep.final_text)
+            self.final_reviewed.setChecked(False)
+            self.final_quality_ack.setChecked(False)
             for scene in db.list_scenes(pid, ep.episode):
                 self.scenes.addItem(f'장면 {scene.position}', scene.scene_id)
             self.scenes.setCurrentIndex(self.scenes.findData(self.session.scene_id))
