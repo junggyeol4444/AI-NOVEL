@@ -90,6 +90,19 @@ def run(args):
         QTest.mouseClick(ui.buttons['save_draft'], Qt.MouseButton.LeftButton)
         with EpisodeStore(db_path) as db:
             check('generated_draft_saved', db.get_episode(pid, 1).draft == draft)
+        ui._set('final_text', draft + '\n[사용자 검수 완료: 합성 테스트 원고]')
+        QTest.mouseClick(ui.buttons['save_final'], Qt.MouseButton.LeftButton)
+        with EpisodeStore(db_path) as db:
+            check('reviewed_final_requires_explicit_user_acknowledgements',
+                  db.get_episode(pid, 1).final_text == '')
+        ui.final_reviewed.setChecked(True)
+        ui.final_quality_ack.setChecked(True)
+        QTest.mouseClick(ui.buttons['save_final'], Qt.MouseButton.LeftButton)
+        with EpisodeStore(db_path) as db:
+            check('human_reviewed_final_written_via_gui_not_auto_approved',
+                  db.get_episode(pid, 1).final_text.endswith('합성 테스트 원고]')
+                  and not ui.final_reviewed.isChecked()
+                  and not ui.final_quality_ack.isChecked())
         ui._set('export_dir', str(output))
         ui._set('price', '0')
         QTest.mouseClick(ui.buttons['export'], Qt.MouseButton.LeftButton)
@@ -200,6 +213,16 @@ def run(args):
         private_path.mkdir()
         publication.directory.setText(str(private_path))
         publication.price.setText('0')
+        check('reviewed_final_appears_in_publication_without_network',
+              publication.wp_episodes.findData(1) >= 0
+              and not publication.wp_owner_consent.isChecked())
+        QTest.mouseClick(publication.final_export_button, Qt.MouseButton.LeftButton)
+        reviewed = private_path / 'reviewed_final'
+        check('final_txt_epub_export_via_real_publication_gui',
+              (reviewed / 'final.txt').is_file()
+              and (reviewed / 'book.epub').is_file()
+              and '합성 테스트 원고]' in (reviewed / 'final.txt').read_text(encoding='utf-8')
+              and verify_epub(reviewed / 'book.epub', expected_chapters=1).valid)
         QTest.mouseClick(publication.export_button, Qt.MouseButton.LeftButton)
         check('publication_sidebar_private_export',
               '로컬 파일 생성 완료' in publication.status.text()
@@ -350,6 +373,8 @@ def run_reopen(args):
         check('real_model_draft_after_restart',
               bool(saved_draft.strip())
               and hashlib.sha256(saved_draft.encode('utf-8')).hexdigest() == expected_draft_sha)
+        check('reviewed_final_persisted_after_independent_exe_restart',
+              ui._text('final_text').endswith('합성 테스트 원고]'))
         txt = result_path.parent / 'draft.txt'
         epub = result_path.parent / 'book.epub'
         check('reopen_exported_txt',

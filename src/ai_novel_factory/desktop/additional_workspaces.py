@@ -182,15 +182,15 @@ class _WordPressDraftWorker(QThread):
 
 
 class PublicationWorkspace(QWidget):
-    """Private TXT/EPUB preparation only; no platform publishing capability."""
+    """Private draft/final exports; opt-in WordPress draft REST only."""
 
     def __init__(self, session, parent=None):
         super().__init__(parent)
         self.session = session
         root = QVBoxLayout(self)
         label = QLabel(
-            '로컬 원고 내보내기만 지원합니다.\n'
-            '공식 플랫폼 게시·자동 업로드·출판 승인 연동은 현재 검증되지 않아 비활성화되어 있습니다.')
+            '원고를 로컬 TXT·EPUB로 비공개 출력합니다.\n'
+            'WordPress 비공개 초안 전송은 최종본과 별도 사용자 승인이 필요합니다. 공개 출판은 지원하지 않습니다.')
         label.setWordWrap(True)
         root.addWidget(label)
         self.directory = QLineEdit()
@@ -209,6 +209,10 @@ class PublicationWorkspace(QWidget):
         self.export_button = QPushButton('TXT + EPUB 비공개 내보내기')
         self.export_button.setObjectName('publicationLocalExport')
         root.addWidget(self.export_button)
+        self.final_export_button = QPushButton('직접 검수한 최종본만 TXT + EPUB 비공개 출력')
+        self.final_export_button.setObjectName('publicationReviewedFinalExport')
+        root.addWidget(self.final_export_button)
+        self.final_export_button.clicked.connect(self._export_final)
         self.status = QLabel('초고 저장 후 별도 폴더에 안전하게 내보낼 수 있습니다.')
         self.status.setWordWrap(True)
         root.addWidget(self.status)
@@ -305,6 +309,20 @@ class PublicationWorkspace(QWidget):
         path = QFileDialog.getExistingDirectory(self, '비공개 내보내기 폴더 선택')
         if path:
             self.directory.setText(path)
+
+    def _export_final(self):
+        s = self.session()
+        if s is None or s.project_id is None:
+            self.status.setText('먼저 작품과 직접 검수한 최종 원고를 저장하세요.')
+            return
+        try:
+            txt, epub = s.export_final(self.directory.text(), self.price.text())
+            self.status.setText(
+                '검수 최종본 로컬 출력 완료: ' + txt.name + ', ' + epub.name
+                + ' (reviewed_final 폴더, 게시·업로드 없음)')
+        except (ValueError, OSError):
+            self.status.setText(
+                '검수본 출력 실패. 최종 원고·기존 출력 폴더·중복 파일·가격을 확인하세요.')
 
     def _export(self):
         s = self.session()
