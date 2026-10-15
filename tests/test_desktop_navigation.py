@@ -26,6 +26,17 @@ class NavigationTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             section_for_key('not-a-section')
 
+    def test_windows_accessibility_checkable_navigation_support(self):
+        # A checkable QPushButton is a TogglePattern, not necessarily an
+        # InvokePattern. The compiled Windows user journey must support both
+        # without silently claiming that an inaccessible menu was clicked.
+        source = (ROOT / 'scripts/ci_windows11_desktop.ps1').read_text(
+            encoding='utf-8')
+        self.assertIn('Automation.TogglePattern', source)
+        self.assertIn('Automation.InvokePattern', source)
+        self.assertIn('showAdvancedNavigationButton', source)
+        self.assertIn('if ($clicks -lt 12)', source)
+
     def test_offline_cli_contract_check(self):
         env = os.environ.copy()
         env['PYTHONPATH'] = str(ROOT / 'src')

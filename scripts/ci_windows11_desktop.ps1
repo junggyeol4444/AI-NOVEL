@@ -49,12 +49,33 @@ try {
     '세부 도구 보기')
   $buttons = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
                             $expand)
+  if ($buttons.Count -eq 0) {
+    # Depending on the Qt UIAutomation bridge, objectName can surface as
+    # AutomationId instead of an accessible Name.
+    $idCondition = [System.Windows.Automation.PropertyCondition]::new(
+      [System.Windows.Automation.AutomationElement]::AutomationIdProperty,
+      'showAdvancedNavigationButton')
+    $buttons = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                             $idCondition)
+  }
+  Write-Host ('AdvancedMenuButtonCandidates=' + $buttons.Count)
   $expanded = $false
   foreach ($button in $buttons) {
+    if ($button.Current.ControlType.ProgrammaticName -notlike '*Button') { continue }
+    # Checkable QPushButton on Windows may support TogglePattern but NOT
+    # InvokePattern. Never assume a checkable toggle is an ordinary button.
+    $toggle = $null
+    if ($button.TryGetCurrentPattern(
+         [System.Windows.Automation.TogglePattern]::Pattern, [ref]$toggle)) {
+      $p = [System.Windows.Automation.TogglePattern]$toggle
+      if ($p.Current.ToggleState -ne
+          [System.Windows.Automation.ToggleState]::On) { $p.Toggle() }
+      $expanded = $true
+      break
+    }
     $pattern = $null
-    if ($button.Current.ControlType.ProgrammaticName -like '*Button' -and
-        $button.TryGetCurrentPattern(
-            [System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
+    if ($button.TryGetCurrentPattern(
+         [System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
       ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
       $expanded = $true
       break
@@ -125,11 +146,27 @@ try {
   # drawer to its default collapsed state before taking the desktop capture.
   $collapseButtons = $root.FindAll(
       [System.Windows.Automation.TreeScope]::Descendants, $expand)
+  if ($collapseButtons.Count -eq 0) {
+    $idCondition = [System.Windows.Automation.PropertyCondition]::new(
+      [System.Windows.Automation.AutomationElement]::AutomationIdProperty,
+      'showAdvancedNavigationButton')
+    $collapseButtons = $root.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants, $idCondition)
+  }
   $collapsed = $false
   foreach ($button in $collapseButtons) {
+    if ($button.Current.ControlType.ProgrammaticName -notlike '*Button') { continue }
+    $toggle = $null
+    if ($button.TryGetCurrentPattern(
+        [System.Windows.Automation.TogglePattern]::Pattern, [ref]$toggle)) {
+      $p = [System.Windows.Automation.TogglePattern]$toggle
+      if ($p.Current.ToggleState -ne
+          [System.Windows.Automation.ToggleState]::Off) { $p.Toggle() }
+      $collapsed = $true
+      break
+    }
     $pattern = $null
-    if ($button.Current.ControlType.ProgrammaticName -like '*Button' -and
-        $button.TryGetCurrentPattern(
+    if ($button.TryGetCurrentPattern(
           [System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
       ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
       $collapsed = $true
