@@ -141,9 +141,10 @@ class UserFirstStudioTests(unittest.TestCase):
             studio.editor.setPlainText(revised)
             self.assertIn('저장본과 일치', studio.manuscript_stats.text())
 
-            # Even if the person agrees to switch away, a failed chapter
-            # read must leave both the unsaved editor and active chapter.
-            session.create_episode(2, '')
+            # Reuse the second chapter from the navigation test above:
+            # attempting to insert it again is correctly rejected by SQLite.
+            # A failed chapter read must leave the current unsaved manuscript.
+            self.assertEqual(len(session.store.list_episodes(pid)), 2)
             session.select_episode(1)
             studio.refresh()
             unsaved_switch = '실패한 회차 이동 중 절대로 버리지 말 것'
