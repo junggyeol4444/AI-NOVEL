@@ -47,6 +47,7 @@ def main(argv=None) -> int:
     if not llama.is_file() or not model.is_file():
         print('MODEL_BUNDLE_MISSING', file=sys.stderr)
         return 2
+    stage = 'reading_request'
     try:
         raw = sys.stdin.buffer.read(200001)
         if len(raw) > 200000:
@@ -98,6 +99,7 @@ def main(argv=None) -> int:
         env = {k: os.environ[k] for k in
                ('SYSTEMROOT', 'WINDIR', 'PATH', 'TEMP', 'TMP') if k in os.environ}
         env['PATH'] = str(llama.parent) + os.pathsep + env.get('PATH', '')
+        stage = 'native_inference'
         proc = subprocess.run(command, cwd=llama.parent, env=env,
                               capture_output=True, text=True, encoding='utf-8',
                               errors='replace', timeout=110, check=False)
@@ -106,6 +108,7 @@ def main(argv=None) -> int:
             # can include user inputs or command-line prompts, so discard it.
             print('LLAMA_NATIVE_EXIT=' + str(proc.returncode), file=sys.stderr)
             raise ValueError('model process failed')
+        stage = 'text_validation'
         draft = proc.stdout.strip()
         # Some llama.cpp builds emit terminal control codes; fail instead of
         # quietly storing an incomplete or malformed model result.
@@ -113,12 +116,17 @@ def main(argv=None) -> int:
                 or draft.startswith('error:')):
             raise ValueError('invalid local model output')
         response = {'protocol': MODEL_PROTO, 'draft': draft}
-        sys.stdout.write(json.dumps(response, ensure_ascii=False) + '\n')
-        sys.stdout.flush()
+        stage = 'json_output'
+        # Windows frozen console executables may use a legacy code page even
+        # though the local model returns UTF-8 Korean text. IPC is UTF-8 bytes.
+        sys.stdout.buffer.write((json.dumps(response, ensure_ascii=False) + '\n').encode('utf-8'))
+        sys.stdout.buffer.flush()
         return 0
     except (ValueError, OSError, UnicodeError, json.JSONDecodeError,
-            subprocess.TimeoutExpired):
-        print('LOCAL_MODEL_GENERATION_FAILED', file=sys.stderr)
+            subprocess.TimeoutExpired) as exc:
+        # Do not print the exception, stderr, prompts, filenames, or output.
+        print('LOCAL_MODEL_GENERATION_FAILED;STAGE=' + stage
+              + ';TYPE=' + type(exc).__name__, file=sys.stderr)
         return 1
 
 
