@@ -125,3 +125,14 @@
 - `scripts/ci_studio_snapshots.py`: 외부 네트워크/사용자 원고 없이 원본 창작 **합성 데이터**로 첫 시작/새 작품 입력/로컬 원고 집필/진척 홈 화면 PNG 캡처와 증거 JSON 생성. Ubuntu QA Artifact는 아직 생산 확인 전, 사람의 시각 인수나 Windows 물리 화면 검증이 아님.
 - 최신 검증 브랜치 코드 commit `8db0e508d79f5f22b45d396a4204e25e73b2a71e`; GitHub `https://github.com/junggyeol4444/AI-NOVEL/actions?query=branch%3Avalidation%2Fgui-authoring-e2e-20261014`에서 **최신 결과·실패 단계·업로드 스크린샷을 먼저 확인**하라. 잦은 푸시로 이전 후보가 concurrency cancel-in-progress로 CANCELLED된 상태; CANCELLED는 PASS가 아니다.
 - 물리 Windows 10/11 x64 GUI, OOBE 가려진 Windows11 hosted runner의 foreground 문제, 모든 01~100 통합·Reference→AI Writer→전수 QC/재작성→30·100·250화 장기 품질은 여전히 미완성. 제품 판정 `RELEASE_BLOCKED`.
+
+
+### 2026-10-15 추가 구현 및 독립 Qt 검증 (Linux 기본 합격, Windows 여전히 미검증)
+
+- 사용자의 "계속"은 검증·기능 구현을 자율 우선순위로 진행하라는 뜻. main 미접촉과 사용자 데이터 보호 원칙은 변화 없음.
+- **GitHub Linux GUI Actions run 38686693268, commit 90f53e262389cc3ffd49352ed881890769e6adf3 = SUCCESS**. 이 실행에서 기존 탐색 회귀, Qt 첫 화면 클릭 스모크, 단독 SQLite 파일 예약/생성 경쟁 보호, GUI 버튼으로 작품 생성→첫 회차→원고 2회 버전 저장→종료→최근 작품 재실행 복원→미저장 변경 보존/폐기→외부 동시 수정 충돌 차단, 합성 4장 Qt 화면 캡처가 모두 PASS. 실제 Linux offscreen Qt/SQLite 동작 근거이며 **물리 Windows 10/11 GUI 인수 합격은 아니다**. Artifact `anf-linux-studio-qt-synthetic-screens`, run URL `https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38686693268`. 직접 캡처 리뷰 시 한글 사각형(글꼴 누락)이 드러났으므로 제품 화면 합격으로 취급 금지.
+- 이후 `src/ai_novel_factory/desktop/font_support.py`에서 번들 글꼴 부재 시 설치된 Noto Sans CJK KR/Noto Sans KR/맑은 고딕/나눔고딕 후보 자동 탐색. `anf-linux-studio-safety-ci.yml` Ubuntu `fonts-noto-cjk` 설치, `scripts/ci_studio_snapshots.py`에서 캡처 전 반드시 한국어 글리프 지원 검사. 새 스크린샷의 한글 정상 출력은 **새 run PASS 및 다운로드 PNG 시각 확인 전 미검증**.
+- `desktop/project_studio.py`: 이전 버전 리스트/읽기 전용 미리보기 GUI 버튼 `studioVersionHistoryButton`, 사용자가 복원을 별도 확인한 뒤 `restore_as_revision(...)`으로 **기존 버전 불변, 새 수정본으로만 복원**. 외부에서 회차가 바뀌면 revision 불일치로 복원 거절. 최종본/게시 승인 절대 자동 생성하지 않음. `test_studio_gui_optional.py`에 앞선 2개 버전이 보존되며 복원이 3번째 REVISION으로 남는 회귀 시나리오 추가. 이 변경의 Linux Qt/Windows EXE 검증은 아직 대기 중.
+- `desktop/project_studio.py`: 최근 작품 더블 클릭으로 오픈, 긴 신작 마법사 화면을 `QScrollArea`로 표시해 820×560 등 작은 창에서도 생성 액션 접근 지원. 목표 회차 수가 없는 예전 SQLite 작품은 `?`로 표시해 신규 GUI에서 기존 사용자 작품 열기를 막지 않음.
+- `tests/test_studio_gui_optional.py`: 기존에 `restarted` 창을 인스턴스화하기 전 참조하던 잘못된 테스트 순서 제거. Windows GUI 오프스크린 테스트가 통과하더라도 사용자 육안 인수와 실제 OS foreground 인수는 별개.
+- 최근 신규 기능은 `ac8ea5453aee0d37c7dfd9e31d445e33b93b99a7` 검증 브랜치에서 구현. Windows 실제 OS UIA 테스트, 오버레이에 가렸던 네이티브 화면, 진짜 30/100/250화 장편 품질/전수 참고작 유사성 검증 및 01~100 전체 완성은 계속 **RELEASE_BLOCKED**.
