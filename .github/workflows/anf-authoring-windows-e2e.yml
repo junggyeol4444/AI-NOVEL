@@ -58,6 +58,14 @@ jobs:
           if ($code -ne 0) { exit 1 }
           python -c "import json; p=json.load(open('build/ci/journey/compiled_exe_user_journey.json',encoding='utf8')); assert p['whole_user_journey']=='PASS' and len(p['steps'])>=12 and all(x['result']=='PASS' for x in p['steps'])"
           if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Upload Windows QA-only unsigned EXE (no models or manuscripts)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ANF-Windows-QA-Unsigned-Not-A-Release
+          retention-days: 7
+          if-no-files-found: error
+          path: dist/stage97/AI_Novel_Factory.exe
       - name: Save metadata only; never upload model or manuscripts
         if: always()
         uses: actions/upload-artifact@v4
