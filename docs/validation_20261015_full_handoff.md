@@ -136,3 +136,13 @@
 - `desktop/project_studio.py`: 최근 작품 더블 클릭으로 오픈, 긴 신작 마법사 화면을 `QScrollArea`로 표시해 820×560 등 작은 창에서도 생성 액션 접근 지원. 목표 회차 수가 없는 예전 SQLite 작품은 `?`로 표시해 신규 GUI에서 기존 사용자 작품 열기를 막지 않음.
 - `tests/test_studio_gui_optional.py`: 기존에 `restarted` 창을 인스턴스화하기 전 참조하던 잘못된 테스트 순서 제거. Windows GUI 오프스크린 테스트가 통과하더라도 사용자 육안 인수와 실제 OS foreground 인수는 별개.
 - 최근 신규 기능은 `ac8ea5453aee0d37c7dfd9e31d445e33b93b99a7` 검증 브랜치에서 구현. Windows 실제 OS UIA 테스트, 오버레이에 가렸던 네이티브 화면, 진짜 30/100/250화 장편 품질/전수 참고작 유사성 검증 및 01~100 전체 완성은 계속 **RELEASE_BLOCKED**.
+
+
+### 2026-10-15 현재 추가 GUI 개발: 읽기 전용 버전 탐색 + 반응형 집필실 (최신 상태)
+
+- `project_studio.py`: 원고 저장 버튼 아래 `이전 원고·버전 이력` GUI를 연결, 버전 목록의 ordinal/kind/date와 읽기 전용 과거 초고 미리보기 제공. 사용자 승인 후에만 `restore_as_revision`으로 **새 버전**을 생성하는 복원; 기존 이력/SQLite 자료 삭제 없음. 사용자가 아직 저장하지 않은 원고가 있으면 이동·폐기를 묻고, 외부에서 episode revision이 변경된 경우 복원 거절. 최종본 승인/출판 자동 부여 없음.
+- `tests/test_studio_gui_optional.py`: 이전 두 원고 버전이 유지되는 3번째 복원 REVISION 시나리오와 실제 Qt 버튼으로 역사 대화상자 열기/읽기 전용 목록·본문 미리보기 검증 추가. **최신 버전 run 통과 전 테스트 결과 PASS 주장 금지**.
+- `project_studio.py`: 좁은 화면에서는 설정·검수 우측 패널을 자동으로 접어 주 원고 입력 공간을 확보하고, 설정·검수 펼치기 버튼으로 언제든 보게 함. 넓은 화면에서는 원고+설정 병렬 제공, 사용자가 직접 토글하면 크기 조절로 설정 변경을 덮지 않음. 양쪽 회차/설정 패널 최소·최대 폭 조정.
+- `font_support.py`: Ubuntu CI에 Korean CJK OS 폰트가 설치될 때 bundled font가 없더라도 지원 후보를 찾아 적용. `scripts/ci_studio_snapshots.py`는 사각형 대신 실제 한국어 글리프를 렌더할 수 없으면 실패하도록 변경. 화면의 실제 이미지 확인 전 `KOREAN_FONT_OK` 선언 금지.
+- 마지막 구현 SHA `c44179416ad7518ad88aa3ad5b0629c1490ad14b`, Actions 가장 최신 Linux run `38687509570`, Windows EXE `38687510278`, Windows 11 네이티브 `38687509641`. 조회 시 대기 중이었으며 앞으로 결과 재확인 필요. `main` 무변경.
+- 이미 증명된 회귀 결과는 **이전 코드 `90f53e26`의 Linux offscreen Qt run `38686693268` SUCCESS 한 건**. 이 후 개선한 기능의 검증을 이전 run 결과로 거짓 추론하지 말 것. Windows 물리 사용자 인수, Windows OOBE 전경 가림 해소, 참고 전수 유사성·장편 30/100/250화 품질, 01~100 전면 기능 완성은 미검증. `RELEASE_BLOCKED` 유지.
