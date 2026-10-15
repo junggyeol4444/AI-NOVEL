@@ -27,11 +27,12 @@ def run(output_dir: str) -> int:
         check('windows11_packaged_exe', os.name == 'nt' and bool(getattr(sys, 'frozen', False)))
         os.environ['QT_QPA_PLATFORM'] = 'offscreen'
         from PySide6.QtWidgets import QApplication, QLabel, QPushButton
-        from PySide6.QtCore import Qt
+        from PySide6.QtCore import Qt, QStandardPaths
         from PySide6.QtTest import QTest
         from .navigation import SECTIONS
         from .app import MainWindow
         app = QApplication.instance() or QApplication([])
+        QStandardPaths.setTestModeEnabled(True)
         window = MainWindow()
         window.show()
         app.processEvents()
@@ -55,6 +56,47 @@ def run(output_dir: str) -> int:
                   and snap.height() > 400
                   and snap.save(str(image), 'PNG')
                   and image.stat().st_size > 1024)
+        # Exercise the new first-run UI on synthetic local data, not just its widget tree.
+        window.sidebar.setCurrentRow(0)
+        window.novel_tabs.setCurrentIndex(0)
+        studio = window.studio
+        check('studio_first_run_home_visible',
+              studio.isVisible() and studio.pages.currentIndex() == 0
+              and studio.findChild(QPushButton, 'studioNewButton') is not None)
+        QTest.mouseClick(studio.findChild(QPushButton, 'studioNewButton'),
+                         Qt.MouseButton.LeftButton)
+        studio.new_title.setText('테스트 빛의 도시')
+        studio.new_author.setText('합성 원고')
+        studio.new_genre.setText('판타지')
+        studio.new_subject.setPlainText('가상 도시에 들어오는 여행자')
+        studio.new_premise.setPlainText('오직 새로 만든 설정만 사용')
+        QTest.mouseClick(studio.findChild(QPushButton, 'studioCreateProjectButton'),
+                         Qt.MouseButton.LeftButton)
+        app.processEvents()
+        session = window.authoring.session
+        check('studio_create_click_persisted_private_sqlite',
+              bool(session.project_id) and session.path.is_file()
+              and studio.pages.currentIndex() == 2)
+        # The standalone new-episode dialog is covered separately; this setup
+        # scopes the editor test to the actual visible manuscript save click.
+        session.create_episode(1, '합성 회차 플롯')
+        window.authoring._sync()
+        studio.refresh()
+        studio.editor.setPlainText('창작 원고 — 기존 작품을 복사하지 않은 합성 테스트')
+        QTest.mouseClick(studio.findChild(QPushButton, 'studioSaveManuscript'),
+                         Qt.MouseButton.LeftButton)
+        app.processEvents()
+        from ai_novel_factory.database.episodes import EpisodeStore
+        from ai_novel_factory.manuscript_versions import ManuscriptVersionStore
+        with EpisodeStore(session.path) as store:
+            check('studio_manual_draft_saved_in_real_db',
+                  store.get_episode(session.project_id, 1).draft.startswith('창작 원고'))
+        with ManuscriptVersionStore(session.path) as versions:
+            check('studio_append_only_manuscript_version_created',
+                  len(versions.list_versions(session.project_id, 1)) == 1)
+        snapshot = output / 'studio_real_writer_qt.png'
+        check('studio_visible_writer_screenshot_captured_offscreen',
+              window.grab().save(str(snapshot), 'PNG') and snapshot.stat().st_size > 1024)
         check('authoring_batch_control_accessible', window.authoring.auto_panel.start_button.isEnabled())
         check('publication_upload_disabled', not hasattr(window, 'publish_button'))
         report['whole_windows11_qt_journey'] = 'PASS'
