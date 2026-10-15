@@ -16,6 +16,8 @@ class DesktopGuiTests(unittest.TestCase):
         from ai_novel_factory.desktop.app import MainWindow
         app = QApplication.instance() or QApplication([])
         window = MainWindow()
+        window.show()
+        app.processEvents()
         self.assertEqual(window.sidebar.count(), 12)
         window.sidebar.setCurrentRow(7)
         self.assertEqual(window.pages.currentIndex(), 7)

@@ -518,7 +518,10 @@ class ProjectStudio(QWidget):
         title = db.get_project(pid).title
         episodes = db.list_episodes(pid)
         completed = sum(bool(ep.final_text.strip()) for ep in episodes)
-        target = db.get_rule(pid, 'target_episodes').value or '?'
+        # Older locally created projects have no target_episodes rule.
+        # Display missing optional metadata instead of breaking project open.
+        saved_rules = {rule.key: rule.value for rule in db.list_rules(pid)}
+        target = saved_rules.get('target_episodes') or '?'
         self.heading.setText(title)
         self.summary.setText('현재 선택한 작품 · 내 컴퓨터에만 저장됩니다.')
         self.progress.setText(
@@ -545,7 +548,7 @@ class ProjectStudio(QWidget):
             self._loaded_revision = None
             self._shown_text = ''
             self.editor.setPlainText('')
-            self.canon.setPlainText(db.get_rule(pid, 'premise').value)
+            self.canon.setPlainText(saved_rules.get('premise', ''))
             self.quality.setText('검수 상태: NOT_RUN')
             return
         ep = session.episode()
@@ -554,7 +557,7 @@ class ProjectStudio(QWidget):
             self._loaded_revision = ep.revision
             self.editor.setPlainText(self._shown_text)
         self._loaded_episode = ep.episode
-        bible = db.get_rule(pid, 'premise').value
+        bible = saved_rules.get('premise', '')
         self.canon.setPlainText('작품 설정\n' + bible + '\n\n회차 플롯\n' + ep.plot)
         records = db.list_checks(pid, ep.episode)
         current = [c for c in records if c.content_revision == ep.revision]
