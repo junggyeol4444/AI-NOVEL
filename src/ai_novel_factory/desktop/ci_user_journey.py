@@ -219,6 +219,59 @@ def run(args):
             if page.findChild(QLabel, 'pending_' + section.key) is not None:
                 unconnected.append(section.key)
         report['unconnected_user_menus'] = unconnected
+        # Real local CPU model extended path: batch-create episode 2, quality
+        # evidence, checkpoint then re-run without overwriting original draft.
+        from ai_novel_factory.story_arcs import plan_story_arcs, validate_arc_coverage
+        from ai_novel_factory.episode_planner import plan_episodes, validate_episode_plans
+        from ai_novel_factory.planning import PlanningInput
+        spec = PlanningInput('fantasy', 'original lantern adventure', 250, 'suspense')
+        arcs = plan_story_arcs(spec)
+        slots = plan_episodes(arcs)
+        check('250_episode_arc_slot_coverage_only',
+              validate_arc_coverage(arcs)
+              and validate_episode_plans(arcs, slots)
+              and len(slots) == 250)
+
+        panel = ui.auto_panel
+        panel.through.setValue(2)
+        panel.target_chars.setValue(80)
+        panel.scenes.setValue(1)
+        panel.consent.setChecked(True)
+        from time import monotonic, sleep
+        QTest.mouseClick(panel.start_button, Qt.MouseButton.LeftButton)
+        deadline = monotonic() + 175
+        while panel.is_running() and monotonic() < deadline:
+            app.processEvents()
+            sleep(0.15)
+        app.processEvents()
+        with EpisodeStore(db_path) as db:
+            episodes = db.list_episodes(pid)
+            original = db.get_episode(pid, 1)
+            newly = db.get_episode(pid, 2) if len(episodes) == 2 else None
+            checks = db.list_checks(pid, 2) if newly else ()
+            check('real_model_multi_episode_via_gui',
+                  newly is not None and newly.draft.strip()
+                  and original.draft == draft
+                  and panel.status.text().startswith('작업 완료:'))
+            check('new_episode_persistent_qc_and_review',
+                  len(checks) >= 6
+                  and any(c.category == 'reference_similarity'
+                          and c.outcome == 'NOT_RUN' for c in checks)
+                  and newly.final_text == '')
+        panel.consent.setChecked(True)
+        QTest.mouseClick(panel.start_button, Qt.MouseButton.LeftButton)
+        deadline = monotonic() + 30
+        while panel.is_running() and monotonic() < deadline:
+            app.processEvents()
+            sleep(0.1)
+        app.processEvents()
+        with EpisodeStore(db_path) as db:
+            check('batch_resume_never_overwrites_existing_episode',
+                  panel.status.text().startswith('작업 완료:')
+                  and '로컬 AI 실행 0회' in panel.status.text()
+                  and db.get_episode(pid, 1).draft == draft
+                  and db.get_episode(pid, 2).draft == newly.draft)
+
         check('no_publication', not hasattr(ui, 'publish_button'))
         draft_hash = hashlib.sha256(draft.encode('utf-8')).hexdigest()
         report['draft_sha256'] = draft_hash
