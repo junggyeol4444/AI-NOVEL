@@ -186,3 +186,11 @@
 - **검증된 결과:** Linux Qt offscreen run `38689275922` SUCCESS(이전 commit `78086272`), 실서비스 PostgreSQL/Redis run `38689911350` SUCCESS(직전 commit `4b4b5ccd`). **최신 commit `ffeac8cd` 전체 Windows EXE/Qt 통합 검증은 PASS 근거 없음.** Linux quick run `38690349611`, Windows 11 run `38690349621`, Windows EXE run `38690349610`을 최신 결과 확인 대상으로 기록.
 - 이전 성공 run `38688203975`의 합성 Linux Qt GUI 스크린샷 4장을 직접 내려받아 열어 보니 **한국어 글리프가 정상적으로 표시**되는 것을 확인했다. 화면은 820×750 내외 첫 작품 홈/작품 생성 마법사/원고 집필실/진척 홈이며 Qt offscreen 제품 UX 증거에 한정한다. 이 이미지를 실제 Windows 바탕화면의 포그라운드 시각 인수나 전체 실사용 QA로 잘못 표시하지 말 것.
 - 물리 Windows 11 OOBE 전경 문제, 모든 원래 01~100 단계, 장편 집필 품질/저작권 안전성/출판 검수는 아직 미완. **RELEASE_BLOCKED** 유지. `main`은 `69225edeed0a09ded5f847dad9b9ea63bc45367c` 그대로, 사용자의 실제 SQLite/원고 미수정. 새 예약/알림 자동화 생성 없음.
+
+
+### 2026-10-15 15시경 검증 실패를 통한 추가 원인 수정
+
+- **Windows fast studio run `38690349590`: FAILURE (원인 특정).** 단독 신규 SQLite 보호 테스트의 9개 시나리오 중 6개 정상, 재오픈 관련 3개가 teardown 시 `PermissionError [WinError 32]`로 실패. `PlotEditorSession.open_existing`의 read-only SQLite preflight가 `with sqlite3.connect(uri, uri=True) as probe`를 사용했는데, 표준 `sqlite3.Connection.__exit__`는 트랜잭션만 종료하며 연결을 닫지 않는다. `contextlib.closing`으로 모든 분기에서 **명시적 sqlite3 연결 종료**를 수행하도록 `plot_editor_model.py` 수정. Windows 파일 잠금과 기존 사용자 원고를 보호하려는 조치이며 이 변경의 재검증 결과는 확인해야 한다.
+- **Linux Qt run `38690527581`: FAILURE (원인 특정).** Qt 테스트에서 이미 네비게이션 검증 부분이 DB 2화를 생성했는데, 새 실패 회차 이동 시나리오가 2화를 다시 생성해 `EpisodeError: 해당 회차가 이미 존재` 발생. 테스트에서 기존 합성 2화를 그대로 재사용하도록 `test_studio_gui_optional.py` 수정. 이 실패는 앱의 회차 중복 방지 검사가 작동한 것이고, 테스트 설정 오류이지 작품 데이터를 버리는 버그가 아니다.
+- 소스 최신 수정 SHA `ef53fd3f4ddff6af2bf319b34a4a9db5fda2784b`. 재검증 run: Linux Qt `38690721746`, Windows fast `38690721575`, Windows 실제 데스크톱 `38690721560`, Windows EXE `38690721823`. 직전 Linux/Windows 실패를 PASS로 바꿔 선언하지 말고 새 워크플로가 실제 `success`인지 확인할 것.
+- 이전 성공 근거: Linux Qt `38689275922` SUCCESS(회차 검색/저장 기본), real services `38690527616` SUCCESS(SQLite 외 구성 서비스 별도). 하지만 현재 커밋의 전체 검증은 아직 `RELEASE_BLOCKED`. 예약/자동화 새로 생성하지 않았고 `main` 및 실제 사용자 데이터 변경 없음.
