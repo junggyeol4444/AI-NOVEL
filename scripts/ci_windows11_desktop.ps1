@@ -44,7 +44,7 @@ try {
   Add-Type -AssemblyName UIAutomationClient
   $root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
   if ($null -eq $root) { throw 'Windows UIAutomation could not attach to the Qt EXE' }
-  $wanted = @('작품', 'Novel Bible', 'Characters', 'World', 'Timeline', 'Relationships', 'Foreshadowing', 'Reference Novels', 'Reference Patterns', 'Episodes', 'Similarity Reports', 'Publication')
+  $wanted = @('작품 홈', '작품 설정', '등장인물', '세계관', '시간선', '인물 관계', '복선 관리', '참고소설', '참고 패턴', '회차 기획', '유사성 검사', '내보내기·출판')
   $found = 0
   $clicks = 0
   $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
