@@ -3,6 +3,11 @@ on:
   push:
     branches: [validation/gui-authoring-e2e-20261014]
   workflow_dispatch:
+# Validation-only: a newer candidate supersedes a queued earlier candidate.
+# Do not change the pre-existing hourly/scheduled workflows.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
