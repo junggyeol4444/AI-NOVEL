@@ -478,9 +478,8 @@ class ProjectStudio(QWidget):
 
     def _create_episode(self):
         session = self.workflow.session
-        if not session.project_id or not self.confirm_discard():
-            if not session.project_id:
-                self._show_error('작품을 먼저 열어 주세요.')
+        if not session.project_id:
+            self._show_error('작품을 먼저 열어 주세요.')
             return
         dialog = QDialog(self)
         dialog.setWindowTitle('새 회차 기획')
@@ -501,6 +500,10 @@ class ProjectStudio(QWidget):
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        # Cancelled dialogs cannot discard draft changes or prompt to do so.
+        # Even an accepted request keeps the editor intact if DB creation fails.
+        if not self.confirm_discard(apply=False):
             return
         try:
             session.create_episode(number.value(), plot.toPlainText())

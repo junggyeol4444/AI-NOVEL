@@ -158,6 +158,25 @@ class UserFirstStudioTests(unittest.TestCase):
             self.assertEqual(studio.episode_list.currentItem().data(
                 Qt.ItemDataRole.UserRole), 1)
             self.assertEqual(studio.editor.toPlainText(), unsaved_switch)
+
+            # Clicking New Chapter then cancelling the modal must never
+            # prompt to throw away the chapter being edited.
+            modal_cancellation = {}
+            def dismiss_chapter_dialog():
+                dialogs = [w for w in QApplication.topLevelWidgets()
+                           if isinstance(w, QDialog)
+                           and w.windowTitle() == '새 회차 기획']
+                modal_cancellation['visible'] = bool(dialogs)
+                if dialogs:
+                    dialogs[0].reject()
+            QTimer.singleShot(0, dismiss_chapter_dialog)
+            with patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                       side_effect=AssertionError('Cancelled new chapter must not discard')):
+                QTest.mouseClick(studio.findChild(
+                    QPushButton, 'studioAddEpisode'), Qt.MouseButton.LeftButton)
+            self.assertTrue(modal_cancellation.get('visible'))
+            self.assertEqual(studio.editor.toPlainText(), unsaved_switch)
+            self.assertEqual(session.episode_number, 1)
             studio.editor.setPlainText(revised)
             self.assertIn('저장본과 일치', studio.manuscript_stats.text())
 
