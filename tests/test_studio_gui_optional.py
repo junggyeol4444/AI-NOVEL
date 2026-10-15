@@ -8,6 +8,7 @@ from __future__ import annotations
 import importlib.util
 import os
 from pathlib import Path
+import subprocess
 import sys
 import unittest
 from uuid import uuid4
@@ -18,6 +19,24 @@ sys.path.insert(0, str(ROOT / 'src'))
 
 @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
 class UserFirstStudioTests(unittest.TestCase):
+    def test_gui_smoke_launches_current_main_window(self):
+        # Execute the same launcher --gui-smoke path as the packaged Windows
+        # EXE, against disposable CI settings and without a remote API call.
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as temp:
+            environment = os.environ.copy()
+            environment['QT_QPA_PLATFORM'] = 'offscreen'
+            environment['PYTHONPATH'] = str(ROOT / 'src')
+            environment['XDG_CONFIG_HOME'] = str(Path(temp) / 'config')
+            environment['XDG_DATA_HOME'] = str(Path(temp) / 'data')
+            process = subprocess.run(
+                [sys.executable, str(ROOT / 'packaging/windows/launcher.py'),
+                 '--gui-smoke'],
+                cwd=ROOT, env=environment, capture_output=True,
+                text=True, errors='replace', timeout=25)
+            self.assertEqual(process.returncode, 0, process.stderr[-1000:])
+            self.assertIn('ANF GUI smoke OK: 12 sections', process.stdout)
+
     def test_create_write_version_reopen_with_visible_buttons(self):
         os.environ['QT_QPA_PLATFORM'] = 'offscreen'
         from unittest.mock import patch

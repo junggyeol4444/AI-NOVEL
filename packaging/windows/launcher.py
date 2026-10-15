@@ -31,7 +31,11 @@ def main(argv: list[str] | None = None) -> int:
         window = MainWindow()
         try:
             assert window.sidebar.count() == 12
-            assert 'API 미연결' in window.statusBar().currentMessage()
+            # The current user-first GUI advertises consent before any AI
+            # generation or publication. The old 'API 미연결' caption was
+            # removed; requiring it made successful Windows builds fail smoke.
+            assert 'AI 실행과 외부 게시에는 별도 승인이 필요합니다.' in (
+                window.statusBar().currentMessage())
             print('ANF GUI smoke OK: 12 sections')
         finally:
             window.close()
