@@ -68,6 +68,7 @@ class MainWindow(QMainWindow):
                     lambda: self.novel_tabs.setCurrentIndex(1), page)
                 self.novel_tabs.addTab(self.studio, '작품 홈 · 집필실')
                 self.novel_tabs.addTab(self.authoring, '기존 기능 · 상세 작업')
+                self.novel_tabs.currentChanged.connect(self._on_novel_tab_changed)
                 layout.addWidget(self.novel_tabs)
                 # The detailed existing tools remain available without replacing
                 # user data or changing their Qt automation object names.
@@ -171,6 +172,14 @@ class MainWindow(QMainWindow):
         index = self.sidebar.row(selected[0])
         if index >= 0 and index != self.pages.currentIndex():
             self._change_page(index)
+
+    def _on_novel_tab_changed(self, index: int) -> None:
+        if index == 1 and not self.studio.confirm_discard():
+            self.novel_tabs.blockSignals(True)
+            self.novel_tabs.setCurrentIndex(0)
+            self.novel_tabs.blockSignals(False)
+        elif index == 0:
+            self.studio.refresh()
 
     def _go_to_key(self, key: str) -> None:
         for index, section in enumerate(SECTIONS):
