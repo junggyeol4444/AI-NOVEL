@@ -177,7 +177,7 @@ class ProjectStudio(QWidget):
         splitter.setObjectName('studioWriterSplitter')
         # Episode list is directly backed by the selected project's SQLite.
         episodes_side = QWidget()
-        episodes_side.setMinimumWidth(135)
+        episodes_side.setMinimumWidth(115)
         episodes_side.setMaximumWidth(180)
         episodes_layout = QVBoxLayout(episodes_side)
         episodes_layout.addWidget(QLabel('회차'))
@@ -197,7 +197,7 @@ class ProjectStudio(QWidget):
         splitter.addWidget(episodes_side)
 
         manuscript_side = QWidget()
-        manuscript_side.setMinimumWidth(270)
+        manuscript_side.setMinimumWidth(235)
         center = QVBoxLayout(manuscript_side)
         self.editor_status = QLabel('저장된 초고만 보여줍니다. 자동 품질 검사는 통과로 표시하지 않습니다.')
         self.editor_status.setWordWrap(True)
@@ -231,7 +231,7 @@ class ProjectStudio(QWidget):
         splitter.addWidget(manuscript_side)
 
         context_side = QWidget()
-        context_side.setMinimumWidth(210)
+        context_side.setMinimumWidth(175)
         context_side.setMaximumWidth(310)
         self.context_side = context_side
         context = QVBoxLayout(context_side)
