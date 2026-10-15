@@ -83,6 +83,24 @@ class UserFirstStudioTests(unittest.TestCase):
             with EpisodeStore(path) as store:
                 self.assertEqual(store.get_episode(pid, 1).draft, revised)
 
+            # A running AI worker blocks closing BEFORE asking to discard.
+            # A declined/blocked shutdown must leave the user's draft intact.
+            from unittest.mock import patch
+            uncommitted = revised + ' 저장하지 않은 테스트 문장'
+            studio.editor.setPlainText(uncommitted)
+            self.assertIn('미저장', studio.manuscript_stats.text())
+            with (patch.object(window.authoring.auto_panel, 'is_running',
+                               return_value=True),
+                  patch.object(window.authoring.auto_panel, 'request_stop') as stop,
+                  patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                        side_effect=AssertionError('Shutdown must not prompt to discard'))):
+                self.assertFalse(window.close())
+                stop.assert_called_once()
+            self.assertEqual(studio.editor.toPlainText(), uncommitted)
+            self.assertIn('미저장', studio.manuscript_stats.text())
+            studio.editor.setPlainText(revised)
+            self.assertIn('저장본과 일치', studio.manuscript_stats.text())
+
             self.assertTrue(window.close())
             window = None
             app.processEvents()
@@ -101,6 +119,8 @@ class UserFirstStudioTests(unittest.TestCase):
             restarted.studio._show(2)
             app.processEvents()
             self.assertEqual(restarted.studio.editor.toPlainText(), revised)
+            self.assertIn('공백 제외', restarted.studio.manuscript_stats.text())
+            self.assertIn('목표 5,000글자', restarted.studio.manuscript_stats.text())
             self.assertEqual(restarted.studio.quality.text().count('NOT_RUN') >= 1, True)
 
             # Regression: declining to discard must keep the current editor;

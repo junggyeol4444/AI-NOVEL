@@ -32,6 +32,7 @@ class ProjectStudio(QWidget):
         self._loaded_episode = None
         self._loaded_revision = None
         self._shown_text = ''
+        self._episode_char_target = None
         self._context_manual = False
         self._recent_settings = QSettings('AI Novel Factory', 'ProjectStudio')
         self.setObjectName('projectStudio')
@@ -202,6 +203,10 @@ class ProjectStudio(QWidget):
         self.editor_status = QLabel('저장된 초고만 보여줍니다. 자동 품질 검사는 통과로 표시하지 않습니다.')
         self.editor_status.setWordWrap(True)
         center.addWidget(self.editor_status)
+        self.manuscript_stats = QLabel('원고 0글자 · 저장 여부 확인')
+        self.manuscript_stats.setObjectName('studioManuscriptStats')
+        self.manuscript_stats.setAccessibleName('원고 글자 수와 저장 상태')
+        center.addWidget(self.manuscript_stats)
         self.editor = QPlainTextEdit()
         self.editor.setObjectName('studioManuscriptEditor')
         self.editor.setAccessibleName('회차 원고 편집기')
@@ -304,7 +309,19 @@ class ProjectStudio(QWidget):
         self.editor.setPlainText(self._shown_text)
         return True
 
+    def _update_manuscript_stats(self):
+        text = self.editor.toPlainText()
+        count = sum(not letter.isspace() for letter in text)
+        words = len(text.split())
+        target = self._episode_char_target
+        progress = (f' · 목표 {target:,}글자 대비 {count * 100 // target}%'
+                    if isinstance(target, int) and target > 0 else '')
+        dirty = ' · 미저장' if text != self._shown_text else ' · 저장본과 일치'
+        self.manuscript_stats.setText(
+            f'공백 제외 {count:,}글자 · {words:,}어절' + progress + dirty)
+
     def _mark_dirty(self):
+        self._update_manuscript_stats()
         if self.pages.currentIndex() == 2:
             self.editor_status.setText(
                 '수정 사항이 저장되지 않았습니다. 이동 전 원고 버전을 저장하세요.'
@@ -660,6 +677,8 @@ class ProjectStudio(QWidget):
             self._shown_text = ''
             self._loaded_episode = None
             self._loaded_revision = None
+            self._episode_char_target = None
+            self._update_manuscript_stats()
             return
         db, pid = session.required()
         title = db.get_project(pid).title
@@ -668,6 +687,10 @@ class ProjectStudio(QWidget):
         # Older locally created projects have no target_episodes rule.
         # Display missing optional metadata instead of breaking project open.
         saved_rules = {rule.key: rule.value for rule in db.list_rules(pid)}
+        char_target = saved_rules.get('characters_per_episode', '')
+        self._episode_char_target = (
+            int(char_target) if str(char_target).isdecimal()
+            and 1 <= int(char_target) <= 500000 else None)
         target = saved_rules.get('target_episodes') or '?'
         self.heading.setText(title)
         self.summary.setText('현재 선택한 작품 · 내 컴퓨터에만 저장됩니다.')
@@ -715,6 +738,7 @@ class ProjectStudio(QWidget):
         self.quality.setText('검수 (현재 원고 버전)\n' + '\n'.join(output))
         if self.editor.toPlainText() == self._shown_text:
             self.editor_status.setText('저장된 초고 / 사용자 직접 검수 필요')
+        self._update_manuscript_stats()
 
     def _show_error(self, message):
         # Never show user file paths that OSError may include in the message.

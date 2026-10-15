@@ -183,9 +183,8 @@ class MainWindow(QMainWindow):
         # No network request happens automatically. Publishing and AI remain disabled.
 
     def closeEvent(self, event) -> None:
-        if self.studio is not None and not self.studio.confirm_discard():
-            event.ignore()
-            return
+        # A blocked shutdown must never discard manuscript text. Check
+        # running workers *before* any user confirmation that can discard it.
         authoring = getattr(self, 'authoring', None)
         if authoring is not None and authoring.auto_panel.is_running():
             authoring.auto_panel.request_stop()
@@ -200,12 +199,14 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
         editor = getattr(self, 'plot_editor', None)
+        if editor is not None and not editor._warn_unsaved():
+            event.ignore()
+            return
+        if self.studio is not None and not self.studio.confirm_discard():
+            event.ignore()
+            return
         if editor is not None:
-            if not editor._warn_unsaved():
-                event.ignore()
-                return
             editor.session.close()
-        authoring = getattr(self, 'authoring', None)
         if authoring is not None:
             authoring.session.close()
         event.accept()
