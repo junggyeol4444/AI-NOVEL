@@ -21,8 +21,8 @@ class NavigationTests(unittest.TestCase):
         self.assertTrue(all(s.description for s in SECTIONS))
 
     def test_reference_and_similarity_pages_present(self):
-        self.assertEqual(section_for_key('references').label, 'Reference Novels')
-        self.assertEqual(section_for_key('similarity').label, 'Similarity Reports')
+        self.assertEqual(section_for_key('references').label, '참고소설')
+        self.assertEqual(section_for_key('similarity').label, '유사성 검사')
         with self.assertRaises(KeyError):
             section_for_key('not-a-section')
 
