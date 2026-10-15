@@ -18,6 +18,7 @@ jobs:
       PYTHONIOENCODING: utf-8
       ANF_ENV: test
       ANF_AI_PROVIDER: disabled
+      PYTHONFAULTHANDLER: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,9 +41,10 @@ jobs:
       - name: Exclusive SQLite create and race-safety regression
         run: python -m unittest discover -s tests -p test_authoring_session_safety.py -v
       - name: Actual Qt offscreen buttons create, edit, persist, reopen and reject conflict
-        run: python -m unittest discover -s tests -p test_studio_gui_optional.py -v
+        run: python -X faulthandler -m unittest discover -s tests -p test_studio_gui_optional.py -v
       - name: Synthetic GUI screenshots with real Qt widgets
-        run: python scripts/ci_studio_snapshots.py build/ci/studio-synthetic-screens
+        if: ${{ success() || failure() }}
+        run: python -X faulthandler scripts/ci_studio_snapshots.py build/ci/studio-synthetic-screens
       - name: Preserve ONLY synthetic GUI screenshots for manual visual review
         if: always()
         uses: actions/upload-artifact@v4

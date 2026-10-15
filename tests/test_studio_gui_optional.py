@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / 'src'))
 class UserFirstStudioTests(unittest.TestCase):
     def test_create_write_version_reopen_with_visible_buttons(self):
         os.environ['QT_QPA_PLATFORM'] = 'offscreen'
-        from PySide6.QtCore import Qt, QStandardPaths, QTimer
+        from PySide6.QtCore import Qt, QStandardPaths, QTimer, QCoreApplication, QEvent
         from PySide6.QtTest import QTest
         from PySide6.QtWidgets import (
             QApplication, QPushButton, QListWidget, QPlainTextEdit, QDialog)
@@ -102,8 +102,14 @@ class UserFirstStudioTests(unittest.TestCase):
             self.assertIn('저장본과 일치', studio.manuscript_stats.text())
 
             self.assertTrue(window.close())
-            window = None
+            # QWidget.close() only hides a window. Explicitly dispose it
+            # before opening another QApplication top-level window; otherwise
+            # Qt can crash during interpreter teardown after tests print OK.
+            window.deleteLater()
+            studio = None
+            QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
             app.processEvents()
+            window = None
             restarted = MainWindow()
             window = restarted
             window.show()
@@ -210,10 +216,18 @@ class UserFirstStudioTests(unittest.TestCase):
             with patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
                        return_value=QMessageBox.StandardButton.Yes):
                 self.assertTrue(window.close())
+            window.deleteLater()
+            QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+            app.processEvents()
             window = None
         finally:
             if window is not None:
-                window.close()
+                with patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                           return_value=QMessageBox.StandardButton.Yes):
+                    window.close()
+                window.deleteLater()
+            QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+            app.processEvents()
 
 
 if __name__ == '__main__':
