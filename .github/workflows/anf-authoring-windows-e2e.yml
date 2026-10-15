@@ -124,3 +124,60 @@ jobs:
             build/ci/portable_model_e2e.json
             build/ci/portable-gui/portable_gui_report.json
             build/ci/portable-gui/restarted_report.json
+
+  windows11-complete-offline-app:
+    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    needs: compiled-windows-authoring
+    runs-on: windows-11-arm
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: ANF-Full-Offline-Portable-QA-Windows-x64-Not-Release
+          path: build/ci/qa_bundle
+      - name: Windows 11 actual OS with x64 EXE emulation and offline GGUF GUI user journey
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $os = Get-CimInstance Win32_OperatingSystem
+          Write-Host ("Actual OS: " + $os.Caption + "; arch " + $env:PROCESSOR_ARCHITECTURE)
+          if ($os.Caption -notmatch 'Windows 11' -or $env:PROCESSOR_ARCHITECTURE -ne 'ARM64') {
+            throw 'Required real Windows 11 ARM64 OS was not found'
+          }
+          $exe = (Resolve-Path 'build/ci/qa_bundle/AI_Novel_Factory.exe').Path
+          $out = Join-Path (Get-Location).Path 'build/ci/win11-standalone'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $p = Start-Process -FilePath $exe -ArgumentList @('--ci-portable-gui', ('"' + $out + '"')) -PassThru -Wait
+          if (Test-Path (Join-Path $out 'portable_gui_report.json')) {
+            $report = Get-Content (Join-Path $out 'portable_gui_report.json') -Raw | ConvertFrom-Json
+            Write-Host ('Result: ' + $report.result)
+            foreach ($check in $report.steps) {
+              Write-Host ($check.step + ': ' + $check.result)
+            }
+          } else {
+            throw 'Compiled portable app never saved a Windows 11 GUI report'
+          }
+          if ($p.ExitCode -ne 0 -or $report.result -ne 'PASS'
+              -or @($report.steps | Where-Object result -ne 'PASS').Count -gt 0) {
+            throw 'Windows 11 complete offline model, Qt GUI, persistence or EPUB workflow failed'
+          }
+          Write-Host 'PASS: real Windows 11 ARM OS x64 emulation; Qt offscreen GUI; GGUF inference; SQLite and EPUB; independent EXE restart.'
+          Write-Host 'Not a human interactive desktop visual signoff.'
+      - name: Preserve only metadata, never synthetic novel or model weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-windows11-full-portable-qa-metadata
+          retention-days: 7
+          if-no-files-found: warn
+          path: |
+            build/ci/win11-standalone/portable_gui_report.json
+            build/ci/win11-standalone/restarted_report.json
