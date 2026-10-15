@@ -72,3 +72,15 @@
 8. 메시지는 짧고 실결과/실패/화면·근거 링크 위주, 채팅 전송 시간초과 예방.
 
 **새 대화용 자동 시작 지시**: '이 인수인계 파일과 원문 기획안 전문을 모두 읽고, validation/gui-authoring-e2e-20261014 브랜치에서 main은 절대로 손대지 말고, 제품 UX가 불합격이었던 실제 Windows 프로그램 화면을 사용자 중심으로 전면 재설계·구현·검증해라. 기존 DB·키·원고·비활성 자동화 보존, 01–100 원본 단계 모두 실동작으로 연결, 등록 참고작 복제 방지, 장기 AI 모델 집필/검사/Memory·EPUB/출판 목표. 실제 프로그램 바깥에서 화면을 조작·캡처하고 저장·종료·재실행해라. 이미 확인된 PASS/FAIL은 위 Actions 링크와 구분하고 거짓 완성 선언 금지. 짧게 결과 보고.'
+
+## 2026-10-15 새 대화 개발 재개: GUI 첫 구간 구현 및 추가 QA
+
+**제품 판정 계속 RELEASE_BLOCKED.** 아래는 신규 구현 사실이며 통합 제품/물리 Windows 사용자 검수 PASS를 뜻하지 않는다.
+
+- 원본 57섹션/01~100개발 단계와 통합 인수인계 파일 대조. 검증 브랜치에서만 파일 수정. 확인 당시 main SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c`; main 수정/병합/강제푸시 수행하지 않음.
+- `src/ai_novel_factory/desktop/project_studio.py` 추가: 첫 화면 작품 홈(최근 열어본 작품), 장르/소재/주요 설정/회차수/분량 입력으로 기본 로컬 작품 새로 만들기, 현재 작품과 회차 표시, 넓은 편집기·읽기 전용 Canon/플롯·회차별 NOT_RUN 검수 상태, 버전 저장(기존 원고 첫 수정 시 `ManuscriptVersionStore.capture_current` 보존), 고급 기능 연결. 기존 사용자 작품을 자동 열거나 외부 호출하지 않음.
+- `desktop/app.py`는 새 GUI를 기본 표시하고 기존 `AuthoringWorkflowWidget`를 상세 작업 탭에 유지. 기존 Canon/Publication 연동 및 플롯 에디터의 현재 작품 DB 연결 시도. 창 크기를 화면 가용 영역에 맞춤. `desktop/navigation.py` 12개 기존 기능 키는 보존하면서 한국어 작업 이름으로 통일. GUI 전면 완성 아님; 플롯/참고/검수/출판 독립 메뉴 통합은 남아 있음.
+- 테스트: `desktop/ci_win11_ui.py`에 합성 데이터로 신규 홈/로컬 작품 생성, 사용자 원고 버전 저장, 화면 스냅샷 검증 추가. `scripts/ci_windows11_external_authoring.ps1`에 외부 Windows UIAutomation으로 신규 작품 마법사 클릭/필드 입력/작품 제목 확인 추가. `scripts/ci_windows11_desktop.ps1`은 12개 메뉴 선택 후 홈 화면으로 돌아와 실제 HWND를 캡처하도록 수정. 기존 GUI 계약 테스트 문구 변경. 신규 테스트의 PASS 여부는 해당 Actions 완료 전까지 미확정.
+- 직전 확정된 `38681732387` Windows EXE 집필 연계 SUCCESS, `38681732308` 실 PG/벡터/Redis/Celery SUCCESS, `38681732410` Windows 11 실제 데스크톱 QA FAILURE. 실패 원인은 Windows OS 개인정보 OOBE 설정 화면이 앱 전면을 가린 상태(`QtForeground=False`). GitHub 아티팩트 `windows11-actual-desktop-probe` 원본 화면 직접 열어 확인; 캡처된 Qt HWND와 실제 데스크톱 전경은 서로 다르다.
+- GUI 개편 후 검증 워크플로는 `validation/gui-authoring-e2e-20261014` 새 커밋들에서 자동 실행 중이며 **완료하지 않은 실행은 성공으로 작성하면 안 된다**. 최신 Actions `https://github.com/junggyeol4444/AI-NOVEL/actions?query=branch%3Avalidation%2Fgui-authoring-e2e-20261014`에서 최종 상태를 확인하라.
+- 사용자 데이터/기존 키/연동 설정/비활성 자동화는 수정하지 않았고 실계정 업로드·게시·외부 참고소설 전송 없음. 물리 Windows 10/11 x64 PC/실사용자 마우스·키보드 전체 길찾기/화면 가독성 인수, Reference→Writer 자동 연결/전수 유사성·자동 재작성/30·100·250화 장기 실제 품질은 여전히 미달.
