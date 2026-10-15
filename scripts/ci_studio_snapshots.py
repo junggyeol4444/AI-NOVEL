@@ -64,6 +64,13 @@ def main(directory: str) -> int:
         app.processEvents()
         if window.authoring.session.episode().draft != studio.editor.toPlainText():
             raise AssertionError('Synthetic studio save not confirmed')
+        if studio.width() < 900 and studio.context_toggle.isChecked():
+            raise AssertionError('Small-screen writer must prioritize manuscript width')
+        # The side canon and QC remain reachable through an explicit toggle.
+        studio.context_toggle.click()
+        if not studio.context_toggle.isChecked():
+            raise AssertionError('Writer cannot reveal canon/QC panel')
+        studio.context_toggle.click()
         shot('03-novel-writer')
         QTest.mouseClick(studio.findChild(QPushButton, 'studioHomeButton'),
                          Qt.MouseButton.LeftButton)

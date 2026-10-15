@@ -32,6 +32,7 @@ class ProjectStudio(QWidget):
         self._loaded_episode = None
         self._loaded_revision = None
         self._shown_text = ''
+        self._context_manual = False
         self._recent_settings = QSettings('AI Novel Factory', 'ProjectStudio')
         self.setObjectName('projectStudio')
         root = QVBoxLayout(self)
@@ -163,11 +164,21 @@ class ProjectStudio(QWidget):
         layout = QVBoxLayout(page)
         self.editor_heading = QLabel('집필실 · 작품과 회차를 선택하세요')
         self.editor_heading.setStyleSheet('font-size: 20px; font-weight: 600;')
-        layout.addWidget(self.editor_heading)
+        heading_line = QHBoxLayout()
+        heading_line.addWidget(self.editor_heading, 1)
+        self.context_toggle = QPushButton('설정·검수 펼치기')
+        self.context_toggle.setObjectName('studioContextToggle')
+        self.context_toggle.setAccessibleName('설정·검수 패널 토글')
+        self.context_toggle.setCheckable(True)
+        self.context_toggle.clicked.connect(self._user_toggle_context)
+        heading_line.addWidget(self.context_toggle)
+        layout.addLayout(heading_line)
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setObjectName('studioWriterSplitter')
         # Episode list is directly backed by the selected project's SQLite.
         episodes_side = QWidget()
+        episodes_side.setMinimumWidth(135)
+        episodes_side.setMaximumWidth(180)
         episodes_layout = QVBoxLayout(episodes_side)
         episodes_layout.addWidget(QLabel('회차'))
         self.episode_list = QListWidget()
@@ -186,6 +197,7 @@ class ProjectStudio(QWidget):
         splitter.addWidget(episodes_side)
 
         manuscript_side = QWidget()
+        manuscript_side.setMinimumWidth(270)
         center = QVBoxLayout(manuscript_side)
         self.editor_status = QLabel('저장된 초고만 보여줍니다. 자동 품질 검사는 통과로 표시하지 않습니다.')
         self.editor_status.setWordWrap(True)
@@ -219,6 +231,9 @@ class ProjectStudio(QWidget):
         splitter.addWidget(manuscript_side)
 
         context_side = QWidget()
+        context_side.setMinimumWidth(210)
+        context_side.setMaximumWidth(310)
+        self.context_side = context_side
         context = QVBoxLayout(context_side)
         context.addWidget(QLabel('작품 설정 · 현재 회차'))
         self.canon = QPlainTextEdit()
@@ -236,9 +251,31 @@ class ProjectStudio(QWidget):
             context.addWidget(btn)
         splitter.addWidget(context_side)
         splitter.setChildrenCollapsible(False)
-        splitter.setSizes([175, 710, 280])
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(2, 0)
+        splitter.setSizes([160, 780, 250])
         layout.addWidget(splitter, 1)
         self.pages.addWidget(page)
+
+    def _apply_context_visible(self, visible: bool) -> None:
+        self.context_side.setVisible(visible)
+        self.context_toggle.blockSignals(True)
+        self.context_toggle.setChecked(visible)
+        self.context_toggle.blockSignals(False)
+        self.context_toggle.setText(
+            '설정·검수 접기' if visible else '설정·검수 펼치기')
+
+    def _user_toggle_context(self, visible: bool) -> None:
+        self._context_manual = True
+        self._apply_context_visible(visible)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # Respect an explicit user toggle, but give smaller screens a
+        # manuscript-first layout without permanently hiding canon access.
+        if hasattr(self, 'context_side') and not self._context_manual:
+            self._apply_context_visible(event.size().width() >= 900)
 
     def _show(self, index):
         if index == 2 and not self.workflow.session.project_id:
