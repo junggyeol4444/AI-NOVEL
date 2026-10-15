@@ -84,6 +84,82 @@ def run(args):
         txt, epub = output / 'draft.txt', output / 'book.epub'
         check('txt_export_content', txt.is_file() and draft in txt.read_text(encoding='utf-8'))
         check('epub_export_verified', epub.is_file() and verify_epub(epub, expected_chapters=1).valid)
+        # Use the six real sidebar editors, not direct backend CRUD calls.
+        from ai_novel_factory.desktop.navigation import SECTIONS
+        from ai_novel_factory.database.characters import CharacterStore
+        from ai_novel_factory.database.world_canon import WorldCanonStore
+        from ai_novel_factory.database.event_timeline import EventTimelineStore
+        from ai_novel_factory.database.relationships import RelationshipStore
+        from ai_novel_factory.database.foreshadow import ForeshadowStore
+
+        def menu(key):
+            index = next(i for i, section in enumerate(SECTIONS)
+                         if section.key == key)
+            item = window.sidebar.item(index)
+            QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
+                             pos=window.sidebar.visualItemRect(item).center())
+            app.processEvents()
+            return window.canon_panels[key]
+
+        def submit(panel, fields):
+            for key, value in fields.items():
+                panel._fill(key, value)
+            QTest.mouseClick(panel.save_button, Qt.MouseButton.LeftButton)
+            app.processEvents()
+            if panel.status.text() != '현재 작품의 로컬 SQLite에 저장했습니다.':
+                raise AssertionError('GUI data entry rejected: ' + panel.section)
+
+        panel = menu('bible')
+        submit(panel, {'key': 'genre', 'value': 'original fantasy'})
+        with EpisodeStore(db_path) as db:
+            check('bible_sidebar_gui_saved',
+                  db.get_rule(pid, 'genre').value == 'original fantasy')
+
+        panel = menu('characters')
+        submit(panel, {'name': 'Traveler One', 'personality': 'curious',
+                       'goal': 'find lantern', 'speech_style': 'short'})
+        panel._reset()
+        submit(panel, {'name': 'Traveler Two', 'personality': 'cautious',
+                       'goal': 'guard village', 'speech_style': 'calm'})
+        with CharacterStore(db_path) as db:
+            people = db.list_characters(pid)
+            check('character_sidebar_gui_saved',
+                  len(people) == 2 and {p.name for p in people}
+                  == {'Traveler One', 'Traveler Two'})
+
+        panel = menu('world')
+        submit(panel, {'category': 'region', 'name': 'Fictional Pass',
+                       'description': 'Invented mountains'})
+        with WorldCanonStore(db_path) as db:
+            check('world_sidebar_gui_saved',
+                  len(db.list_entries(pid)) == 1 and
+                  db.list_entries(pid)[0].name == 'Fictional Pass')
+
+        panel = menu('timeline')
+        submit(panel, {'title': 'Lantern Journey',
+                       'when': '2026-01-02'})
+        with EventTimelineStore(db_path) as db:
+            check('timeline_sidebar_gui_saved',
+                  len(db.list_events(pid)) == 1 and
+                  db.list_events(pid)[0].when == '2026-01-02')
+
+        panel = menu('relationships')
+        panel.fields['first'].setCurrentIndex(0)
+        panel.fields['second'].setCurrentIndex(1)
+        submit(panel, {'relationship': 'friends', 'notes': 'met on road'})
+        with RelationshipStore(db_path) as db:
+            check('relationships_sidebar_gui_saved',
+                  len(db.list_at(pid, 1)) == 1 and
+                  db.list_at(pid, 1)[0].relationship == 'friends')
+
+        panel = menu('foreshadowing')
+        submit(panel, {'title': 'Lantern secret',
+                       'note': 'introduced in chapter one'})
+        with ForeshadowStore(db_path) as db:
+            threads = db.list_threads(pid)
+            check('foreshadow_sidebar_gui_saved',
+                  len(threads) == 1 and threads[0].title == 'Lantern secret')
+
         check('no_publication', not hasattr(ui, 'publish_button'))
         draft_hash = hashlib.sha256(draft.encode('utf-8')).hexdigest()
         report['draft_sha256'] = draft_hash
