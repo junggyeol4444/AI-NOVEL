@@ -530,7 +530,10 @@ class ProjectStudio(QWidget):
                    if not self.episode_list.item(i).isHidden()]
         if not indices:
             return
-        current = self.episode_list.currentRow()
+        current = next((
+            i for i in range(self.episode_list.count())
+            if self.episode_list.item(i).data(Qt.ItemDataRole.UserRole)
+               == self.workflow.session.episode_number), -1)
         if current not in indices:
             target = indices[0] if direction > 0 else indices[-1]
         else:
@@ -538,9 +541,11 @@ class ProjectStudio(QWidget):
             if not 0 <= position < len(indices):
                 return
             target = indices[position]
-        # Triggers _select_episode, which guards unsaved changes and restores
-        # the former selection if the user declines.
-        self.episode_list.setCurrentRow(target)
+        # Filtering can leave QListWidget's currentRow at a hidden or stale
+        # selection. Use the persisted session episode, and explicitly invoke
+        # the existing confirmation + refresh path even if Qt suppressed a
+        # currentRowChanged signal for the target index.
+        self._select_episode(target)
 
     def _select_episode(self, row):
         if row < 0:
