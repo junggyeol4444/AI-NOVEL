@@ -97,6 +97,20 @@ class UserFirstStudioTests(unittest.TestCase):
             with EpisodeStore(path) as store:
                 self.assertEqual(store.get_episode(pid, 1).draft, revised)
             studio.editor.setPlainText(revised)
+            # Focus mode gives a narrow-screen writer more manuscript space
+            # without switching chapter, losing text or persisting edits.
+            QTest.mouseClick(studio.findChild(
+                QPushButton, 'studioFocusModeButton'), Qt.MouseButton.LeftButton)
+            self.assertTrue(studio.focus_toggle.isChecked())
+            self.assertFalse(studio.episodes_side.isVisible())
+            self.assertFalse(studio.context_side.isVisible())
+            self.assertEqual(studio.editor.toPlainText(), revised)
+            QTest.mouseClick(studio.findChild(
+                QPushButton, 'studioFocusModeButton'), Qt.MouseButton.LeftButton)
+            self.assertFalse(studio.focus_toggle.isChecked())
+            self.assertTrue(studio.episodes_side.isVisible())
+            self.assertEqual(session.episode_number, 1)
+
             studio.manuscript_find.setText('실제로 존재하지 않는 문자열')
             QTest.mouseClick(studio.findChild(
                 QPushButton, 'studioFindNext'), Qt.MouseButton.LeftButton)

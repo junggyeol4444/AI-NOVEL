@@ -34,6 +34,7 @@ class ProjectStudio(QWidget):
         self._shown_text = ''
         self._episode_char_target = None
         self._context_manual = False
+        self._focus_mode = False
         self._recent_settings = QSettings('AI Novel Factory', 'ProjectStudio')
         self.setObjectName('projectStudio')
         root = QVBoxLayout(self)
@@ -167,6 +168,12 @@ class ProjectStudio(QWidget):
         self.editor_heading.setStyleSheet('font-size: 20px; font-weight: 600;')
         heading_line = QHBoxLayout()
         heading_line.addWidget(self.editor_heading, 1)
+        self.focus_toggle = QPushButton('집중 집필 모드')
+        self.focus_toggle.setObjectName('studioFocusModeButton')
+        self.focus_toggle.setAccessibleName('집중 집필 모드 켜기·끄기')
+        self.focus_toggle.setCheckable(True)
+        self.focus_toggle.clicked.connect(self._toggle_focus_mode)
+        heading_line.addWidget(self.focus_toggle)
         self.context_toggle = QPushButton('설정·검수 펼치기')
         self.context_toggle.setObjectName('studioContextToggle')
         self.context_toggle.setAccessibleName('설정·검수 패널 토글')
@@ -178,6 +185,7 @@ class ProjectStudio(QWidget):
         splitter.setObjectName('studioWriterSplitter')
         # Episode list is directly backed by the selected project's SQLite.
         episodes_side = QWidget()
+        self.episodes_side = episodes_side
         episodes_side.setMinimumWidth(115)
         episodes_side.setMaximumWidth(180)
         episodes_layout = QVBoxLayout(episodes_side)
@@ -316,6 +324,19 @@ class ProjectStudio(QWidget):
         layout.addWidget(splitter, 1)
         self.pages.addWidget(page)
 
+    def _toggle_focus_mode(self, enabled: bool) -> None:
+        # Local-only UI preference; no QSettings changes, no manuscript
+        # transfer, and no session/SQLite writes. Keep a visible exit button.
+        self._focus_mode = enabled
+        self.episodes_side.setVisible(not enabled)
+        self.context_toggle.setEnabled(not enabled)
+        if enabled:
+            self.context_side.setVisible(False)
+        else:
+            self.context_side.setVisible(self.context_toggle.isChecked())
+        self.focus_toggle.setText('집중 모드 종료' if enabled else '집중 집필 모드')
+        self.editor.setFocus(Qt.FocusReason.OtherFocusReason)
+
     def _apply_context_visible(self, visible: bool) -> None:
         self.context_side.setVisible(visible)
         self.context_toggle.blockSignals(True)
@@ -332,7 +353,8 @@ class ProjectStudio(QWidget):
         super().resizeEvent(event)
         # Respect an explicit user toggle, but give smaller screens a
         # manuscript-first layout without permanently hiding canon access.
-        if hasattr(self, 'context_side') and not self._context_manual:
+        if (hasattr(self, 'context_side') and not self._context_manual
+                and not self._focus_mode):
             self._apply_context_visible(event.size().width() >= 900)
 
     def _show(self, index):
