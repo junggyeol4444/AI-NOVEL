@@ -19,7 +19,9 @@ class DesktopGuiTests(unittest.TestCase):
         self.assertEqual(window.sidebar.count(), 12)
         window.sidebar.setCurrentRow(7)
         self.assertEqual(window.pages.currentIndex(), 7)
-        self.assertIn('API 미연결', window.statusBar().currentMessage())
+        self.assertIn('내 컴퓨터에 안전하게 보관', window.statusBar().currentMessage())
+        self.assertIsNotNone(window.studio)
+        self.assertEqual(window.studio.pages.currentIndex(), 0)
         window.close()
         self.assertIsNotNone(app)
 
