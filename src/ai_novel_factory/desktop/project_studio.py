@@ -167,6 +167,11 @@ class ProjectStudio(QWidget):
         self.episode_list.setObjectName('studioEpisodeList')
         self.episode_list.currentRowChanged.connect(self._select_episode)
         episodes_layout.addWidget(self.episode_list)
+        self.first_episode = QPushButton('첫 회차 바로 시작')
+        self.first_episode.setObjectName('studioFirstEpisodeButton')
+        self.first_episode.setAccessibleName('첫 회차 바로 시작')
+        self.first_episode.clicked.connect(self._start_first_episode)
+        episodes_layout.addWidget(self.first_episode)
         add = QPushButton('새 회차 기획')
         add.setObjectName('studioAddEpisode')
         add.clicked.connect(self._create_episode)
@@ -191,6 +196,7 @@ class ProjectStudio(QWidget):
         actions = QHBoxLayout()
         save = QPushButton('원고 버전 저장')
         save.setObjectName('studioSaveManuscript')
+        save.setAccessibleName('원고 버전 저장')
         save.clicked.connect(self._save_manuscript)
         tools = QPushButton('로컬 AI 생성·최종본 검수')
         tools.setObjectName('studioAuthoringTools')
@@ -345,6 +351,29 @@ class ProjectStudio(QWidget):
         except ValueError as exc:
             self.create_status.setText(str(exc)[:200])
 
+    def _start_first_episode(self):
+        # One deliberate click makes a blank first chapter: no model execution,
+        # no publishing, and never overwrites an existing chapter.
+        session = self.workflow.session
+        if not session.project_id or not self.confirm_discard():
+            if not session.project_id:
+                self._show_error('작품을 먼저 열어 주세요.')
+            return
+        try:
+            if session.store.list_episodes(session.project_id):
+                self._show_error('이미 회차가 있습니다. 목록에서 회차를 선택하세요.')
+                return
+            session.create_episode(1, '')
+            self.workflow._sync()
+            self._loaded_episode = None
+            self.refresh()
+            self.pages.setCurrentIndex(2)
+            self.editor.setFocus(Qt.FocusReason.OtherFocusReason)
+        except OSError:
+            self._show_error('로컬 회차를 저장하지 못했습니다.')
+        except ValueError as exc:
+            self._show_error(str(exc))
+
     def _create_episode(self):
         session = self.workflow.session
         if not session.project_id or not self.confirm_discard():
@@ -460,6 +489,7 @@ class ProjectStudio(QWidget):
             self.canon.setPlainText('')
             self.quality.setText('검수 상태: NOT_RUN')
             self.editor.setEnabled(False)
+            self.first_episode.setEnabled(False)
             self.editor.setPlainText('')
             self._shown_text = ''
             self._loaded_episode = None
@@ -489,6 +519,7 @@ class ProjectStudio(QWidget):
         self.episode_list.setCurrentRow(selected_row)
         self.episode_list.blockSignals(False)
         self.editor.setEnabled(selected_row >= 0)
+        self.first_episode.setEnabled(len(episodes) == 0)
         if selected_row < 0:
             self._loaded_episode = None
             self._shown_text = ''
