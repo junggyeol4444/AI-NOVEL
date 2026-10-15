@@ -200,6 +200,22 @@ class UserFirstStudioTests(unittest.TestCase):
             studio.editor.setPlainText(revised)
             self.assertIn('저장본과 일치', studio.manuscript_stats.text())
 
+            # Failed opening of a nonexistent SQLite must retain both the
+            # active session and its correct file path in the advanced form.
+            prior_path = window.authoring._text('db')
+            live_edit = revised + ' DB 선택 실패 중 미저장 문장'
+            studio.editor.setPlainText(live_edit)
+            missing = path.with_name('missing_synthetic_project.sqlite')
+            with (patch('ai_novel_factory.desktop.project_studio.QMessageBox.question',
+                        return_value=QMessageBox.StandardButton.Yes),
+                  patch('ai_novel_factory.desktop.project_studio.QMessageBox.warning')):
+                studio._open_path(missing)
+            self.assertEqual(session.path, path)
+            self.assertEqual(window.authoring._text('db'), prior_path)
+            self.assertEqual(studio.editor.toPlainText(), live_edit)
+            studio.editor.setPlainText(revised)
+            self.assertIn('저장본과 일치', studio.manuscript_stats.text())
+
             # Reuse the second chapter from the navigation test above:
             # attempting to insert it again is correctly rejected by SQLite.
             # A failed chapter read must leave the current unsaved manuscript.
@@ -386,6 +402,42 @@ class UserFirstStudioTests(unittest.TestCase):
                 window.deleteLater()
             QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
             app.processEvents()
+
+
+    def test_legacy_sqlite_without_optional_rules_is_readable(self):
+        # Legacy/synthetic SQLite can have an episode but no author or
+        # premise rules. Reading it must not write fabricated metadata.
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+        from tempfile import TemporaryDirectory
+        from PySide6.QtWidgets import QApplication
+        from PySide6.QtCore import QCoreApplication, QEvent
+        from ai_novel_factory.database.episodes import EpisodeStore
+        from ai_novel_factory.desktop.authoring_workflow import AuthoringWorkflowWidget
+        app = QApplication.instance() or QApplication([])
+        with TemporaryDirectory() as temp:
+            path = Path(temp) / 'synthetic_legacy.sqlite'
+            with EpisodeStore(path) as db:
+                pid = db.create_project('옛날 합성 작품').project_id
+                db.create_episode(pid, 1, plot='합성 장면 설계')
+                self.assertEqual(tuple(db.list_rules(pid)), ())
+            widget = AuthoringWorkflowWidget()
+            try:
+                widget._set('db', str(path))
+                widget._open()
+                widget._sync()
+                self.assertEqual(widget.session.project_id, pid)
+                self.assertEqual(widget._text('title'), '옛날 합성 작품')
+                self.assertEqual(widget._text('author'), '')
+                self.assertEqual(widget._text('premise'), '')
+                self.assertEqual(widget._text('bible'), '')
+                self.assertEqual(widget.session.episode_number, 1)
+                with EpisodeStore(path) as db:
+                    self.assertEqual(tuple(db.list_rules(pid)), ())
+            finally:
+                widget.session.close()
+                widget.deleteLater()
+                QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+                app.processEvents()
 
 
 if __name__ == '__main__':

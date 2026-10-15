@@ -118,11 +118,14 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
 
     def _open(self):
         self.session.open_project(self._text('db'))
-        self._set('title', self.session.store.get_project(self.session.project_id).title)
-        self._set('author', self.session.rule('author'))
-        self._set('premise', self.session.rule('premise'))
-        metadata = {rule.key: rule.value for rule in
-                    self.session.store.list_rules(self.session.project_id)}
+        db, pid = self.session.required()
+        # Older valid Novel Bible databases may not carry the optional
+        # author/canon rules. Opening must never mutate them or strand the
+        # newly selected session after a missing-rule exception.
+        metadata = {rule.key: rule.value for rule in db.list_rules(pid)}
+        self._set('title', db.get_project(pid).title)
+        self._set('author', metadata.get('author', ''))
+        self._set('premise', metadata.get('premise', ''))
         for key in ('genre', 'subject', 'target_episodes',
                     'characters_per_episode', 'mood'):
             self._set(key, metadata.get(key, ''))
@@ -131,7 +134,9 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         if not self.session.store:
             return
         db, pid = self.session.required()
-        self._set('bible', self.session.rule('premise'))
+        # Read missing legacy rules as empty, never create fictitious canon.
+        rules = {rule.key: rule.value for rule in db.list_rules(pid)}
+        self._set('bible', rules.get('premise', ''))
         self.episodes.blockSignals(True)
         self.episodes.clear()
         for ep in db.list_episodes(pid):

@@ -478,6 +478,7 @@ class ProjectStudio(QWidget):
     def _open_path(self, path):
         if not self.confirm_discard(apply=False):
             return
+        previous_db = self.workflow._text('db')
         try:
             self.workflow._set('db', str(path))
             self.workflow._open()
@@ -486,10 +487,16 @@ class ProjectStudio(QWidget):
             self._loaded_episode = None
             self.refresh()
             self.pages.setCurrentIndex(0)
-        except OSError:
-            self._show_error('로컬 파일을 열거나 저장하지 못했습니다.')
-        except ValueError as exc:
-            self._show_error(str(exc))
+        except (OSError, ValueError) as exc:
+            # A failed import/open must not leave the advanced form pointing
+            # at a different DB from the manuscript still open in session.
+            # Keep live unsaved text; never call refresh() on a failed open.
+            active = self.workflow.session.path
+            self.workflow._set('db', str(active) if active is not None else previous_db)
+            if isinstance(exc, OSError):
+                self._show_error('로컬 파일을 열거나 저장하지 못했습니다.')
+            else:
+                self._show_error(str(exc))
 
     def _create_project(self):
         if not self.confirm_discard(apply=False):
