@@ -146,3 +146,15 @@
 - `font_support.py`: Ubuntu CI에 Korean CJK OS 폰트가 설치될 때 bundled font가 없더라도 지원 후보를 찾아 적용. `scripts/ci_studio_snapshots.py`는 사각형 대신 실제 한국어 글리프를 렌더할 수 없으면 실패하도록 변경. 화면의 실제 이미지 확인 전 `KOREAN_FONT_OK` 선언 금지.
 - 마지막 구현 SHA `c44179416ad7518ad88aa3ad5b0629c1490ad14b`, Actions 가장 최신 Linux run `38687509570`, Windows EXE `38687510278`, Windows 11 네이티브 `38687509641`. 조회 시 대기 중이었으며 앞으로 결과 재확인 필요. `main` 무변경.
 - 이미 증명된 회귀 결과는 **이전 코드 `90f53e26`의 Linux offscreen Qt run `38686693268` SUCCESS 한 건**. 이 후 개선한 기능의 검증을 이전 run 결과로 거짓 추론하지 말 것. Windows 물리 사용자 인수, Windows OOBE 전경 가림 해소, 참고 전수 유사성·장편 30/100/250화 품질, 01~100 전면 기능 완성은 미검증. `RELEASE_BLOCKED` 유지.
+
+
+### 2026-10-15 지속 개발: 종료 거부 시 원고 유실 위험 수정과 실증 결과
+
+- 사용자가 명시적으로 `완성될 때까지 계속해`를 요청. 개발/검증을 되풀이 진행하되 어느 후속 실행에서도 임의로 `main` 병합, 사용자 원고·기존 DB·키·외부 게시를 변경하지 않음. 체계적인 물리 Windows 10/11 EXE GUI 인수가 남으면 출시 판정은 계속 `RELEASE_BLOCKED`.
+- **발견 결함**: `MainWindow.closeEvent`가 사용자 집필실의 `confirm_discard()`를 실행해 미저장 원고를 먼저 폐기한 뒤, AI 배치 또는 외부 비공개 초안 전송이 진행 중이라 실제 창 닫기를 거절할 수 있었음. **수정**: 종료 불가 원인(활성 AI worker/WordPress draft worker)을 먼저 점검하고, 플롯 미저장 확인과 집필실 미저장 확인은 종료가 실제 가능한 단계에서만 수행. 실행 중 작업을 강제로 종료하거나 사용자 문서를 저장/삭제하지 않음.
+- `project_studio.py` GUI 집필실에 `studioManuscriptStats` 실제 입력 내용 기준 **공백 제외 글자 수/어절/회차 목표 대비 비율/미저장 여부** 표시. 어절/글자 수는 입력 데이터에서 계산하며 품질/AI 모델 합격과 별개의 수치.
+- `tests/test_studio_gui_optional.py`: 합성 초고 저장 후 미저장 입력을 추가, `auto_panel.is_running=True`인 상태에서 종료 시 `window.close() == False`, `request_stop()` 호출, 내용/미저장 상태 그대로 보존, 원고 폐기 확인 창이 뜨지 않는지 검사. 이어 정상 종료→프로그램 재실행→지난 원고 두 버전 열기→명시적 복원→동시 수정 덮어쓰기 거절까지 수행.
+- GitHub Linux `38687509570` (old `c4417941`)에서 테스트 본문 `OK` 출력 뒤 Python 프로세스가 `Bus error (core dumped), exit 135`로 실패함. 실패를 감추지 않고 Qt 창을 `deleteLater()`/DeferredDelete로 명시적으로 정리하고 `-X faulthandler` 및 `PYTHONFAULTHANDLER` 적용, 실패하더라도 별도 합성 화면 캡처를 실행하도록 Linux Actions 변경.
+- **GitHub Actions run `38688066922` at `e156fa9e` = SUCCESS**: Linux Qt 첫 실행/작품 생성·SQLite 경쟁 보호·두 번 원고 저장 및 버전 원형 보존·재실행·미저장 종료 차단·동시 편집 충돌·버전 복원, 합성 4개 GUI 화면 모두 통과. `03-novel-writer.png`와 `02-create-wizard.png` 직접 시각 검토: 한글 폰트 정상 출력 확인, 820x750 픽셀, 우측 설정 검수 패널은 버튼으로 접근 가능. 본 결과는 **Ubuntu Qt offscreen**임; 실제 Windows 사용자 인수 아님.
+- **GitHub Actions run `38688203975` at `efbda1a5` = SUCCESS**: 명시적 Qt 창 정리·faulthandler 계측 추가 후 Linux 스모크/단위·GUI 회귀·합성 Qt 캡처 다시 모두 통과. 이번 버전의 Windows EXE/진짜 UIAutomation 및 물리 사용자 검증은 실행 미완료.
+- 최신 구현 SHA `efbda1a515992688a830a947781b8a26f42454a5` validation-only. 최신 Windows 11 실사용 UIA run `38688203854`, Windows EXE run `38688203843`, 빠른 Windows GUI run `38688203856` 결과를 다음에 확인. `main`은 `69225edeed0a09ded5f847dad9b9ea63bc45367c`로 유지해야 함.
