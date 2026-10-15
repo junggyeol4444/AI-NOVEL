@@ -65,8 +65,9 @@ jobs:
       - name: Inspect real Windows 11 interactive GUI, select all menus, capture desktop
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           & ./scripts/ci_windows11_desktop.ps1 ./build/ci/windows11-exe/AI_Novel_Factory.exe
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (-not $?) { throw 'Windows 11 native UI Automation script failed' }
       - name: Preserve offscreen Windows 11 Qt page snapshots (synthetic data)
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,4 +83,6 @@ jobs:
           name: windows11-actual-desktop-probe
           retention-days: 3
           if-no-files-found: ignore
-          path: build/ci/windows11/actual_desktop.png
+          path: |
+            build/ci/windows11/actual_desktop.png
+            build/ci/windows11/native_app_window.png
