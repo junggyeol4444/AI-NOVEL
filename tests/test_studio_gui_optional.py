@@ -144,6 +144,7 @@ class UserFirstStudioTests(unittest.TestCase):
             # Even if the person agrees to switch away, a failed chapter
             # read must leave both the unsaved editor and active chapter.
             session.create_episode(2, '')
+            session.select_episode(1)
             studio.refresh()
             unsaved_switch = '실패한 회차 이동 중 절대로 버리지 말 것'
             studio.editor.setPlainText(unsaved_switch)
