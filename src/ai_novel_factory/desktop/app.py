@@ -15,6 +15,7 @@ from .reference_picker import ReferencePickerWidget
 from .reference_profile_browser import ReferenceProfileBrowser
 from .plot_editor import PlotEditorWidget
 from .authoring_workflow import AuthoringWorkflowWidget
+from .canon_workspace import CanonWorkspace, STORES
 from .task_monitor_widget import TaskMonitorWidget
 from .operations_monitor_widget import OperationsMonitorWidget
 from ai_novel_factory.settings import load_settings, ConfigurationError
@@ -32,6 +33,7 @@ class MainWindow(QMainWindow):
         self.sidebar.setObjectName('sectionSidebar')
         self.sidebar.setFixedWidth(215)
         self.sidebar.addItems([s.label for s in SECTIONS])
+        self.canon_panels = {}
         self.pages = QStackedWidget()
         self.pages.setObjectName('sectionPages')
         for section in SECTIONS:
@@ -50,6 +52,10 @@ class MainWindow(QMainWindow):
             if section.key == 'novels':
                 self.authoring = AuthoringWorkflowWidget(page)
                 layout.addWidget(self.authoring)
+            elif section.key in STORES:
+                panel = CanonWorkspace(section.key, self._current_project, page)
+                self.canon_panels[section.key] = panel
+                layout.addWidget(panel)
             elif section.key == 'references':
                 # Stage 11: selection only, no file content access or import.
                 self.reference_picker = ReferencePickerWidget(page)
@@ -105,9 +111,19 @@ class MainWindow(QMainWindow):
         except ConfigurationError:
             self.statusBar().showMessage('API 설정 오류 · AI/출판 비활성')
 
+    def _current_project(self):
+        authoring = getattr(self, 'authoring', None)
+        if authoring is None:
+            return None
+        session = authoring.session
+        return (session.path, session.project_id) if session.project_id else None
+
     def _change_page(self, index: int) -> None:
         if 0 <= index < self.pages.count():
             self.pages.setCurrentIndex(index)
+            key = SECTIONS[index].key
+            if key in self.canon_panels:
+                self.canon_panels[key].refresh()
 
 def run() -> int:
     app = QApplication.instance()
