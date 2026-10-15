@@ -1,5 +1,15 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-15 18시 KST 후속 Windows 11 UIA 스크롤 탐색 결함 — 12개 메뉴 전수 선택 수정
+
+- [Qt `toggled` 신호 수정 `20844ccc2baee2d2cf7e932f47133237c4987c56`](https://github.com/junggyeol4444/AI-NOVEL/commit/20844ccc2baee2d2cf7e932f47133237c4987c56) 이후 [Windows 11 외부 UIA #38711139707](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711139707) **FAIL**: `AdvancedMenuControlType=ControlType.CheckBox`, `AutomationElements=126; MatchedMenuItems=6; NativeSelectionClicks=5`. 이전 1개/0회에서 개선되어 UIA 체크 상태와 실제 Qt `sidebar.setVisible` 연결은 작동했지만, **화면에 보이는 약 5개 행만 선택하고 스크롤 밖 나머지 행을 놓침**. UIA가 리스트의 가시 행만 노출하는지 여부는 다음 실행에서 스크롤 패턴 진단으로 확인해야 한다.
+- 이 후속 변경은 `ci_windows11_desktop.ps1`에서 `sectionSidebar` AutomationId 또는 UIA List와 기존 메뉴 이름으로 실제 사이드바를 식별하고, 지원되는 **OS UIAutomation ScrollPattern**으로 목록을 아래로 스크롤하면서 UIA 트리를 다시 조회한다. 12개 서로 다른 메뉴 이름 각각에 `SelectionItemPattern.Select()`가 성공해야 통과한다. 진단은 `NativeSidebarFound`, `NativeSidebarScrollAvailable`, `NativeSidebarPass`, `NativeSidebarScrollPercent`, `SelectedUnique` 등 구조적 수치만 기록하며 원고·입력값·DB 경로는 출력하지 않는다. `tests/test_desktop_navigation.py`에 스크롤 탐색 코드 정적 회귀 검사 추가.
+- 두 번째 수정 SHA의 나머지 CI는 [Linux Qt #38711139813](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711139813), [Windows fast Qt #38711139681](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711139681), [PG/Redis/Celery #38711139686](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711139686), [Windows EXE/실 로컬 GGUF/Windows11 오프라인 #38711139677](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711139677) 모두 **SUCCESS**. 해당 장시간 Windows11 오프라인 검증 종료를 확인한 후에만 이 후속 커밋을 진행했다.
+- 이번 스크롤 수정의 신규 Windows CI 결과는 아직 미검증. ScrollPattern 미지원 또는 목록 끝 도달로 12개를 찾지 못하면 명시적 **FAIL**로 남겨야 하며 합격 처리 금지. OOBE/privacy 전경 가림, 물리 Windows 10/11 사람의 전경 인수, 장편 품질·참고작 전수 검사·01~100 전체 연결은 계속 **RELEASE_BLOCKED**. 오직 검증 브랜치만 수정, `main`/실사용자 데이터/실계정/출판/기존 예약 불변.
+
+---
+
+
 ## 2026-10-15 18시 KST 정기 실행 후속 결함 수정 — UIA TogglePattern과 Qt `toggled` 신호 연결
 
 - 검증 브랜치 [첫 수정 `951a83d71cc953c234a17ee08f0b1c7074e8b9c9`](https://github.com/junggyeol4444/AI-NOVEL/commit/951a83d71cc953c234a17ee08f0b1c7074e8b9c9) 후 실제 CI를 기다려 확인했다. [Windows 11 외부 UIA #38710410703](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38710410703) **FAIL**: 기존 메뉴 제어 실패 단계는 통과해 `AdvancedMenuControlType=ControlType.CheckBox`가 실제 로그로 확정됐으나, `AutomationElements=120; MatchedMenuItems=1; NativeSelectionClicks=0`으로 **실제 사이드바가 펼쳐지지 않음**. 단순 UIA 패턴 성공은 화면 동작 증거가 아니다.

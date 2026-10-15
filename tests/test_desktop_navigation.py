@@ -40,6 +40,10 @@ class NavigationTests(unittest.TestCase):
         # A type-only guard previously skipped the actual toggle control.
         self.assertIn('AdvancedMenuControlType=', source)
         self.assertIn('AdvancedMenuCollapseControlType=', source)
+        # Qt may virtualize offscreen QListWidget rows in the UIA tree.
+        self.assertIn('Automation.ScrollPattern', source)
+        self.assertIn('NativeSidebarScrollAvailable=', source)
+        self.assertIn('SelectedUnique=', source)
         self.assertNotIn(
             "if ($button.Current.ControlType.ProgrammaticName -notlike '*Button')",
             source,

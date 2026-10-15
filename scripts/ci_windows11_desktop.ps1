@@ -89,22 +89,90 @@ try {
   }
   Start-Sleep -Milliseconds 350
   $wanted = @('작품 홈', '작품 설정', '등장인물', '세계관', '시간선', '인물 관계', '복선 관리', '참고소설', '참고 패턴', '회차 기획', '유사성 검사', '내보내기·출판')
-  $found = 0
-  $clicks = 0
-  $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
-  foreach ($entry in $all) {
-    $pattern = $null
-    $name = $entry.Current.Name
-    if ($name -and $wanted -contains $name) {
-      $found++
-      if ($entry.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$pattern)) {
-        ([System.Windows.Automation.SelectionItemPattern]$pattern).Select()
-        Start-Sleep -Milliseconds 125
-        $clicks++
+  # QListWidget exposes only the currently visible rows to some Qt UIA
+  # bridges. A single FindAll snapshot cannot cover twelve scrollable rows.
+  # Scroll the actual sidebar through OS UIAutomation and re-enumerate.
+  $sidebarCondition = [System.Windows.Automation.PropertyCondition]::new(
+    [System.Windows.Automation.AutomationElement]::AutomationIdProperty,
+    'sectionSidebar')
+  $sidebar = $root.FindFirst(
+    [System.Windows.Automation.TreeScope]::Descendants, $sidebarCondition)
+  if ($null -eq $sidebar) {
+    $listCondition = [System.Windows.Automation.PropertyCondition]::new(
+      [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+      [System.Windows.Automation.ControlType]::List)
+    $lists = $root.FindAll(
+      [System.Windows.Automation.TreeScope]::Descendants, $listCondition)
+    foreach ($candidate in $lists) {
+      $children = $candidate.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants,
+        [System.Windows.Automation.Condition]::TrueCondition)
+      foreach ($child in $children) {
+        if ($wanted -contains $child.Current.Name) {
+          $sidebar = $candidate
+          break
+        }
+      }
+      if ($null -ne $sidebar) { break }
+    }
+  }
+  Write-Host ('NativeSidebarFound=' + ($null -ne $sidebar))
+  $scrollPattern = $null
+  if ($null -ne $sidebar) {
+    $scrollCandidates = $sidebar.FindAll(
+      [System.Windows.Automation.TreeScope]::Subtree,
+      [System.Windows.Automation.Condition]::TrueCondition)
+    foreach ($candidate in $scrollCandidates) {
+      $possible = $null
+      if ($candidate.TryGetCurrentPattern(
+          [System.Windows.Automation.ScrollPattern]::Pattern, [ref]$possible)) {
+        $p = [System.Windows.Automation.ScrollPattern]$possible
+        if ($p.Current.VerticallyScrollable) {
+          $scrollPattern = $p
+          break
+        }
       }
     }
   }
-  Write-Host ("AutomationElements={0}; MatchedMenuItems={1}; NativeSelectionClicks={2}" -f $all.Count, $found, $clicks)
+  Write-Host ('NativeSidebarScrollAvailable=' + ($null -ne $scrollPattern))
+  $selected = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::Ordinal)
+  $clicks = 0
+  $allCount = 0
+  for ($pass = 0; $pass -lt 16; $pass++) {
+    $all = $root.FindAll(
+      [System.Windows.Automation.TreeScope]::Descendants,
+      [System.Windows.Automation.Condition]::TrueCondition)
+    $allCount = $all.Count
+    foreach ($entry in $all) {
+      $name = $entry.Current.Name
+      if (-not $name -or $wanted -notcontains $name -or $selected.Contains($name)) {
+        continue
+      }
+      $pattern = $null
+      if ($entry.TryGetCurrentPattern(
+          [System.Windows.Automation.SelectionItemPattern]::Pattern,
+          [ref]$pattern)) {
+        ([System.Windows.Automation.SelectionItemPattern]$pattern).Select()
+        [void]$selected.Add($name)
+        $clicks++
+        Start-Sleep -Milliseconds 125
+      }
+    }
+    Write-Host ("NativeSidebarPass={0}; SelectedUnique={1}" -f $pass, $selected.Count)
+    if ($selected.Count -ge $wanted.Count) { break }
+    if ($null -eq $scrollPattern) { break }
+    $before = $scrollPattern.Current.VerticalScrollPercent
+    if ($before -ge 99.9) { break }
+    $scrollPattern.Scroll(
+      [System.Windows.Automation.ScrollAmount]::NoAmount,
+      [System.Windows.Automation.ScrollAmount]::LargeIncrement)
+    Start-Sleep -Milliseconds 250
+    $after = $scrollPattern.Current.VerticalScrollPercent
+    Write-Host ("NativeSidebarScrollPercent={0}->{1}" -f $before, $after)
+    if ($after -le $before) { break }
+  }
+  Write-Host ("AutomationElements={0}; MatchedMenuItems={1}; NativeSelectionClicks={2}" -f $allCount, $selected.Count, $clicks)
   if ($clicks -lt 12) {
     throw "Windows UIAutomation failed to select all twelve visible sidebar pages; this is NOT a passing GUI review"
   }
