@@ -27,6 +27,7 @@ from ai_novel_factory.reference_similarity_checker import (
     ReferenceMaterial, check_reference_similarity,
 )
 from .reference_profile_browser import default_local_catalog_path
+from .reference_coverage import read_reference_coverage
 
 
 class PatternWorkspace(QWidget):
@@ -102,6 +103,14 @@ class SimilarityWorkspace(QWidget):
         root.addWidget(QLabel(
             '참고 텍스트를 직접 입력해 현재 저장된 초고와 비교합니다.\n'
             '전체 참고소설 검사·저작권 판정·출판 승인이 아닙니다.'))
+        self.coverage_button = QPushButton('로컬 등록 참고작 범위 확인 (읽기 전용)')
+        self.coverage_button.setObjectName('similarityReferenceCoverageButton')
+        root.addWidget(self.coverage_button)
+        self.coverage_status = QLabel('전수 유사성 검사 NOT_RUN · 등록 참고작 범위 미확인')
+        self.coverage_status.setObjectName('similarityReferenceCoverageStatus')
+        self.coverage_status.setWordWrap(True)
+        root.addWidget(self.coverage_status)
+        self.coverage_button.clicked.connect(self._read_coverage)
         self.episodes = QComboBox()
         self.episodes.setObjectName('similarityEpisodeSelector')
         root.addWidget(self.episodes)
@@ -117,6 +126,11 @@ class SimilarityWorkspace(QWidget):
         self.status.setReadOnly(True)
         root.addWidget(self.status)
         self.compare_button.clicked.connect(self._compare)
+
+    def _read_coverage(self):
+        # Only metadata counts. Do not initialize the catalog or read novels.
+        coverage = read_reference_coverage(default_local_catalog_path())
+        self.coverage_status.setText(coverage.label)
 
     def refresh(self):
         self.episodes.clear()

@@ -1,5 +1,15 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-15 20:02 KST — 등록 참고작 범위 읽기 전용 표시 연결 (검증 브랜치 전용)
+
+- 시작 상태: 검증 브랜치 `15cae25ed12d6dbaa8a86d7768c27cde8b8348cd`, 보호 `main` `69225edeed0a09ded5f847dad9b9ea63bc45367c` 확인. 검증 브랜치 최근 5개 CI 모두 종료, 진행 중인 검증 없음. [Linux Qt #38713802843](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38713802843), [Windows Qt #38713802611](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38713802611), [실 PG/Redis/Celery #38713802634](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38713802634), [Windows EXE/로컬 GGUF #38713803500](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38713803500) **PASS**. [Windows 11 외부 UIA #38713802649](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38713802649) **FAIL**: 12/12 UIA 메뉴 선택 PASS, 실제 OS 전경 인수는 Windows 11 OOBE 개인정보 설정 화면으로 **BLOCKED**. 구형 #38701708258은 SUCCESS 확인.
+- 신규 코드: `desktop/reference_coverage.py`는 기존 로컬 `reference_files` 테이블의 전체 등록/분석 완료 메타데이터 건수만 SQLite `mode=ro`로 조회. 파일이 없으면 0건이라고 단정하지 않고 `MISSING` 처리, 스키마 오류/상대경로/심볼릭 링크는 `NOT_RUN`으로 실패 닫힘. 기존 DB 테이블 생성/수정, 원문 접근, 외부 전송 없음.
+- `desktop/additional_workspaces.py` 유사성 검사 화면에 **사용자가 직접 누르는** '로컬 등록 참고작 범위 확인 (읽기 전용)' 버튼과 결과 라벨 추가. 분석 완료 건수와 **전수 유사성 검사 NOT_RUN**을 명시적으로 분리. 이는 자동 전수 유사성 검사 기능을 구현했다는 의미가 아니다. `scripts/reference_coverage_cli.py`는 같은 메타데이터를 명시 경로에서 로컬 확인.
+- 로컬 합성 SQLite 테스트 `tests/test_reference_coverage.py`: **5 PASS, 1 SKIP(PySide6 미설치)**; Python compileall PASS. Windows GUI 선택 버튼은 새 CI에서 확인해야 하며, 이번 코드 커밋의 CI 성공은 실행 전까지 주장하지 않는다.
+- 여전히 **RELEASE_BLOCKED**: 실제 등록 참고작 원문 전수 비교, 30/100/250화 실모델 장편 품질, 물리 Windows 10/11 사람의 전경 인수, OOBE 차단, 01~100 통합 및 승인 후 출판 미완. `main`/사용자 원고·SQLite·키/외부 계정/기존 예약 변경 금지.
+
+---
+
 ## 2026-10-15 18:30 KST 정기 실행 — Windows 11 UIA 스크롤 불가 원인 확인 및 GUI 공간 수정
 
 - 검증 브랜치 HEAD 확인: `e24a17100cc2f40437d1c0bb51ce01e6d4960f82`; 보호 `main` SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` (ahead 158, behind 0). 신규 예약 생성·기존 예약 변경 없음.
