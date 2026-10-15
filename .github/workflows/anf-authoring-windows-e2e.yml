@@ -66,7 +66,33 @@ jobs:
           retention-days: 7
           if-no-files-found: error
           path: dist/stage97/AI_Novel_Factory.exe
-      - name: Save metadata only; never upload model or manuscripts
+      - name: Build standalone local GGUF model console bridge EXE
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --onefile --console --name ANF_Local_Model --distpath build/ci/bridge-dist --workpath build/ci/bridge-work packaging/windows/local_model_bridge.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Build complete offline QA portable folder with public model weights
+        shell: pwsh
+        env:
+          HF_HUB_DISABLE_IMPLICIT_TOKEN: '1'
+          HF_HUB_DISABLE_TELEMETRY: '1'
+        run: |
+          python scripts/build_portable_ai_bundle.py --gui-exe dist/stage97/AI_Novel_Factory.exe --bridge-exe build/ci/bridge-dist/ANF_Local_Model.exe --output build/ci/portable-bundle
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Run real bundled GGUF AI inference offline through compiled console bridge
+        shell: pwsh
+        run: |
+          python scripts/ci_portable_model_e2e.py build/ci/portable-bundle
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Upload full offline Windows portable QA bundle with public GGUF weights
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ANF-Full-Offline-Portable-QA-Windows-x64-Not-Release
+          retention-days: 7
+          if-no-files-found: error
+          path: build/ci/portable-bundle/
+      - name: Save metadata evidence, no user manuscripts or credentials
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -76,3 +102,4 @@ jobs:
           path: |
             build/ci/compiled_build.json
             build/ci/journey/compiled_exe_user_journey.json
+            build/ci/portable_model_e2e.json
