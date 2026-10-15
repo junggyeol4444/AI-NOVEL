@@ -160,6 +160,53 @@ def run(args):
             check('foreshadow_sidebar_gui_saved',
                   len(threads) == 1 and threads[0].title == 'Lantern secret')
 
+        # Real existing-feature screens: pattern read, bounded manual comparison,
+        # and user-clicked private TXT/EPUB export. No platform upload occurs.
+        def extra_menu(key):
+            index = next(i for i, section in enumerate(SECTIONS)
+                         if section.key == key)
+            item = window.sidebar.item(index)
+            QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
+                             pos=window.sidebar.visualItemRect(item).center())
+            app.processEvents()
+            return window.additional_panels[key]
+
+        patterns = extra_menu('patterns')
+        QTest.mouseClick(patterns.refresh_button, Qt.MouseButton.LeftButton)
+        check('pattern_sidebar_real_local_library',
+              '저장된 패턴' in patterns.report.toPlainText())
+
+        similarity = extra_menu('similarity')
+        similarity.reference_text.setPlainText(draft)
+        QTest.mouseClick(similarity.compare_button, Qt.MouseButton.LeftButton)
+        check('similarity_sidebar_real_engine',
+              similarity.status.toPlainText().startswith('로컬 비교 결과: ')
+              and '전체 참고작' in similarity.status.toPlainText())
+
+        publication = extra_menu('publication')
+        private_path = output / 'private_publication_preview'
+        private_path.mkdir()
+        publication.directory.setText(str(private_path))
+        publication.price.setText('0')
+        QTest.mouseClick(publication.export_button, Qt.MouseButton.LeftButton)
+        check('publication_sidebar_private_export',
+              '로컬 파일 생성 완료' in publication.status.text()
+              and (private_path / 'draft.txt').is_file()
+              and (private_path / 'book.epub').is_file()
+              and verify_epub(private_path / 'book.epub', expected_chapters=1).valid)
+
+        # Audit while the main window is actually visible, not after closing it.
+        from PySide6.QtWidgets import QLabel
+        unconnected = []
+        for index, section in enumerate(SECTIONS):
+            item = window.sidebar.item(index)
+            QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
+                             pos=window.sidebar.visualItemRect(item).center())
+            app.processEvents()
+            page = window.pages.currentWidget()
+            if page.findChild(QLabel, 'pending_' + section.key) is not None:
+                unconnected.append(section.key)
+        report['unconnected_user_menus'] = unconnected
         check('no_publication', not hasattr(ui, 'publish_button'))
         draft_hash = hashlib.sha256(draft.encode('utf-8')).hexdigest()
         report['draft_sha256'] = draft_hash
@@ -181,20 +228,6 @@ def run(args):
               and len(reopened.get('steps', [])) >= 6
               and all(s.get('result') == 'PASS' for s in reopened.get('steps', [])))
         report['reopen_steps'] = reopened['steps']
-        # Run an acceptance navigation audit over all 12 visible user menus.
-        # A page containing the existing pending label is NOT a working feature.
-        from ai_novel_factory.desktop.navigation import SECTIONS
-        from PySide6.QtWidgets import QLabel
-        unconnected = []
-        for index, section in enumerate(SECTIONS):
-            item = window.sidebar.item(index)
-            QTest.mouseClick(window.sidebar.viewport(), Qt.MouseButton.LeftButton,
-                             pos=window.sidebar.visualItemRect(item).center())
-            app.processEvents()
-            page = window.pages.currentWidget()
-            if page.findChild(QLabel, 'pending_' + section.key) is not None:
-                unconnected.append(section.key)
-        report['unconnected_user_menus'] = unconnected
         check('all_twelve_user_menus_implemented', not unconnected)
         report['whole_user_journey'] = 'PASS'
     except BaseException as exc:
