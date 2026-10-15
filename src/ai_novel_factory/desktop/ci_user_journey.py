@@ -193,7 +193,7 @@ def run(args):
         QTest.mouseClick(similarity.compare_button, Qt.MouseButton.LeftButton)
         check('similarity_sidebar_real_engine',
               similarity.status.toPlainText().startswith('로컬 비교 결과: ')
-              and '전체 참고작' in similarity.status.toPlainText())
+              and '참고작 전수 검사' in similarity.status.toPlainText())
 
         publication = extra_menu('publication')
         private_path = output / 'private_publication_preview'
