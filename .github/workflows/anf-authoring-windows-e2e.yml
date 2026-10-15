@@ -37,6 +37,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Syntax check
         run: python -m compileall -q src scripts packaging/windows
+      - name: Fetch pinned SIL OFL Korean font for offline packaged GUI
+        run: python scripts/prepare_gui_font.py
       - name: Build actual Windows EXE
         run: python scripts/build_windows_exe.py --report build/ci/compiled_build.json
       - name: Drive compiled EXE GUI and local model via actual Qt click events

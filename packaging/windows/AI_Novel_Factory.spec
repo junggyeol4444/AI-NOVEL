@@ -9,11 +9,16 @@ from pathlib import Path
 # SPECPATH is defined by PyInstaller as the directory containing this spec.
 PROJECT_ROOT = Path(SPECPATH).resolve().parents[1]
 
+FONT_ROOT = PROJECT_ROOT / 'build' / 'ci' / 'gui_font'
+FONT_ASSETS = [(str(FONT_ROOT / name), 'assets') for name in
+               ('NotoSansKR.ttf', 'OFL.txt')
+               if (FONT_ROOT / name).is_file()]
+
 analysis = Analysis(
     [str(PROJECT_ROOT / 'packaging' / 'windows' / 'launcher.py')],
     pathex=[str(PROJECT_ROOT / 'src')],
     binaries=[],
-    datas=[],
+    datas=FONT_ASSETS,
     # The desktop entry point lazily imports app.py so static tracing misses it.
     hiddenimports=['ai_novel_factory.desktop.app', 'ai_novel_factory.desktop.ci_user_journey', 'ai_novel_factory.desktop.ci_win11_ui', 'ai_novel_factory.desktop.ci_portable_gui'],
     hookspath=[],

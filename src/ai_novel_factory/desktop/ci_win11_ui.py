@@ -35,6 +35,7 @@ def run(output_dir: str) -> int:
         window = MainWindow()
         window.show()
         app.processEvents()
+        check('korean_font_has_real_glyphs_not_boxes', window.korean_font_supported)
         check('real_qt_window_visible_in_virtual_display', window.isVisible()
               and window.width() >= 760 and window.height() >= 500)
         check('all_twelve_navigation_entries', window.sidebar.count() == 12

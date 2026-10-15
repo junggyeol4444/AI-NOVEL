@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QPushButton, QScrollArea, QStackedWidget, QTabWidget, QVBoxLayout, QWidget,
 )
 from .navigation import SECTIONS
+from .font_support import apply_korean_ui_font
 from .api_client import check_local_health
 from .reference_picker import ReferencePickerWidget
 from .reference_profile_browser import ReferenceProfileBrowser
@@ -24,6 +25,7 @@ from ai_novel_factory.settings import load_settings, ConfigurationError
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
+        self.korean_font_supported = apply_korean_ui_font()
         self.setWindowTitle('AI Novel Factory — 개발 중')
         self.resize(1120, 720)
         self.setMinimumSize(760, 500)
