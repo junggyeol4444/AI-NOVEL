@@ -16,6 +16,9 @@ def main(argv: list[str] | None = None) -> int:
     if len(args) == 5 and args[0] == '--ci-reopen-project':
         from ai_novel_factory.desktop.ci_user_journey import run_reopen
         return run_reopen(args[1:])
+    if len(args) == 2 and args[0] == '--ci-win11-qt-ui':
+        from ai_novel_factory.desktop.ci_win11_ui import run as run_win11
+        return run_win11(args[1])
     if args == ['--gui-smoke']:
         # Window creation smoke test; no event loop or external request.
         os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')

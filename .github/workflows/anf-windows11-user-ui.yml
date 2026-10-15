@@ -49,11 +49,30 @@ jobs:
           $exe = (Resolve-Path 'build/ci/windows11-exe/AI_Novel_Factory.exe').Path
           $p = Start-Process -FilePath $exe -ArgumentList '--gui-smoke' -PassThru -Wait
           if ($p.ExitCode -ne 0) { throw "Packaged x64 EXE GUI smoke failed in Windows 11 emulation" }
+      - name: Click and render all 12 GUI pages in compiled Windows 11 EXE (offscreen)
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $exe = (Resolve-Path 'build/ci/windows11-exe/AI_Novel_Factory.exe').Path
+          $p = Start-Process -FilePath $exe -ArgumentList '--ci-win11-qt-ui', 'build/ci/windows11-qt' -PassThru -Wait
+          if (Test-Path 'build/ci/windows11-qt/windows11_qt_report.json') {
+            Get-Content 'build/ci/windows11-qt/windows11_qt_report.json'
+          }
+          if ($p.ExitCode -ne 0) { throw 'Actual Qt navigation/rendering on Windows 11 failed' }
       - name: Inspect real Windows 11 interactive GUI, select all menus, capture desktop
         shell: pwsh
         run: |
           & ./scripts/ci_windows11_desktop.ps1 ./build/ci/windows11-exe/AI_Novel_Factory.exe
           if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: Preserve offscreen Windows 11 Qt page snapshots (synthetic data)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows11-offscreen-qt-12-screens
+          retention-days: 3
+          if-no-files-found: warn
+          path: build/ci/windows11-qt/
       - name: Preserve desktop screenshot only (no manuscripts or model)
         if: always()
         uses: actions/upload-artifact@v4
