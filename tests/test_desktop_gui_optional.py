@@ -16,6 +16,7 @@ class DesktopGuiTests(unittest.TestCase):
         from ai_novel_factory.desktop.app import MainWindow
         app = QApplication.instance() or QApplication([])
         window = MainWindow()
+        window.resize(820, 560)  # supported minimum window size
         window.show()
         app.processEvents()
         self.assertEqual(window.sidebar.count(), 12)
@@ -33,10 +34,20 @@ class DesktopGuiTests(unittest.TestCase):
         app.processEvents()
         self.assertTrue(window.sidebar.isVisible())
         self.assertIn('닫기', window.advanced_nav_button.text())
+        self.assertTrue(all(not button.isVisible() for button in window.primary_nav_buttons))
+        # The Windows 11 Qt UIA provider exposes only visible list rows and
+        # provides neither usable ScrollPattern nor RangeValuePattern. The
+        # specialist rail must therefore fit all 12 at minimum window size.
+        viewport = window.sidebar.viewport().rect()
+        self.assertEqual(window.sidebar.verticalScrollBar().maximum(), 0)
+        for index in range(window.sidebar.count()):
+            rect = window.sidebar.visualItemRect(window.sidebar.item(index))
+            self.assertTrue(viewport.contains(rect), (index, rect, viewport))
         window.advanced_nav_button.setChecked(False)
         app.processEvents()
         self.assertFalse(window.sidebar.isVisible())
         self.assertIn('보기', window.advanced_nav_button.text())
+        self.assertTrue(all(button.isVisible() for button in window.primary_nav_buttons))
         # Primary writing navigation leads new users to the creation wizard.
         from PySide6.QtWidgets import QPushButton
         from PySide6.QtCore import Qt

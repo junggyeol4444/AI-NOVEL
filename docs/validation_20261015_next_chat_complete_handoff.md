@@ -1,5 +1,15 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-15 18:30 KST 정기 실행 — Windows 11 UIA 스크롤 불가 원인 확인 및 GUI 공간 수정
+
+- 검증 브랜치 HEAD 확인: `e24a17100cc2f40437d1c0bb51ce01e6d4960f82`; 보호 `main` SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` (ahead 158, behind 0). 신규 예약 생성·기존 예약 변경 없음.
+- 같은 HEAD의 [Windows 11 외부 UIA #38712716301](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38712716301) **FAIL** (실제 잡 로그 확인): `AdvancedMenuControlType=ControlType.CheckBox`, `NativeSidebarFound=True`, `NativeSidebarScrollAvailable=False`, `NativeSidebarScrollBarCandidates=1`, `NativeSidebarRangeScrollAvailable=False`, `SelectedUnique=5`, `NativeSelectionClicks=5`. 12개 중 화면에 노출된 5개만 선택되어 화면 캡처·전경 단계까지 진행하지 못했다. UIA 스크롤바 후보는 있으나 RangeValue 사용 불가.
+- 동일 SHA의 [Linux Qt #38712716315](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38712716315), [Windows fast Qt #38712716351](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38712716351), [실 PG/Redis/Celery #38712716292](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38712716292), [Windows EXE/로컬 GGUF/Windows11 오프라인 #38712716317](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38712716317)는 잡별 **SUCCESS** 확인.
+- 이번 수정: `desktop/app.py`의 세부 도구를 펼칠 때 기본 5개 작업 버튼을 일시 숨겨 전문 메뉴 12개에 전체 높이를 배정하고, 메뉴 행/여백을 줄여 최소 820×560 창에서도 모두 보이게 한다. 닫으면 기본 작업 버튼을 원상 복구한다. `tests/test_desktop_gui_optional.py`에서 Qt 최소 창 실제 렌더 기준 모든 12개 `visualItemRect`의 viewport 포함 여부와 스크롤 최대값 0, 토글 복원을 검증한다. 이는 UIA에 없는 스크롤 패턴을 우회하기 위한 **GUI 레이아웃 수정**이며 사용자 데이터·DB·게시 기능은 변경하지 않는다.
+- **새 수정의 CI 결과는 아직 검증 전**이다. 다음 회차에는 신규 Windows 11 UIA에서 `NativeSelectionClicks=12`, 출판 페이지 UIA 노출, `QtForeground` 및 화면 캡처/전경 방해 여부를 로그로 구분해야 한다. 물리 Windows 10/11 사람의 인수, OOBE/privacy 가림, 30/100/250화×약 5000자 문학 품질, 전수 Similarity, 01~100 통합은 **RELEASE_BLOCKED**.
+
+---
+
 ## 2026-10-15 18시 KST 후속 Windows 11 스크롤 패턴 부재 — UIA RangeValue 대체 구현
 
 - [스크롤 탐색 수정 `50cb1a8a5ab0cc77f0ec5ef1b905b63af29fd30e`](https://github.com/junggyeol4444/AI-NOVEL/commit/50cb1a8a5ab0cc77f0ec5ef1b905b63af29fd30e)에서 [Windows 11 UIA #38711946763](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711946763) **FAIL**: `NativeSidebarFound=True`, `NativeSidebarScrollAvailable=False`, `SelectedUnique=5`, `NativeSelectionClicks=5`. 실제 Qt `QListWidget`의 가시 5개 행을 선택했으나 Windows UIA ScrollPattern은 지원되지 않아 추가 탐색 불가.

@@ -39,11 +39,11 @@ class MainWindow(QMainWindow):
         self.sidebar = QListWidget()
         self.sidebar.setObjectName('sectionSidebar')
         self.sidebar.setFixedWidth(195)
-        self.sidebar.setSpacing(3)
+        self.sidebar.setSpacing(1)
         self.sidebar.setStyleSheet("""
-            QListWidget { background: #f7f8fb; border: 0; padding: 10px 4px;
+            QListWidget { background: #f7f8fb; border: 0; padding: 6px 4px;
                           font-size: 13px; }
-            QListWidget::item { min-height: 33px; border-radius: 6px;
+            QListWidget::item { min-height: 28px; border-radius: 6px;
                                 padding-left: 11px; color: #354153; }
             QListWidget::item:selected { background: #deeafa; color: #152e53;
                                          font-weight: 600; }
@@ -143,6 +143,7 @@ class MainWindow(QMainWindow):
         nav_label = QLabel('내 작업', nav)
         nav_label.setStyleSheet('font-size: 15px; font-weight: 700; padding: 12px;')
         nav_layout.addWidget(nav_label)
+        self.primary_nav_buttons = []
         for label, target, name in (
             ('작품 홈', 'home', 'primaryHomeButton'),
             ('원고 집필', 'writing', 'primaryWritingButton'),
@@ -157,6 +158,7 @@ class MainWindow(QMainWindow):
             button.clicked.connect(
                 lambda _checked=False, key=target: self._open_primary(key))
             nav_layout.addWidget(button)
+            self.primary_nav_buttons.append(button)
         self.advanced_nav_button = QPushButton('세부 도구 보기 ▾', nav)
         self.advanced_nav_button.setObjectName('showAdvancedNavigationButton')
         self.advanced_nav_button.setAccessibleName('세부 도구 보기')
@@ -165,8 +167,11 @@ class MainWindow(QMainWindow):
         # emitting clicked(). The toggled signal handles mouse, keyboard and UIA.
         self.advanced_nav_button.toggled.connect(self._toggle_advanced_navigation)
         nav_layout.addWidget(self.advanced_nav_button)
-        nav_layout.addWidget(self.sidebar)
-        nav_layout.addStretch(1)
+        # Expanded specialist navigation takes the space formerly occupied
+        # by primary shortcuts. Keep all 12 rows visible to Windows UIA even
+        # when Qt's list provider has no ScrollPattern/RangeValuePattern.
+        nav_layout.addWidget(self.sidebar, stretch=1)
+        nav_layout.addStretch(0)
         self.sidebar.hide()
         outer.addWidget(nav)
         outer.addWidget(self.pages, stretch=1)
@@ -236,6 +241,10 @@ class MainWindow(QMainWindow):
             self._change_page(index)
 
     def _toggle_advanced_navigation(self, expanded: bool) -> None:
+        # The compact primary shortcuts and the specialist list are alternate
+        # views of the same rail, not two stacked lists competing for height.
+        for button in self.primary_nav_buttons:
+            button.setVisible(not expanded)
         self.sidebar.setVisible(expanded)
         self.advanced_nav_button.setText(
             '세부 도구 닫기 ▴' if expanded else '세부 도구 보기 ▾')
