@@ -35,5 +35,15 @@ jobs:
         run: python -m unittest discover -s tests -p test_authoring_session_safety.py -v
       - name: Actual Qt offscreen buttons create, edit, persist, reopen and reject conflict
         run: python -m unittest discover -s tests -p test_studio_gui_optional.py -v
+      - name: Synthetic GUI screenshots with real Qt widgets
+        run: python scripts/ci_studio_snapshots.py build/ci/studio-synthetic-screens
+      - name: Preserve ONLY synthetic GUI screenshots for manual visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-linux-studio-qt-synthetic-screens
+          path: build/ci/studio-synthetic-screens/
+          if-no-files-found: warn
+          retention-days: 7
       - name: No physical Windows claim
         run: echo "This is Linux offscreen functional QA only, NOT Win10/11 desktop acceptance."
