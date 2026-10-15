@@ -1,5 +1,12 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 — EPUB 참고작 입력 실제 파이프라인 통합 후보 (최종 CI 검증 대기)
+
+- 이 변경은 `references/epub_parser.py`의 방어적 ZIP/OPF/XHTML spine 파서 및 합성 테스트를 실제 import→Reference Profile→SQLite 연결 경로에 추가하고 Linux·Windows 검증 워크플로에 신설 테스트를 포함한다. 참조 문장·설정은 프로필/SQLite에 저장하지 않고 합성 EPUB만 시험한다.
+- 단독 합성 파서 검사 28/28 PASS. 새 저장소 전체 통합 테스트와 Windows 실제 실행은 해당 신규 CI 로그가 종료되기 전까지 NOT_RUN/UNVERIFIED. 코드 커밋만으로 기능 전체 합격 또는 릴리스 합격 금지.
+- 기존 기준 CI Linux Qt #38749433138, Windows Qt #38749433653, PG/Redis/Celery #38749433240, Windows EXE/GGUF #38749433656 PASS, Windows11 UIA #38749433493 FAIL: 12개 메뉴 조작 PASS, WWAHost 전경 점유로 실제 전경 인수 FAIL. 물리 Windows 사람 인수·전체 Similarity/수정 재검사·실 모델 장편 품질·01~100 완료는 RELEASE_BLOCKED.
+
+
 ## 2026-10-16 08시 KST — EPUB DEFLATE 손상 오류 수정 (로컬 검증, 원격 코드 미반영)
 
 - 기준 validation 브랜치 HEAD `478b16f614db2f1d82c0a0ec96416acb5ddf8ff3` (GitHub compare `identical`), 보호 main `69225edeed0a09ded5f847dad9b9ea63bc45367c`. 기존 CI Linux Qt #38749433138, Windows Qt #38749433653, PG/Redis/Celery #38749433240, Windows EXE/GGUF #38749433656 성공; Windows 11 외부 UIA #38749433493 실패(선택 12/12 PASS, OS `WWAHost` 전경 점유 및 `QtForeground=False`). 기존 CI 결과이지 이번 EPUB 후보 CI가 아님.

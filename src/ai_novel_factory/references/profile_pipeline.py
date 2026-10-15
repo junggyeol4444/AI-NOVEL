@@ -36,8 +36,6 @@ def import_reference_profile(
     source = Path(path)
     suffix = source.suffix.lower()
     if suffix not in _LIMITS:
-        if suffix == ".epub":
-            raise ReferenceParseError("EPUB 파서가 아직 연결되지 않아 가져올 수 없습니다.")
         raise ReferenceParseError("지원하지 않는 참고작 파일 형식입니다.")
     if max_bytes is not None and (type(max_bytes) is not int or max_bytes < 1):
         raise ReferenceParseError("파일 크기 제한이 올바르지 않습니다.")

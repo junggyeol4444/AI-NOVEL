@@ -20,7 +20,7 @@ from .style_statistics import analyze_reference_style
 
 PROFILE_SCHEMA_VERSION = 1
 ALLOWED_HOOK_TYPES = frozenset((*TYPE_PRIORITY, "none"))
-_ALLOWED_FORMATS = frozenset({"txt", "markdown", "docx", "pdf"})
+_ALLOWED_FORMATS = frozenset({"txt", "markdown", "docx", "pdf", "epub"})
 
 
 @dataclass(frozen=True)

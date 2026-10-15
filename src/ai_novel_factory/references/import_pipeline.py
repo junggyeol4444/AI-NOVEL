@@ -4,7 +4,7 @@ The pipeline reads a local regular file once into bounded memory, calculates the
 identity of precisely those bytes, parses it, splits episodes, measures prose,
 and *then* writes only metadata to the stage-19 SQLite catalog.
 
-EPUB intentionally fails closed until the missing stage-14 parser is integrated.
+EPUB spine XHTML is parsed locally with strict ZIP/XML limits.
 """
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ import stat
 from ai_novel_factory.database import ReferenceCatalog, ReferenceRecord
 from .basic_statistics import ReferenceStatistics, measure_reference
 from .docx_parser import MAX_DOCX_BYTES, parse_docx_bytes
+from .epub_parser import MAX_EPUB_BYTES, parse_epub_bytes
 from .episode_splitter import split_episodes
 from .pdf_parser import MAX_PDF_BYTES, parse_pdf_bytes
 from .plaintext_parser import (
@@ -29,6 +30,7 @@ _LIMITS = {
     ".md": MAX_REFERENCE_BYTES,
     ".markdown": MAX_REFERENCE_BYTES,
     ".docx": MAX_DOCX_BYTES,
+    ".epub": MAX_EPUB_BYTES,
     ".pdf": MAX_PDF_BYTES,
 }
 
@@ -79,6 +81,8 @@ def _parse_bytes(raw: bytes, suffix: str, encoding: str | None) -> ParsedReferen
         raise ReferenceParseError("바이너리 문서에는 텍스트 인코딩을 지정할 수 없습니다.")
     if suffix == ".docx":
         return parse_docx_bytes(raw)
+    if suffix == ".epub":
+        return parse_epub_bytes(raw)
     if suffix == ".pdf":
         return parse_pdf_bytes(raw)
     raise ReferenceParseError("지원하지 않는 참고소설 형식입니다.")
@@ -91,7 +95,7 @@ def import_reference_file(
     encoding: str | None = None,
     max_bytes: int | None = None,
 ) -> ImportResult:
-    """Testable offline importer for TXT/Markdown/DOCX/PDF into local metadata.
+    """Testable offline importer for TXT/Markdown/DOCX/PDF/EPUB into local metadata.
 
     Does not save the extracted text, copy the reference file, call local/remote
     AI, or contact the internet. On parser/splitter/statistics errors, the
@@ -104,8 +108,6 @@ def import_reference_file(
     source = Path(path)
     suffix = source.suffix.lower()
     if suffix not in _LIMITS:
-        if suffix == ".epub":
-            raise ReferenceParseError("EPUB 파서가 아직 연결되지 않아 가져올 수 없습니다.")
         raise ReferenceParseError("지원하지 않는 참고소설 확장자입니다.")
     if max_bytes is not None and (isinstance(max_bytes, bool) or
                                   not isinstance(max_bytes, int) or max_bytes < 1):
