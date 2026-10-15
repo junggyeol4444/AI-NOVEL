@@ -43,6 +43,8 @@ class NavigationTests(unittest.TestCase):
         # Qt may virtualize offscreen QListWidget rows in the UIA tree.
         self.assertIn('Automation.ScrollPattern', source)
         self.assertIn('NativeSidebarScrollAvailable=', source)
+        self.assertIn('Automation.RangeValuePattern', source)
+        self.assertIn('NativeSidebarRangeScrollAvailable=', source)
         self.assertIn('SelectedUnique=', source)
         self.assertNotIn(
             "if ($button.Current.ControlType.ProgrammaticName -notlike '*Button')",

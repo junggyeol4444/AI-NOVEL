@@ -135,6 +135,45 @@ try {
     }
   }
   Write-Host ('NativeSidebarScrollAvailable=' + ($null -ne $scrollPattern))
+  # Qt QListWidget on Windows may expose a vertical scrollbar with
+  # RangeValuePattern but no ScrollPattern on the list itself.
+  $rangeScroll = $null
+  if ($null -eq $scrollPattern -and $null -ne $sidebar) {
+    $barCondition = [System.Windows.Automation.PropertyCondition]::new(
+      [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+      [System.Windows.Automation.ControlType]::ScrollBar)
+    $bars = $sidebar.FindAll(
+      [System.Windows.Automation.TreeScope]::Descendants, $barCondition)
+    if ($bars.Count -eq 0) {
+      # Some Qt UIA providers expose scrollbars as siblings of the list.
+      # Only accept a scrollbar geometrically inside the named sidebar.
+      $bars = $root.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants, $barCondition)
+    }
+    Write-Host ('NativeSidebarScrollBarCandidates=' + $bars.Count)
+    $sideBounds = $sidebar.Current.BoundingRectangle
+    foreach ($bar in $bars) {
+      $barBounds = $bar.Current.BoundingRectangle
+      if ($barBounds.Left -lt ($sideBounds.Left - 5) -or
+          $barBounds.Right -gt ($sideBounds.Right + 5) -or
+          $barBounds.Top -lt ($sideBounds.Top - 5) -or
+          $barBounds.Bottom -gt ($sideBounds.Bottom + 5)) { continue }
+      if ($barBounds.Width -gt 0 -and $barBounds.Height -gt 0 -and
+          $barBounds.Height -le $barBounds.Width) { continue }
+      $possibleRange = $null
+      if ($bar.TryGetCurrentPattern(
+          [System.Windows.Automation.RangeValuePattern]::Pattern,
+          [ref]$possibleRange)) {
+        $candidateRange = [System.Windows.Automation.RangeValuePattern]$possibleRange
+        if (-not $candidateRange.Current.IsReadOnly -and
+            $candidateRange.Current.Maximum -gt $candidateRange.Current.Minimum) {
+          $rangeScroll = $candidateRange
+          break
+        }
+      }
+    }
+  }
+  Write-Host ('NativeSidebarRangeScrollAvailable=' + ($null -ne $rangeScroll))
   $selected = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::Ordinal)
   $clicks = 0
@@ -161,15 +200,26 @@ try {
     }
     Write-Host ("NativeSidebarPass={0}; SelectedUnique={1}" -f $pass, $selected.Count)
     if ($selected.Count -ge $wanted.Count) { break }
-    if ($null -eq $scrollPattern) { break }
-    $before = $scrollPattern.Current.VerticalScrollPercent
-    if ($before -ge 99.9) { break }
-    $scrollPattern.Scroll(
-      [System.Windows.Automation.ScrollAmount]::NoAmount,
-      [System.Windows.Automation.ScrollAmount]::LargeIncrement)
-    Start-Sleep -Milliseconds 250
-    $after = $scrollPattern.Current.VerticalScrollPercent
-    Write-Host ("NativeSidebarScrollPercent={0}->{1}" -f $before, $after)
+    if ($null -eq $scrollPattern -and $null -eq $rangeScroll) { break }
+    if ($null -ne $scrollPattern) {
+      $before = $scrollPattern.Current.VerticalScrollPercent
+      if ($before -ge 99.9) { break }
+      $scrollPattern.Scroll(
+        [System.Windows.Automation.ScrollAmount]::NoAmount,
+        [System.Windows.Automation.ScrollAmount]::LargeIncrement)
+      Start-Sleep -Milliseconds 250
+      $after = $scrollPattern.Current.VerticalScrollPercent
+    } else {
+      $before = [double]$rangeScroll.Current.Value
+      $step = [Math]::Max([double]1, [double]$rangeScroll.Current.LargeChange)
+      $target = [Math]::Min(
+        [double]$rangeScroll.Current.Maximum, [double]($before + $step))
+      if ($target -le $before) { break }
+      $rangeScroll.SetValue($target)
+      Start-Sleep -Milliseconds 250
+      $after = [double]$rangeScroll.Current.Value
+    }
+    Write-Host ("NativeSidebarScrollPosition={0}->{1}" -f $before, $after)
     if ($after -le $before) { break }
   }
   Write-Host ("AutomationElements={0}; MatchedMenuItems={1}; NativeSelectionClicks={2}" -f $allCount, $selected.Count, $clicks)

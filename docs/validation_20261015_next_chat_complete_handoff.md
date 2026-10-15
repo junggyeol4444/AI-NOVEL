@@ -1,5 +1,15 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-15 18시 KST 후속 Windows 11 스크롤 패턴 부재 — UIA RangeValue 대체 구현
+
+- [스크롤 탐색 수정 `50cb1a8a5ab0cc77f0ec5ef1b905b63af29fd30e`](https://github.com/junggyeol4444/AI-NOVEL/commit/50cb1a8a5ab0cc77f0ec5ef1b905b63af29fd30e)에서 [Windows 11 UIA #38711946763](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711946763) **FAIL**: `NativeSidebarFound=True`, `NativeSidebarScrollAvailable=False`, `SelectedUnique=5`, `NativeSelectionClicks=5`. 실제 Qt `QListWidget`의 가시 5개 행을 선택했으나 Windows UIA ScrollPattern은 지원되지 않아 추가 탐색 불가.
+- 이번 변경은 정확히 식별된 `sectionSidebar`의 자손 또는 **사이드바 화면 영역 안에 위치한** OS UIA `ControlType.ScrollBar`를 찾고, `RangeValuePattern`이 쓰기 가능하면 큰 단계로 값을 올려 아래쪽 행을 표시한 뒤 목록을 다시 검색한다. ScrollPattern 지원 시 기존 경로 유지. UIA ScrollBar/RangeValue 지원 여부와 각 이동 수치만 기록하고, 12개 메뉴 각각의 `SelectionItemPattern.Select()` 성공을 요구한다. 패턴이 없으면 **FAIL**, OS 전경/실사용자 인수 PASS 주장 금지. 정적 회귀 검사에 RangeValue 경로 추가.
+- 같은 SHA의 [Linux Qt #38711946732](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711946732), [Windows fast Qt #38711946817](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711946817), [PG/Redis/Celery #38711946780](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711946780), [Windows EXE/로컬 GGUF/Windows11 오프라인 #38711946757](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711946757) 모두 **SUCCESS**. 장시간 Windows 검증 종료 후에만 후속 변경 커밋. 신규 RangeValue 대체 변경의 CI는 아직 미확정이며 다음 회차에서 로그로 판정해야 한다.
+- 제품 상태 **RELEASE_BLOCKED**: 물리 Windows 10/11 사람의 전경 인수, Windows 11 privacy/OOBE 차단, 전수 참고작 Similarity, 장편 30/100/250화×약 5000자 창작 품질, 01~100단계 통합 미완. `main`/실사용자 원고·DB·키/실계정/출판/기존 예약 무단 변경 없음.
+
+---
+
+
 ## 2026-10-15 18시 KST 후속 Windows 11 UIA 스크롤 탐색 결함 — 12개 메뉴 전수 선택 수정
 
 - [Qt `toggled` 신호 수정 `20844ccc2baee2d2cf7e932f47133237c4987c56`](https://github.com/junggyeol4444/AI-NOVEL/commit/20844ccc2baee2d2cf7e932f47133237c4987c56) 이후 [Windows 11 외부 UIA #38711139707](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38711139707) **FAIL**: `AdvancedMenuControlType=ControlType.CheckBox`, `AutomationElements=126; MatchedMenuItems=6; NativeSelectionClicks=5`. 이전 1개/0회에서 개선되어 UIA 체크 상태와 실제 Qt `sidebar.setVisible` 연결은 작동했지만, **화면에 보이는 약 5개 행만 선택하고 스크롤 밖 나머지 행을 놓침**. UIA가 리스트의 가시 행만 노출하는지 여부는 다음 실행에서 스크롤 패턴 진단으로 확인해야 한다.
