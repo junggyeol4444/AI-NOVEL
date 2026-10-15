@@ -34,5 +34,7 @@ jobs:
         run: |
           python -m compileall -q src
           python -m unittest discover -s tests -p test_desktop_navigation.py -v
+      - name: Data safety for new SQLite projects, optional author and race preservation
+        run: python -m unittest discover -s tests -p test_authoring_session_safety.py -v
       - name: Real local Qt widget clicks and SQLite versioned user journey
         run: python -m unittest discover -s tests -p test_studio_gui_optional.py -v
