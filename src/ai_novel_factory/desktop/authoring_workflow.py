@@ -22,14 +22,27 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.status.setText('작업 실패: 상세 오류는 비공개입니다.')
 
     def _create(self):
+        extra = {key: self._text(key).strip() for key in
+                 ('genre', 'subject', 'target_episodes',
+                  'characters_per_episode', 'mood')}
+        for key in ('target_episodes', 'characters_per_episode'):
+            value = extra[key]
+            if value and (not value.isdecimal() or not 1 <= int(value) <= 1000000):
+                raise ValueError('분량은 1~1000000 범위의 정수여야 합니다.')
         self.session.create_project(self._text('db'), self._text('title'),
-                                    self._text('author'), self._text('premise'))
+                                    self._text('author'), self._text('premise'),
+                                    extra_rules=extra)
 
     def _open(self):
         self.session.open_project(self._text('db'))
         self._set('title', self.session.store.get_project(self.session.project_id).title)
         self._set('author', self.session.rule('author'))
         self._set('premise', self.session.rule('premise'))
+        metadata = {rule.key: rule.value for rule in
+                    self.session.store.list_rules(self.session.project_id)}
+        for key in ('genre', 'subject', 'target_episodes',
+                    'characters_per_episode', 'mood'):
+            self._set(key, metadata.get(key, ''))
 
     def _sync(self):
         if not self.session.store:

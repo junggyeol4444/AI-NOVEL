@@ -45,9 +45,21 @@ def run(args):
         ui._set('title', '가상 등불 여행')
         ui._set('author', '합성 테스트 작가')
         ui._set('premise', '완전히 가상의 산악 마을에서 등불을 찾는 이야기')
+        for key, value in (
+                ('genre', 'fantasy'), ('subject', 'original lantern adventure'),
+                ('target_episodes', '250'), ('characters_per_episode', '5000'),
+                ('mood', 'suspense')):
+            ui._set(key, value)
         QTest.mouseClick(ui.buttons['create'], Qt.MouseButton.LeftButton)
         check('create_project_via_compiled_gui', db_path.is_file() and ui.session.project_id is not None)
         pid = ui.session.project_id
+        with EpisodeStore(db_path) as db:
+            metadata = {r.key: r.value for r in db.list_rules(pid)}
+            check('original_planning_inputs_saved',
+                  all(metadata.get(k) == v for k, v in (
+                      ('genre', 'fantasy'), ('subject', 'original lantern adventure'),
+                      ('target_episodes', '250'), ('characters_per_episode', '5000'),
+                      ('mood', 'suspense'))))
         ui._set('bible', '가상 마을의 길은 밤에만 열린다')
         QTest.mouseClick(ui.buttons['save_bible'], Qt.MouseButton.LeftButton)
         with EpisodeStore(db_path) as db:

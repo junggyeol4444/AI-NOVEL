@@ -42,7 +42,15 @@ class AuthoringSession:
             raise AuthoringError('장면을 먼저 생성하세요.')
         return db.get_scene(pid, self.episode().episode, self.scene_id)
 
-    def create_project(self, filename, title, author, premise):
+    def create_project(self, filename, title, author, premise, *,
+                       extra_rules=None):
+        extra_rules = extra_rules or {}
+        allowed = {'genre', 'subject', 'target_episodes',
+                   'characters_per_episode', 'mood'}
+        if (type(extra_rules) is not dict or
+                any(k not in allowed or type(v) is not str or len(v) > 4000
+                    for k, v in extra_rules.items())):
+            raise AuthoringError('초기 설정 값이 올바르지 않습니다.')
         path = Path(filename)
         if (not path.is_absolute() or path.exists() or path.is_symlink()
                 or not path.parent.is_dir() or path.suffix.lower() not in ('.db', '.sqlite')):
@@ -52,6 +60,9 @@ class AuthoringSession:
             project = db.create_project(title)
             db.save_rule(project.project_id, 'author', author)
             db.save_rule(project.project_id, 'premise', premise)
+            for key, value in extra_rules.items():
+                if value.strip():
+                    db.save_rule(project.project_id, key, value)
         except BaseException:
             db.close()
             path.unlink(missing_ok=True)
@@ -128,8 +139,14 @@ class AuthoringSession:
             raise AuthoringError('회차와 장면 플롯을 먼저 저장하세요.')
         provider = LocalExecutableProvider(executable, arguments=arguments,
                                            timeout_seconds=120, explicitly_allowed=True)
+        metadata = {r.key: r.value for r in self.store.list_rules(self.project_id)}
+        canon = self.rule('premise')
+        for field in ('genre', 'subject', 'mood', 'target_episodes',
+                      'characters_per_episode'):
+            if metadata.get(field):
+                canon += '\n' + field + ': ' + metadata[field]
         request = SceneDraftRequest(
-            self.project_id, ep.episode, scene.position, self.rule('premise'),
+            self.project_id, ep.episode, scene.position, canon,
             goal, conflict, location, characters, ep.plot + '\n' + scene.text)
         result = draft_scene(request, provider)
         self.pending_draft = result.draft
