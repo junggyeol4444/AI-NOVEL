@@ -94,6 +94,19 @@ def run(out: str) -> int:
         QTest.mouseClick(ui.buttons['save_draft'], Qt.MouseButton.LeftButton)
         with EpisodeStore(db_file) as db:
             check('model_draft_saved', db.get_episode(pid, 1).draft == draft)
+        ui._set('final_text', draft + '\n[사용자 검수 완료: 합성 테스트 원고]')
+        QTest.mouseClick(ui.buttons['save_final'], Qt.MouseButton.LeftButton)
+        with EpisodeStore(db_file) as db:
+            check('portable_gui_final_requires_explicit_human_review',
+                  db.get_episode(pid, 1).final_text == '')
+        ui.final_reviewed.setChecked(True)
+        ui.final_quality_ack.setChecked(True)
+        QTest.mouseClick(ui.buttons['save_final'], Qt.MouseButton.LeftButton)
+        with EpisodeStore(db_file) as db:
+            check('portable_gui_final_manual_approval_saved',
+                  db.get_episode(pid, 1).final_text.endswith('합성 테스트 원고]')
+                  and not ui.final_reviewed.isChecked()
+                  and not ui.final_quality_ack.isChecked())
         ui._set('export_dir', str(output))
         ui._set('price', '0')
         QTest.mouseClick(ui.buttons['export'], Qt.MouseButton.LeftButton)
