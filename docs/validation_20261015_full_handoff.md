@@ -203,3 +203,14 @@
 - **집중 집필 모드** 버튼: 회차 목록과 우측 설정/검수 패널을 숨기고 원고 입력 공간을 넓힌다. 다시 누르면 회차 목록과 패널 설정을 복구하며, 원고나 DB 값은 바꾸지 않는다. Qt 클릭 회귀 테스트에서 모드 전환·기존 원고 및 회차 유지 검사.
 - **성공 검증**: 최신 소스 `5a68a4ed12bbfcc9113ee4b00f42cce8cc6fd20b` Linux Qt run `38693335765` SUCCESS, Windows fast Qt run `38693335630` SUCCESS. 이전 2열 좁은화면 코드 `c4412f54` Linux Qt `38692951451` SUCCESS. 현재 진행 중인 Windows 11 **실제 EXE/화면** run `38693335741`, 패키징된 AI 실행 run `38693335787`은 성공이나 사용자인수로 단정 금지. 쌓인 취소 결과는 실패/성공과 구분.
 - 이 시점에 `main`은 `69225edeed0a09ded5f847dad9b9ea63bc45367c`, 사용자 SQLite/원고 미변경, 예약 생성 없음. 원래 01~100, 실제 Windows 11 foreground 사용자 조작, 장편 30/100/250화 품질·전수 유사성은 여전히 **RELEASE_BLOCKED**.
+
+
+### 2026-10-15 즉시 개발: 사용자가 지정한 신규 TXT 원고 안전 사본
+
+- [예약 없음] 사용자 "계속"은 **즉시** 개발·수정·검증을 수행하라는 뜻. 새 예약·자동화 생성 없음.
+- `src/ai_novel_factory/desktop/draft_backup.py`에 명시적 `write_draft_copy(destination, prose)` 추가. 쓰기 허용 대상은 사용자가 직접 선택한 새 절대경로의 TXT 한 개, OS `O_CREAT | O_EXCL`로 경합 덮어쓰기 방지, UTF-8 원문 그대로, flush+fsync. 쓰기 실패 시 **본 호출에서 만든 파일이고 동일 inode인 경우에만** 불완전 파일 청소. 기존 SQLite DB·원고 버전·최종본·외부 게시와 무관. 로컬 TXT는 암호화가 아니므로 개인 정보 저장 위치에 주의 필요.
+- `project_studio.py` 집필실에 `현재 원고를 TXT로 별도 보관` 버튼. **원고 수정·저장 충돌이 난 상황에서도 화면의 미저장 내용을 수동 선택한 새 파일로 복사**할 수 있다. 복사 뒤에도 편집기는 미저장 상태로 남고, 직접 `원고 버전 저장` 없이 DB 저장 완료로 표시하지 않음. 실패 시 개인정보 포함 경로를 화면에 공개하지 않음.
+- `tests/test_draft_backup_safety.py` 7개 회귀 검사: 유니코드 정확한 바이트 복사, 기존파일 보존, O_EXCL 생성 경합, 빈/상대경로/SQLite 경로 거부, symlink 거부, 디스크 동기화 실패 시 자기 파일만 삭제. Linux와 Windows CI 단계에 모두 추가. GUI Qt 버튼 클릭으로 TXT 사본 생성·기존 파일 보호·원고 버전 2개 보존·편집기 미저장 상태 유지 확인.
+- 도입 시 최초 Linux run `38694109119` / Windows fast `38694109130`은 `Path` 타입 검사 오류 때문에 실패. `isinstance(..., (str, Path))`로 수정. 이후 run `38694226531` / `38694226508`은 단독 TXT 테스트는 통과했으나 Qt GUI 테스트 내부 `patch` import 지연으로 실패. 테스트에서 `unittest.mock.patch`를 함수 첫 부분으로 이동.
+- **검증된 최신 소스 SHA `6a18d9caeac6034de1768d6bda76f17bd0301fdb`**: Linux Qt run `38694356844` SUCCESS (독립 safety + 버튼, 스크린샷), Windows GUI run `38694356896` SUCCESS (TXT 파일 잠금/보존 + 실제 Qt 위젯 버튼), real service run `38694356784` SUCCESS. Linux artifact `anf-linux-studio-qt-synthetic-screens`에서 820×750 GUI 원고 화면에 새 보관 버튼과 한글 정상 렌더됨을 직접 육안 확인. **이 결과로 물리 Windows 11 EXE 시각 인수 PASS를 주장하지 않는다.**
+- 이 SHA Windows 11 QA run `38694356766`, 패키징 EXE+로컬 GGUF run `38694356849`은 확인 시 `IN_PROGRESS`. 실제 EXE 빌드, OS foreground 전경 가림 해소, 실제 로컬 모델과 30/100/250회 장편 품질 및 01~100 요구사항 전체 기준은 **RELEASE_BLOCKED**. `main` / 사용자 원고 / 키 / 설정 미변경.
