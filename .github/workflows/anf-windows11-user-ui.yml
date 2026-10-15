@@ -62,12 +62,26 @@ jobs:
             Get-Content 'build/ci/windows11-qt/windows11_qt_report.json'
           }
           if ($p.ExitCode -ne 0) { throw 'Actual Qt navigation/rendering on Windows 11 failed' }
+      - name: EXTERNAL native Windows 11 user actions via OS UIAutomation (no in-process Qt)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./scripts/ci_windows11_external_authoring.ps1 ./build/ci/windows11-exe/AI_Novel_Factory.exe
+          if (-not $?) { throw 'External user UIAutomation test failed' }
       - name: Inspect real Windows 11 interactive GUI, select all menus, capture desktop
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           & ./scripts/ci_windows11_desktop.ps1 ./build/ci/windows11-exe/AI_Novel_Factory.exe
           if (-not $?) { throw 'Windows 11 native UI Automation script failed' }
+      - name: Preserve external real GUI user-action results (never upload novel DB)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows11-native-external-user-actions
+          retention-days: 5
+          if-no-files-found: warn
+          path: build/ci/windows11-native-user/external_user_report.json
       - name: Preserve offscreen Windows 11 Qt page snapshots (synthetic data)
         if: always()
         uses: actions/upload-artifact@v4
