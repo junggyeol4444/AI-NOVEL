@@ -84,3 +84,18 @@
 - 직전 확정된 `38681732387` Windows EXE 집필 연계 SUCCESS, `38681732308` 실 PG/벡터/Redis/Celery SUCCESS, `38681732410` Windows 11 실제 데스크톱 QA FAILURE. 실패 원인은 Windows OS 개인정보 OOBE 설정 화면이 앱 전면을 가린 상태(`QtForeground=False`). GitHub 아티팩트 `windows11-actual-desktop-probe` 원본 화면 직접 열어 확인; 캡처된 Qt HWND와 실제 데스크톱 전경은 서로 다르다.
 - GUI 개편 후 검증 워크플로는 `validation/gui-authoring-e2e-20261014` 새 커밋들에서 자동 실행 중이며 **완료하지 않은 실행은 성공으로 작성하면 안 된다**. 최신 Actions `https://github.com/junggyeol4444/AI-NOVEL/actions?query=branch%3Avalidation%2Fgui-authoring-e2e-20261014`에서 최종 상태를 확인하라.
 - 사용자 데이터/기존 키/연동 설정/비활성 자동화는 수정하지 않았고 실계정 업로드·게시·외부 참고소설 전송 없음. 물리 Windows 10/11 x64 PC/실사용자 마우스·키보드 전체 길찾기/화면 가독성 인수, Reference→Writer 자동 연결/전수 유사성·자동 재작성/30·100·250화 장기 실제 품질은 여전히 미달.
+
+
+### 2026-10-15 개발 재개 추가 진행 (최신, GUI 저장/복원)
+
+아래 항목은 **코드 반영 완료 / 최신 QA 판정 아직 미확정**이다.
+- `project_studio.py`: 첫 회차 바로 시작 버튼(`studioFirstEpisodeButton`), 사용자 작성 원고 편집 및 명시적 버전 저장 버튼, `Ctrl+S` 단축키 추가. 기존 초고의 첫 버전 보존/수정본 추가, 최근 작품 목록에서 랜덤 DB 파일명 대신 저장된 작품명 표시. 기존 로컬 SQLite/설정은 삭제하거나 덮어쓰지 않는다.
+- `app.py`: 기존 상세 작업 탭으로 이동할 때 저장하지 않은 원고 확인. 탭 클릭으로 인한 사용자 원고 변경 유실을 막는다.
+- `scripts/ci_windows11_external_authoring.ps1`: 기존 Qt 내부 테스트와 독립적으로 Windows UIAutomation에서 기본 새 작품 GUI의 실제 입력/생성, 첫 회차 클릭, 원고 입력/버전 저장 클릭, 기존 DB 열기/종료/재실행을 순서대로 시험하도록 확대했다. 해당 신규 단계 PASS 여부는 최신 Windows 11 Actions 확인 전에는 미확정.
+- `desktop/ci_win11_ui.py`: 실제 Qt 버튼 클릭으로 첫 회차/버전 저장 확인; 오프스크린 실험일 뿐 물리 Windows 사용자의 합격이 아니다.
+- `tests/test_studio_gui_optional.py`: 합성 데이터로 GUI 작품 생성, 첫 회차, 두 번 저장 후 원본 버전 보존, 앱 재기동 시 최근 작품 제목/원고 복원, 미수행 검수 항목 NOT_RUN 보존 검증 추가.
+- `.github/workflows/anf-studio-fast-ci.yml`: 무거운 AI 모델 Windows EXE 빌드와 별개로 Windows x64 runner에서 빠른 PySide6 클릭+로컬 SQLite 테스트를 실행. **실행 결과 확인 전 PASS 선언 금지**.
+- 최신 코드 검증 시작점: 커밋 `3f8d96ee6b5a1e84e5361a0312f717260859ccc3`; `https://github.com/junggyeol4444/AI-NOVEL/actions?query=branch%3Avalidation%2Fgui-authoring-e2e-20261014`.
+- 확인한 `main` head: `69225edeed0a09ded5f847dad9b9ea63bc45367c` (수정/병합 없음). 사용자 실계정/원고/키·기존 연결·비활성 자동화에 손대지 않음.
+- 미해결: 새 GUI 정식 Windows 10/11 사용자 검수, 12개 독립 메뉴 전체를 통합한 UI 전면 개편, 등록 참고작→자동 기획/Writer→전수 검사/기억·재작성→30/100/250화 장편 실품질·출판까지 종단 연결. 기존 Windows 11 OOBE 화면 전경 가림 문제도 FAIL로 보존.
+
