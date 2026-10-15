@@ -239,6 +239,35 @@ class ProjectStudio(QWidget):
         self.save_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.save_shortcut.activated.connect(self._save_manuscript)
         center.addWidget(self.editor, 1)
+
+        # A writer can search lengthy chapters without switching away from
+        # their draft. Replace modifies only the live editor; SQLite writes
+        # remain exclusively behind the explicit Save Manuscript button.
+        find_row = QHBoxLayout()
+        self.manuscript_find = QLineEdit()
+        self.manuscript_find.setObjectName('studioFindManuscript')
+        self.manuscript_find.setAccessibleName('원고 본문 찾기')
+        self.manuscript_find.setPlaceholderText('본문에서 찾기')
+        self.manuscript_find.returnPressed.connect(self._find_next)
+        find_row.addWidget(self.manuscript_find, 2)
+        find_next = QPushButton('다음 찾기')
+        find_next.setObjectName('studioFindNext')
+        find_next.clicked.connect(self._find_next)
+        find_row.addWidget(find_next)
+        self.manuscript_replace = QLineEdit()
+        self.manuscript_replace.setObjectName('studioReplaceManuscript')
+        self.manuscript_replace.setAccessibleName('원고 바꿀 글')
+        self.manuscript_replace.setPlaceholderText('바꿀 글')
+        find_row.addWidget(self.manuscript_replace, 2)
+        replace_one = QPushButton('선택 항목 바꾸기')
+        replace_one.setObjectName('studioReplaceOne')
+        replace_one.clicked.connect(self._replace_one)
+        find_row.addWidget(replace_one)
+        center.addLayout(find_row)
+        self.find_feedback = QLabel('')
+        self.find_feedback.setObjectName('studioFindFeedback')
+        self.find_feedback.setWordWrap(True)
+        center.addWidget(self.find_feedback)
         actions = QHBoxLayout()
         save = QPushButton('원고 버전 저장')
         save.setObjectName('studioSaveManuscript')
@@ -331,6 +360,37 @@ class ProjectStudio(QWidget):
         if apply:
             self.editor.setPlainText(self._shown_text)
         return True
+
+    def _find_next(self) -> None:
+        needle = self.manuscript_find.text()
+        if not needle:
+            self.find_feedback.setText('찾을 글을 먼저 입력하세요.')
+            return
+        if self.editor.find(needle):
+            self.find_feedback.setText('본문에서 일치하는 부분을 선택했습니다.')
+            return
+        # Wrap once, but never alter the manuscript when there is no match.
+        cursor = self.editor.textCursor()
+        cursor.movePosition(cursor.MoveOperation.Start)
+        self.editor.setTextCursor(cursor)
+        if self.editor.find(needle):
+            self.find_feedback.setText('본문 처음부터 다시 찾았습니다.')
+        else:
+            self.find_feedback.setText('일치하는 글이 없습니다.')
+
+    def _replace_one(self) -> None:
+        needle = self.manuscript_find.text()
+        cursor = self.editor.textCursor()
+        if not self.editor.isEnabled() or not needle:
+            self.find_feedback.setText('편집할 회차와 찾을 글을 선택하세요.')
+            return
+        if cursor.selectedText() != needle:
+            self.find_feedback.setText('먼저 다음 찾기로 바꿀 위치를 선택하세요.')
+            return
+        # Replace exactly one selected occurrence. No automatic mass replace
+        # and no SQLite write: Undo and explicit versioned Save remain possible.
+        cursor.insertText(self.manuscript_replace.text())
+        self.find_feedback.setText('선택한 1곳만 바꿨습니다. 저장하려면 원고 버전 저장을 누르세요.')
 
     def _update_manuscript_stats(self):
         text = self.editor.toPlainText()

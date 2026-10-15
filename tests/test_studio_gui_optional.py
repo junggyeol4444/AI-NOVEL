@@ -83,6 +83,26 @@ class UserFirstStudioTests(unittest.TestCase):
             with EpisodeStore(path) as store:
                 self.assertEqual(store.get_episode(pid, 1).draft, revised)
 
+            # Real Qt search/replace works on a single selected occurrence
+            # without silently persisting any unsaved prose to SQLite.
+            studio.manuscript_find.setText('창작한')
+            QTest.mouseClick(studio.findChild(
+                QPushButton, 'studioFindNext'), Qt.MouseButton.LeftButton)
+            self.assertEqual(studio.editor.textCursor().selectedText(), '창작한')
+            studio.manuscript_replace.setText('만든')
+            QTest.mouseClick(studio.findChild(
+                QPushButton, 'studioReplaceOne'), Qt.MouseButton.LeftButton)
+            self.assertIn('만든', studio.editor.toPlainText())
+            self.assertIn('미저장', studio.manuscript_stats.text())
+            with EpisodeStore(path) as store:
+                self.assertEqual(store.get_episode(pid, 1).draft, revised)
+            studio.editor.setPlainText(revised)
+            studio.manuscript_find.setText('실제로 존재하지 않는 문자열')
+            QTest.mouseClick(studio.findChild(
+                QPushButton, 'studioFindNext'), Qt.MouseButton.LeftButton)
+            self.assertIn('일치하는 글이 없습니다', studio.find_feedback.text())
+            self.assertEqual(studio.editor.toPlainText(), revised)
+
             # Chapter filters and neighboring buttons operate on synthetic
             # real SQLite episodes; they do not search private draft text.
             session.create_episode(2, '합성 2화 기획')
