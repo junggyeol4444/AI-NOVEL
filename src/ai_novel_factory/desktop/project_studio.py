@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QPushButton,
     QLineEdit, QPlainTextEdit, QFormLayout, QSpinBox, QStackedWidget,
     QListWidget, QFileDialog, QMessageBox, QSplitter, QDialog, QDialogButtonBox,
-    QFrame,
+    QFrame, QScrollArea,
 )
 
 from ai_novel_factory.manuscript_versions import ManuscriptVersionStore
@@ -94,6 +94,7 @@ class ProjectStudio(QWidget):
         reopen = QPushButton('선택한 작품 열기')
         reopen.setObjectName('studioOpenRecentButton')
         reopen.clicked.connect(self._open_recent)
+        self.recents.itemDoubleClicked.connect(lambda _item: self._open_recent())
         layout.addWidget(reopen)
         self.pages.addWidget(page)
 
@@ -149,8 +150,13 @@ class ProjectStudio(QWidget):
         self.create_status = QLabel('참고소설 분석과 전체 자동 기획은 아직 완성되지 않았습니다.')
         self.create_status.setWordWrap(True)
         layout.addWidget(self.create_status)
-        layout.addStretch(1)
-        self.pages.addWidget(page)
+        # Long new-novel setup must stay operable on 820x560 and smaller
+        # Windows display scaling; the creation action cannot be clipped.
+        self.create_scroll = QScrollArea(self)
+        self.create_scroll.setObjectName('studioCreateScroll')
+        self.create_scroll.setWidgetResizable(True)
+        self.create_scroll.setWidget(page)
+        self.pages.addWidget(self.create_scroll)
 
     def _build_writer(self):
         page = QWidget()

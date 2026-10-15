@@ -33,6 +33,8 @@ class DesktopGuiTests(unittest.TestCase):
         QTest.mouseClick(window.findChild(QPushButton, 'primaryWritingButton'),
                          Qt.MouseButton.LeftButton)
         self.assertEqual(window.studio.pages.currentIndex(), 1)
+        self.assertTrue(window.studio.create_scroll.widgetResizable())
+        self.assertIsNotNone(window.studio.create_scroll.widget())
         # The studio's secondary writing shortcut must behave identically.
         window.studio._show(0)
         QTest.mouseClick(window.studio.findChild(QPushButton, 'studioWritingButton'),
