@@ -239,7 +239,7 @@ jobs:
             $report.current_stage='click_actual_gui_generate_local_gguf'
             Press 'generateSceneWithLocalModel' '로컬 AI 초고 생성'
             $editor=$null
-            for($i=0;$i -lt 370;$i++){
+            for($i=0;$i -lt 1200;$i++){
               Start-Sleep -Milliseconds 400
               $editor=Ui 'authoring_draft' '검토 가능한 초고'
               if($null -ne $editor){
@@ -259,7 +259,18 @@ jobs:
               if(-not $editor.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern,[ref]$tp)){throw 'generated_manuscript_uia_text_pattern_missing'}
               $draft=([System.Windows.Automation.TextPattern]$tp).DocumentRange.GetText(-1)
             }
-            if(-not $draft){throw 'real_model_generated_empty_draft'}
+            if(-not $draft){
+              $statusView=Ui 'authoringStatus' '로컬 전용'
+              if($null -ne $statusView){
+                $statusName=[string]$statusView.Current.Name
+                if($statusName -match 'native_timeout'){$report.gui_model_failure='native_timeout'}
+                elseif($statusName -match 'native_inference_failure'){$report.gui_model_failure='native_inference_failure'}
+                elseif($statusName -match 'LocalModelError'){$report.gui_model_failure='LocalModelError'}
+                elseif($statusName -match '작품/회차/장면이 변경'){$report.gui_model_failure='stale_editor'}
+                else{$report.gui_model_failure='no_sanitized_category'}
+              }
+              throw 'real_model_generated_empty_draft'
+            }
             $report.current_stage='validate_korean_5000_no_english_padding'
             $nonspace=[regex]::Replace($draft,'\s','')
             $hangul=[regex]::Matches($nonspace,'[\uAC00-\uD7A3]').Count

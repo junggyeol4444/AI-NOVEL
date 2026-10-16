@@ -128,7 +128,8 @@ class AutoBatchPanel(QGroupBox):
             executable = self.authoring._text('executable').strip()
             arguments = tuple(shlex.split(self.authoring._text('arguments')))
             provider = LocalExecutableProvider(
-                executable, arguments=arguments, timeout_seconds=120,
+                executable, arguments=arguments,
+                timeout_seconds=(450 if arguments[:1] == ('--gguf',) else 120),
                 explicitly_allowed=True)
         except (ValueError, OSError) as exc:
             self.status.setText(str(exc)[:160])

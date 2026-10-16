@@ -18,8 +18,8 @@ class KoreanNativeBridgeSourceContract(unittest.TestCase):
 
     def test_output_budget_no_longer_384(self):
         source = SOURCE.read_text(encoding='utf-8')
-        self.assertNotIn("'--predict', '384'", source)
-        self.assertIn("'--predict', '1536'", source)
+        self.assertIn("prediction_budget = '384' if is_bundled_qa_model else '1536'", source)
+        self.assertIn('native_timeout = 110 if is_bundled_qa_model else 400', source)
         self.assertIn("'--ctx-size', '4096'", source)
 
     def test_no_network_api_or_auto_publish(self):

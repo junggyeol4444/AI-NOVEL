@@ -1,6 +1,6 @@
 """Background real GGUF scene worker; never touches QWidget or SQLite."""
 from PySide6.QtCore import QThread, Signal
-from ai_novel_factory.local_models import draft_scene
+from ai_novel_factory.local_models import LocalModelError, draft_scene
 
 
 class DraftWorker(QThread):
@@ -15,6 +15,10 @@ class DraftWorker(QThread):
     def run(self):
         try:
             self.generated.emit(draft_scene(self._request, self._provider))
+        except LocalModelError as exc:
+            reason = str(exc)
+            self.failed.emit(reason if reason in ('native_timeout', 'native_inference_failure')
+                             else 'LocalModelError')
         except (ValueError, OSError) as exc:
             self.failed.emit(type(exc).__name__)
         except BaseException:

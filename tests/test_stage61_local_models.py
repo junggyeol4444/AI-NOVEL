@@ -90,7 +90,7 @@ class OfflineModelTests(unittest.TestCase):
             LocalExecutableProvider(sys.executable, explicitly_allowed=True, arguments=('x\x00y',))
 
     def test_timeout_bounds(self):
-        for seconds in (0, -1, 121, True):
+        for seconds in (0, -1, 481, True):
             with self.subTest(seconds=seconds), self.assertRaises(LocalModelError):
                 LocalExecutableProvider(sys.executable, explicitly_allowed=True, timeout_seconds=seconds)
 

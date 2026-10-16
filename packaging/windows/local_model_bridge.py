@@ -115,9 +115,15 @@ def main(argv=None) -> int:
         # --single-turn --no-display-prompt invocation exits successfully.
         # The previous combination with --no-conversation / --simple-io
         # returned native exit 1 although loading the GGUF succeeds.
+        # Keep the small bundled 135M smoke route responsive. Larger, explicitly
+        # selected multilingual GGUF weights need a separate bounded CPU budget.
+        is_bundled_qa_model = model.name == MODEL_NAME
+        prediction_budget = '384' if is_bundled_qa_model else '1536'
+        native_timeout = 110 if is_bundled_qa_model else 400
         command = [
             str(llama), '--model', str(model), '--prompt', prompt,
-            '--predict', '1536', '--ctx-size', '4096', '--threads', '1', '--threads-batch', '1',
+            '--predict', prediction_budget, '--ctx-size', '4096',
+            '--threads', '1', '--threads-batch', '1',
             '--single-turn', '--no-display-prompt'
         ]
         env = {k: os.environ[k] for k in
@@ -126,7 +132,7 @@ def main(argv=None) -> int:
         stage = 'native_inference'
         proc = subprocess.run(command, cwd=llama.parent, env=env,
                               capture_output=True, text=True, encoding='utf-8',
-                              errors='replace', timeout=110, check=False)
+                              errors='replace', timeout=native_timeout, check=False)
         if proc.returncode != 0:
             # Only the numeric native process exit status is emitted. stderr
             # can include user inputs or command-line prompts, so discard it.

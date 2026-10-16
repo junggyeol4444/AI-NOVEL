@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import re
 from typing import Protocol
 
 
@@ -122,7 +123,7 @@ class LocalExecutableProvider:
             raise LocalModelError('an existing executable absolute path is required')
         if type(arguments) is not tuple or any(type(v) is not str or '\x00' in v for v in arguments):
             raise LocalModelError('invalid executable arguments')
-        if type(timeout_seconds) not in (float, int) or isinstance(timeout_seconds, bool) or not 0 < timeout_seconds <= 120:
+        if type(timeout_seconds) not in (float, int) or isinstance(timeout_seconds, bool) or not 0 < timeout_seconds <= 480:
             raise LocalModelError('invalid local process timeout')
         self._command = (str(path), *arguments)
         self._timeout = float(timeout_seconds)
@@ -140,8 +141,19 @@ class LocalExecutableProvider:
                                        shell=False)
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise LocalModelError('local provider execution failed or timed out') from None
-        if completed.returncode != 0 or len(completed.stdout) > MAX_DRAFT_CHARS + 5000:
-            raise LocalModelError('local provider rejected or oversized response')
+        if completed.returncode != 0:
+            # Public compiled bridge emits a machine-readable failure category;
+            # never expose stderr or user prompts from arbitrary executables.
+            match = re.search(
+                r'LOCAL_MODEL_GENERATION_FAILED;STAGE=([a-z_]+);TYPE=([A-Za-z]+)',
+                completed.stderr[:300])
+            if match and match.group(1) == 'native_inference':
+                if match.group(2) == 'TimeoutExpired':
+                    raise LocalModelError('native_timeout')
+                raise LocalModelError('native_inference_failure')
+            raise LocalModelError('local provider rejected')
+        if len(completed.stdout) > MAX_DRAFT_CHARS + 5000:
+            raise LocalModelError('local provider oversized response')
         try:
             response = json.loads(completed.stdout)
         except (ValueError, TypeError):

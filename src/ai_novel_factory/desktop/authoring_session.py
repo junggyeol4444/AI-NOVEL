@@ -191,8 +191,11 @@ class AuthoringSession:
         ep, scene = self.episode(), self.scene()
         if not ep.plot.strip() or not scene.text.strip():
             raise AuthoringError('회차와 장면 플롯을 먼저 저장하세요.')
+        # The explicit --gguf choice may be a larger Korean-capable CPU model.
+        # Keep the original short limit for the tiny bundled smoke model.
+        limit = 450 if arguments[:1] == ('--gguf',) else 120
         provider = LocalExecutableProvider(executable, arguments=arguments,
-                                           timeout_seconds=120, explicitly_allowed=True)
+                                           timeout_seconds=limit, explicitly_allowed=True)
         metadata = {r.key: r.value for r in self.store.list_rules(self.project_id)}
         canon = self.rule('premise')
         for field in ('genre', 'subject', 'mood', 'target_episodes',
