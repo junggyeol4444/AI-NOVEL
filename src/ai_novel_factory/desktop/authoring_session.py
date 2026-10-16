@@ -205,8 +205,11 @@ class AuthoringSession:
         request = SceneDraftRequest(
             self.project_id, ep.episode, scene.position, canon,
             goal, conflict, location, characters, ep.plot + '\n' + scene.text)
+        rules_snapshot = tuple(sorted(
+            (rule.key, rule.value, rule.revision)
+            for rule in self.store.list_rules(self.project_id)))
         identity = (str(self.path), self.project_id, ep.episode, scene.scene_id,
-                    ep.revision, scene.text)
+                    ep.revision, scene.text, rules_snapshot)
         return request, provider, identity
 
     def accept_generation(self, request, result, identity):
@@ -218,6 +221,11 @@ class AuthoringSession:
         ep, scene = self.episode(), self.scene()
         if ep.revision != identity[4] or scene.text != identity[5]:
             raise AuthoringError('집필 도중 회차/장면이 바뀌어 AI 결과를 적용하지 않았습니다.')
+        current_rules = tuple(sorted(
+            (rule.key, rule.value, rule.revision)
+            for rule in self.store.list_rules(self.project_id)))
+        if current_rules != identity[6]:
+            raise AuthoringError('집필 도중 Novel Bible이 변경되어 이전 AI 결과를 적용하지 않았습니다.')
         if result.project_id != request.project_id or result.episode_number != request.episode_number:
             raise AuthoringError('AI 결과의 작품/회차가 일치하지 않습니다.')
         self.pending_draft = result.draft

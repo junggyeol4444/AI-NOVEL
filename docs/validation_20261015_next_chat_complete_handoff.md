@@ -1,5 +1,16 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 11시 KST — 실제 Windows EXE 한국어 반복·언어 검사 연동 및 Novel Bible 변경 보호
+
+- 검증 기준: 소스/합성 회귀검사를 완성된 앱 테스트 PASS로 표시하지 않는다. 실제 Windows EXE + 외부 UIAutomation + 오프라인 GGUF의 약 5,000자 **한국어 원문 소설**만 집필 인수 대상. 현재 `RELEASE_BLOCKED`.
+- 최근 실제 Windows CI [#38835655818](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38835655818): Windows 2022 원고 생성·GUI 저장 완료, 그러나 총 3481자, 한글 603자, 영문 437자, 한글 비율 22.69%, 반복 문장 52.08%로 **집필 품질 FAIL**. Windows 11 ARM은 GUI 전경 불일치 및 `real_model_generated_empty_draft`로 **FAIL**. 합성 250화 및 기존 모델 5회 런타임 시험은 다른 시험이다. 어떤 결과도 한글 5000자/250화 장편 완성 PASS가 아니다.
+- 이번 수정: 실제 GUI `authoring_workflow._on_generation_result`에 `korean_draft_quality.screen_korean_draft` 연동. 한글 글자 수, 영문 비율, 중복 문장·중복 구간을 검사하고 미달을 UI에 명시. 숫자만 변경한 중복 문장과 구두점 없는 반복 블록도 보수적으로 검사. 이것은 문학·독창성·저작권·전체 유사성 검수 대체 불가. 짧거나 영어 중심인 모델 초고를 목표 달성이라고 화면에 표시하지 않는다. 사용자 승인 없는 출판·원고 전송 없음.
+- Novel Bible/메타 규칙이 비동기 모델 생성 도중 변경되면 결과가 묵은 설정을 반영하지 않도록 스냅샷 검증을 추가. 작품/회차/장면 및 리비전 검사도 유지. 기존 사용자의 DB를 직접 수정하지 않음.
+- Windows CI `anf-real-windows-exe-korean-literary-gate.yml`: 실제 EXE 접근성에서 **GUI 자체가 형식 검사 미달을 표시했는지**와 원고의 글자 수·한글 비율·반복을 함께 판정하도록 강화. 저장 성공만으로 PASS 판정 금지.
+- 새 검사 코드는 런타임과 테스트에 연동되며 Linux 격리 로컬 회귀 **9/9 PASS**(코드 단위에 한정); 같은 버전의 Windows 새 EXE CI 결과는 실행 후 확인 필요. 기존 Windows CI [#38835655797](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38835655797)의 자동 회귀 PASS와 혼동하지 않는다. 실제 한국어 장편 30·100·250화는 미통과.
+- 사용자가 지시한 보호 main SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 변경 금지, 작업은 `validation/gui-authoring-e2e-20261014`만. 기존 비활성 오전 8시 자동화·실사용자 원고·계정·모델 키·SQLite·설정·출판 접근·변경 없음. 다음 최우선: 실제 한국어 장편 적합 로컬 GGUF 및 다중 장면 이어쓰기 품질 개선, Windows 11 전경 차단, 문학 품질 실검수와 참고작 전수 유사성 검사.
+
+
 ## 2026-10-16 09:50 KST — 사용자가 요구한 실제 Windows EXE·GUI·한국어 5,000자 검사 (FAIL 입증)
 
 - 요청의 핵심: 개별 Python/Qt QTest/합성 원고를 프로그램 인수 PASS로 부르지 말고 **실제 Windows EXE를 일반 화면에 열고 외부 Windows UIAutomation으로 클릭해 실제 로컬 GGUF의 한국어 약 5,000자 소설을 생성·저장·재검사**. 종전 `250화 PASS`는 **합성 Python 프로세스/반복 문장으로 250화 SQLite 저장만 검증**한 것이어서 실제 소설 품질 PASS 주장을 철회했다.

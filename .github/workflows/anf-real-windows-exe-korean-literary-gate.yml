@@ -285,11 +285,17 @@ jobs:
             $report.sentence_units=$parts.Count
             $report.unique_sentence_units=$unique.Count
             $report.repeated_sentence_share=[math]::Round(1-($unique.Count/[math]::Max(1,$parts.Count)),4)
+            $qualityLabel=Ui 'authoringStatus' '로컬 전용'
+            if($null -eq $qualityLabel){throw 'actual_windows_gui_quality_status_missing'}
+            $qualityMessage=[string]$qualityLabel.Current.Name
+            if($qualityMessage -match '한국어 형식 검사 미달'){$report.gui_quality_status='REJECTED_BY_REAL_GUI'}
+            elseif($qualityMessage -match '한국어 형식 1차 검사 충족'){$report.gui_quality_status='FORMAT_CHECK_ONLY'}
+            else{$report.gui_quality_status='UNRECOGNIZED'}
             $sha=[System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($draft))
             $report.draft_sha256=[Convert]::ToHexString($sha).ToLowerInvariant()
             Press 'saveAuthoringDraftButton' '검토한 초고 SQLite 저장'
             $report.saved_via_gui=$true
-            $report.korean_5000= if($hangul -ge 4500 -and $nonspace.Length -ge 4500 -and $report.hangul_share -ge 0.78 -and $report.repeated_sentence_share -le 0.12 -and $parts.Count -ge 10 -and $report.native_foreground_matches_gui){'PASS'}else{'FAIL'}
+            $report.korean_5000= if($hangul -ge 4500 -and $nonspace.Length -ge 4500 -and $report.hangul_share -ge 0.78 -and $latin -le 0.05*$nonspace.Length -and $report.repeated_sentence_share -le 0.12 -and $parts.Count -ge 10 -and $report.native_foreground_matches_gui -and $report.gui_quality_status -eq 'FORMAT_CHECK_ONLY'){'PASS'}else{'FAIL'}
             $report.status=$report.korean_5000
             if($report.korean_5000 -ne 'PASS'){throw 'actual_windows_gui_korean_5000_quality_gate_failed'}
             Write-Host 'EXTERNAL_WINDOWS_GUI_GGUF_KOREAN_5000_SCOPE_PASS_NOT_LITERARY_OR_HUMAN_CERTIFICATION'

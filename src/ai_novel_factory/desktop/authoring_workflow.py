@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QWidget, QFileDialog
 from .authoring_controls import AuthoringControls
 from .authoring_session import AuthoringSession
 from .draft_worker import DraftWorker
+from ai_novel_factory.korean_draft_quality import screen_korean_draft
 
 _ASYNC_STARTED = object()
 
@@ -214,17 +215,21 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.session.accept_generation(self._draft_request, result, self._draft_identity)
             self._sync_episode()
             draft = result.draft
-            hangul = sum('가' <= ch <= '힣' for ch in draft)
-            target = self._text('characters_per_episode').strip()
-            target = int(target) if target.isdecimal() else 5000
-            if len(draft) < target or hangul < target * 0.8:
+            target_text = self._text('characters_per_episode').strip()
+            target = int(target_text) if target_text.isdecimal() else 5000
+            screening = screen_korean_draft(draft, target_chars=target)
+            stats = (f'총 {screening.total_chars}자 / 한글 {screening.hangul_syllables}자 / '
+                     f'영문 {screening.latin_letters}자 / '
+                     f'중복문장 {screening.repeated_sentence_share:.1%} / '
+                     f'중복구간 {screening.repeated_chunk_share:.1%}')
+            if not screening.format_gate_pass:
                 self.status.setText(
-                    f'실제 초고 {len(draft)}자 / 한글 {hangul}자: 한국어 목표 {target}자 미달. '
-                    '검수·재집필 필요. 자동 확정·출판 없음.')
+                    f'한국어 형식 검사 미달: {stats}. 목표 {target}자. '
+                    '검수·수정·재집필 필요, 자동 확정·출판 없음.')
             else:
                 self.status.setText(
-                    f'로컬 초고 {len(draft)}자 / 한글 {hangul}자. '
-                    '연속성·유사성·문학 품질은 검수 전 상태입니다.')
+                    f'한국어 형식 1차 검사 충족: {stats}. '
+                    '문학적 품질·독창성·참고작 유사성·연속성은 미검증입니다.')
         except (ValueError, OSError):
             self.status.setText('작품/회차/장면이 변경되어 결과를 적용하지 않았습니다.')
         except Exception:
