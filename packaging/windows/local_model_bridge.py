@@ -71,13 +71,17 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
     Its argument set excludes CLI-only --no-show-timings. Only verbosity 0
     keeps response tokens while hiding informational messages.
     """
+    qwen = model.name.lower().startswith('qwen2.5-') and model.suffix.lower() == '.gguf'
+    # The Windows 2022/11 native 48-token diagnostic verified four Qwen CPU
+    # threads are faster than one. Preserve the bundled 135M smoke path.
+    threads = '4' if qwen else '1'
     common = [
         '--model', str(model), '--predict', prediction_budget,
-        '--ctx-size', '4096', '--threads', '1', '--threads-batch', '1',
+        '--ctx-size', '4096', '--threads', threads, '--threads-batch', threads,
         '--repeat-penalty', '1.16', '--repeat-last-n', '256',
         '--temp', '0.8', '--top-p', '0.92', '--no-display-prompt',
     ]
-    if model.name.lower().startswith('qwen2.5-') and model.suffix.lower() == '.gguf':
+    if qwen:
         completion = llama.with_name('llama-completion.exe')
         if not completion.is_file():
             raise ValueError('non-interactive completion runtime missing')
@@ -180,9 +184,8 @@ def main(argv=None) -> int:
             '등장인물:\n' + ', '.join(characters[:20]) + '\n'
             '첫 문장부터 한국어 소설 본문만 작성하세요. '
             '영어와 중복 구절을 피하고 사건이 앞으로 진행되도록 집필하세요.')
-        # Restrict native Windows CPU runner to single-thread inference as a
-        # conservative diagnostic for intermittent native heap corruption.
-        # This is a hypothesis until repeated compiled-GGUF CI verifies it.
+        # Keep the previously verified non-interactive Windows runtime path.
+        # A longer Qwen scene budget is still subject to the native timeout.
         # Verified against b11624 Windows CPU runtime: the minimal
         # --single-turn --no-display-prompt invocation exits successfully.
         # Earlier Windows CI found that --simple-io plus conversation flags
@@ -191,7 +194,7 @@ def main(argv=None) -> int:
         # Keep the small bundled 135M smoke route responsive. Larger, explicitly
         # selected multilingual GGUF weights need a separate bounded CPU budget.
         is_bundled_qa_model = model.name == MODEL_NAME
-        prediction_budget = '384' if is_bundled_qa_model else '1536'
+        prediction_budget = '384' if is_bundled_qa_model else '3072'
         native_timeout = 110 if is_bundled_qa_model else 400
         command = build_native_command(
             llama, model, system_prompt, prompt, prediction_budget)
