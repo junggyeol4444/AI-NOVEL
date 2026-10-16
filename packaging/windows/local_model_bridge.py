@@ -54,6 +54,43 @@ def validate_clean_manuscript(raw: str) -> str:
     return text
 
 
+
+def build_native_command(llama: Path, model: Path, system_prompt: str,
+                         prompt: str, prediction_budget: str) -> list[str]:
+    """Use non-interactive completion for the existing Qwen 2.5 QA weight.
+
+    Newer llama-cli enters a chat shell and writes its banner and echoed input
+    to stdout even with --no-display-prompt. The bundle already copies all
+    llama.cpp Windows executables, including llama-completion.exe. Never
+    silently fall back to the interactive CLI for this model.
+    """
+    common = [
+        '--model', str(model), '--predict', prediction_budget,
+        '--ctx-size', '4096', '--threads', '1', '--threads-batch', '1',
+        '--repeat-penalty', '1.16', '--repeat-last-n', '256',
+        '--temp', '0.8', '--top-p', '0.92',
+        '--no-display-prompt', '--log-disable', '--no-show-timings',
+    ]
+    if model.name.lower().startswith('qwen2.5-') and model.suffix.lower() == '.gguf':
+        completion = llama.with_name('llama-completion.exe')
+        if not completion.is_file():
+            raise ValueError('non-interactive completion runtime missing')
+        # Treat Novel Bible and the scene brief as USER content, never as raw
+        # ChatML delimiters capable of forging system or assistant roles.
+        if any(token in part for part in (system_prompt, prompt) for token in
+               ('<|im_start|>', '<|im_end|>', '<|im_sep|>')):
+            raise ValueError('unsafe chat template delimiter')
+        framed = (
+            '<|im_start|>system\n' + system_prompt + '<|im_end|>\n'
+            '<|im_start|>user\n' + prompt + '<|im_end|>\n'
+            '<|im_start|>assistant\n'
+        )
+        return [str(completion), *common, '--prompt', framed]
+    # Preserve the existing tiny smoke-model behavior and its safety checks.
+    return [str(llama), *common, '--system-prompt', system_prompt,
+            '--prompt', prompt, '--single-turn']
+
+
 def main(argv=None) -> int:
     args = sys.argv[1:] if argv is None else argv
     llama, model = bundled_files()
@@ -151,16 +188,8 @@ def main(argv=None) -> int:
         is_bundled_qa_model = model.name == MODEL_NAME
         prediction_budget = '384' if is_bundled_qa_model else '1536'
         native_timeout = 110 if is_bundled_qa_model else 400
-        command = [
-            str(llama), '--model', str(model),
-            '--system-prompt', system_prompt, '--prompt', prompt,
-            '--predict', prediction_budget, '--ctx-size', '4096',
-            '--threads', '1', '--threads-batch', '1',
-            '--repeat-penalty', '1.16', '--repeat-last-n', '256',
-            '--temp', '0.8', '--top-p', '0.92',
-            '--single-turn', '--no-display-prompt',
-            '--log-disable', '--no-show-timings'
-        ]
+        command = build_native_command(
+            llama, model, system_prompt, prompt, prediction_budget)
         env = {k: os.environ[k] for k in
                ('SYSTEMROOT', 'WINDIR', 'PATH', 'TEMP', 'TMP') if k in os.environ}
         env['PATH'] = str(llama.parent) + os.pathsep + env.get('PATH', '')
