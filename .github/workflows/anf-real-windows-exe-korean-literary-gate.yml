@@ -53,6 +53,7 @@ jobs:
             return $script:window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
           }
           function SetField([string]$id,[string]$name,[string]$value) {
+            $script:last_ui_control=$id
             $control=Ui $id $name
             if ($null -eq $control) { throw ('gui_field_not_found_'+$id) }
             $pattern=$null
@@ -60,6 +61,7 @@ jobs:
             ([System.Windows.Automation.ValuePattern]$pattern).SetValue($value)
           }
           function Press([string]$id,[string]$name) {
+            $script:last_ui_control=$id
             $control=Ui $id $name
             if ($null -eq $control) { throw ('gui_button_not_found_'+$id) }
             $pattern=$null
@@ -155,6 +157,10 @@ jobs:
             Write-Host 'EXTERNAL_WINDOWS_GUI_GGUF_KOREAN_5000_SCOPE_PASS_NOT_LITERARY_OR_HUMAN_CERTIFICATION'
           } catch {
             $report.error_code= if($report.current_stage){$report.current_stage}else{'unknown'}
+            $report.last_ui_control=$script:last_ui_control
+            $report.failure_type=$_.Exception.GetType().Name
+            $safeMessage=$_.Exception.Message
+            if($safeMessage -match '^(gui_|model_|compiled_exe_|uia_|bundled_|actual_windows_gui_|real_model_)') { $report.failure_code=$safeMessage }
             Write-Host ('EXTERNAL_WINDOWS_GUI_QA_FAIL_STAGE='+$report.error_code)
           } finally {
             $dest='build/ci/korean-real-gui'
