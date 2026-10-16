@@ -104,6 +104,16 @@ jobs:
           $size=(Get-Item $model).Length
           if($size -lt 900000000 -or $size -gt 1400000000){throw 'Public Qwen GGUF size out of allowed range'}
           Write-Host ('Current bridge and public QA Qwen GGUF ready. Weight bytes: '+$size)
+      - name: Diagnose real native llama binary compatibility (synthetic only, never a quality PASS)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $bridge=Get-ChildItem 'build/ci/real-windows-bundle' -Recurse -File -Filter 'ANF_Local_Model.exe' | Select-Object -First 1
+          if(-not $bridge){throw 'Native bridge not staged'}
+          $env:ANF_QA_CLI=Join-Path $bridge.DirectoryName 'runtime/llama-cli.exe'
+          $env:ANF_QA_GGUF=Join-Path $bridge.DirectoryName 'models/qwen2.5-1.5b-instruct-q4_k_m.gguf'
+          python scripts/ci_native_llama_diagnostic.py
+          if($LASTEXITCODE -ne 0){throw 'Native CLI diagnostic execution failed'}
       - name: Operate real Windows EXE via EXTERNAL UIAutomation and test original Korean prose
         shell: pwsh
         run: |
@@ -247,6 +257,22 @@ jobs:
             for($i=0;$i -lt 1200;$i++){
               Start-Sleep -Milliseconds 400
               $editor=Ui 'authoring_draft' '검토 가능한 초고'
+              # An actual GUI failure must end this test promptly, not
+              # masquerade as an eight-minute empty manuscript timeout.
+              if($i % 5 -eq 0){
+                $liveStatus=Ui 'authoringStatus' '로컬 AI 집필 중'
+                if($null -ne $liveStatus){
+                  $safeStatus=[string]$liveStatus.Current.Name
+                  if($safeStatus -match '^로컬 AI 생성 실패'){
+                    if($safeStatus -match 'native_timeout'){$report.gui_model_failure='native_timeout'}
+                    elseif($safeStatus -match 'native_output_rejected'){$report.gui_model_failure='native_output_rejected'}
+                    elseif($safeStatus -match 'native_inference_failure'){$report.gui_model_failure='native_inference_failure'}
+                    elseif($safeStatus -match 'LocalModelError'){$report.gui_model_failure='LocalModelError'}
+                    else{$report.gui_model_failure='UnknownError'}
+                    throw 'real_native_model_failed_before_draft'
+                  }
+                }
+              }
               if($null -ne $editor){
                 $tempPattern=$null
                 if($editor.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$tempPattern)){

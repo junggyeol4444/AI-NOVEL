@@ -1,5 +1,14 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 14시 이후 — 마지막 Windows 실제 EXE 전부 FAIL, 네이티브 오류 원인 진단 도입
+
+- 최신 실제 [Windows EXE run #38854627927](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38854627927): Win2022와 Win11 ARM 양쪽 컴파일된 GUI 창 기동 **PASS**, 모델 집필 버튼 후 초고 **0자 FAIL** (`real_model_generated_empty_draft`), 품질 검수·원문 독서 가능한 새 장면 없음. Win11 실제 Windows 전경 **FAIL**. 보호 main SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 동일.
+- 새 진단: 원래 CI는 GUI 모델 실패를 최대 480초 기다리고 `real_model_generated_empty_draft`로 표시해서 `native_inference_failure`, `native_output_rejected`, 모델 타임아웃을 구분하지 못함. 외부 Windows UIAutomation이 실제 `authoringStatus` 실패를 2초마다 읽고, 비식별 상태 코드만 `metadata.json`에 기록하며 즉시 FAIL 처리하도록 수정.
+- CI 전용 `scripts/ci_native_llama_diagnostic.py`: 공개 GGUF·Windows 네이티브 `llama-cli.exe --help`로 CLI 옵션 지원 여부를 확인하고, 고정 가상 도서관 프롬프트 48토큰 실제 모델 호출을 보조 진단. 원문·기존 사용자 프롬프트·경로·모델 출력 전문을 stdout/아티팩트에 기록하지 않음. **이것은 제품 창작 합격 검사가 아니다**. 실제 EXE에서 깨끗한 한국어 장면이 생성·SQLite 저장되고 원고를 직접 읽어야 문학적 품질을 논할 수 있음.
+- Qwen1.5B로 만든 이전 Windows 원고는 영어·번역투·사건 전개 부족 또는 CLI 로그 오염으로 **읽을 만한 소설 FAIL**. 이제 문제의 실제 네이티브 실행 원인을 확인해야 하며 그 전에는 5000자·30/100/250화 성공 주장 금지. 실사용자 원고/DB/키/계정/출판/오전8시 비활성 자동화 변경 금지. **RELEASE_BLOCKED**.
+
+
+
 ## 2026-10-16 14:09 이후 — Windows 실제 EXE 비어 있는 원고 재현, llama 옵션 및 오류 분류
 
 - 지난 [Windows EXE #38853010881](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38853010881)의 Win2022/Win11 ARM 모두 **실제 EXE 창 기동 성공, 모델 원고 비어 있음 `real_model_generated_empty_draft`, 한국어 창작 FAIL**. 오염 거부 소스 단위 검사가 통과했을 뿐 소설 품질 개선 아님. metadata만 있는 QA 아티팩트에서 원고 없음을 확인.
