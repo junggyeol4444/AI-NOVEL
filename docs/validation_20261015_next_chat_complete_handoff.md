@@ -1,5 +1,23 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 — 사용자 지적: 소설을 실제로 읽고 문학 품질을 평가해야 함
+
+- 기존 Windows Qwen1.5B [#38849931388](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38849931388)의 Win2022는 전체 2,190자/한글 787자/영문 393자/한글 49.81%, Win11 ARM 전체 1,512자/한글 437자/영문 393자/한글 40.61%로 실제 EXE 집필 **FAIL**. 당시 CI 아티팩트는 메타데이터와 SHA만 남겨 **원고를 사람이 읽고 문학성을 확인할 수 없었다**. 이를 개발상 검증 공백으로 인정.
+- 검증 방식 개선: CI에서 만든 **가상 작품의 실제 로컬 GGUF 생성 텍스트만** GUI 저장→격리 SQLite 읽기 전용 재열기→SHA-256 일치 검증에 성공한 경우 `build/ci/korean-real-gui/qa_original_scene.txt`로 보존. 새 아티팩트는 QA용 합성 작품에 한정, 파일 이름/경로/원고 내용은 로그에 출력하지 않음. 실제 원고·사용자 데이터·참고작 전문을 수집하는 기능은 아님. CI 아티팩트 보존 7일(일반 리포트와 동일), 출판/외부 AI 전송 없음. 실패하면 빈 샘플을 성공으로 보고하지 않음.
+- 실제 Windows 테스트 아티팩트를 다운로드하고 직접 **문장 자연스러움·비문·번역투·인물 목표·장면 사건 진전·인과·장면 연결·반복·고유성**을 읽어 평가하되, 1화 5천자 실문학 합격 전에는 30/100/250화 합성 테스트를 소설 완성이라고 표현하지 않는다. 형식 검사 PASS도 문학성 PASS와 다르다. **RELEASE_BLOCKED**.
+- 검증용 소설은 고정된 가상 섬/도서관/조사자 설정의 자동화 소유 합성 프로젝트이며, 승인받은 실사용자 원고가 아니다. Windows GUI를 직접 조작하는 것과 Python 단독 검사는 서로 구분. `main` SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 변경 금지. 비활성 8시 예약/기존 작업·실사용자 DB·비밀키·계정·출판 변경 금지.
+
+
+## 2026-10-16 정기 실행 — 실제 Windows GUI 저장 버튼 후 SQLite 해시 검증 보강
+
+- Qwen 1.5B 실제 Windows Server 2022 EXE+외부 UIAutomation [#38849931388](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38849931388)의 `anf-native-windows-gui-korean-quality-evidence-windows-2022` 메타데이터 원본 확인: **전체 2,190자 / 한글 787자 / 영문 393자 / 공백 제외 한글 비율 49.81% / 반복 문장 5.45% / Windows GUI 품질 상태 `REJECTED_BY_REAL_GUI` / 전경 점유 참**. 프로그램 UIA 저장 버튼 호출 사실만 기록, SQLite 내용 동일성 검증은 당시 워크플로에 없어 **NOT_VERIFIED**. **한국어 5,000자 실제 창작 FAIL**. 이는 Qwen 1.5B 업그레이드가 자동 품질 합격을 보장하지 않는다는 근거. 같은 CI의 Win11 ARM 최종 결과는 작업 종료 후 별도 확인.
+
+
+- 현재 Qwen2.5-1.5B 실제 Windows EXE 검증 [#38849931388](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38849931388): 신규 코드는 검증 브랜치 `26bdeeb`, 실제 Windows 결과는 CI 작업별 확인 필요. `main` 보호 SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 유지, 별도 신규 예약 없음.
+- 이전 GUI CI는 `Press 'saveAuthoringDraftButton'` 호출 직후 `saved_via_gui=true`로 기록했으나 **SQLite에 실제 같은 원고가 저장됐는지 확인하지 않았다**. 이 성공 표시를 엄격히 수정. GUI에서 출력된 원고의 정규화 SHA-256과, 별도 Python 프로세스에서 **격리된 QA SQLite를 읽기 전용 URI(`mode=ro`+`query_only=ON`)로 열어** `bible_episodes.draft` SHA-256을 비교하고 일치할 때만 저장 PASS. 실제 사용자 SQLite/원고는 경로검증으로 접근하지 못하고 원고 전문은 CI 출력/아티팩트에 남기지 않는다.
+- 새 검증은 합성 SQLite 단독 회귀 테스트와 **실제 Windows EXE UIAutomation 집필·저장 뒤 통합 검증** 모두 필요. Python 테스트 단독 성공은 제품 인수 PASS로 계산하지 말 것. 이전 0.5B Windows EXE 한국어 분량·반복 검사는 FAIL, 새로운 1.5B의 5000자 품질·Windows11 전경 인수는 신규 CI 결과가 나올 때까지 미확정. `RELEASE_BLOCKED` 유지.
+
+
 ## 2026-10-16 오후 — 실제 Windows EXE 한국어 집필 품질: Qwen 중첩 ChatML 제거·반복 억제·1.5B 모델 실검증 후보
 
 - 한국어 약 5,000자 **실제 앱 중심** 집필만 합격 대상으로 삼는다. 0.5B의 [Windows 실GUI #38839872590](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38839872590): Win2022 총 7,945자 중 한글 145자(2.3%), 영문 5,410자, 문장 반복률 64.04% → **FAIL**; Win11 ARM은 `real_model_generated_empty_draft` 및 실제 전경 불일치 → **FAIL**. 250화 합성 저장 PASS를 문학 품질 완료로 계산하지 않는다.

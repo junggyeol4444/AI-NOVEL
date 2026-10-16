@@ -292,9 +292,18 @@ jobs:
             if($qualityMessage -match '한국어 형식 검사 미달'){$report.gui_quality_status='REJECTED_BY_REAL_GUI'}
             elseif($qualityMessage -match '한국어 형식 1차 검사 충족'){$report.gui_quality_status='FORMAT_CHECK_ONLY'}
             else{$report.gui_quality_status='UNRECOGNIZED'}
-            $sha=[System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($draft))
+            # Windows UIA and Qt may normalize CRLF differently. Hash only
+            # normalized text; never write model manuscripts into CI artifacts.
+            $normalizedDraft=$draft.Replace("`r`n","`n").Replace("`r","`n")
+            $sha=[System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($normalizedDraft))
             $report.draft_sha256=[Convert]::ToHexString($sha).ToLowerInvariant()
+            $report.current_stage='verify_actual_gui_sqlite_saved_draft'
             Press 'saveAuthoringDraftButton' '검토한 초고 SQLite 저장'
+            $env:ANF_QA_SYNTHETIC_DB=$db
+            $env:ANF_QA_EXPECTED_HASH=$report.draft_sha256
+            python scripts/ci_verify_gui_draft_sqlite.py
+            if($LASTEXITCODE -ne 0){throw 'actual_compiled_gui_sqlite_draft_mismatch'}
+            $report.sqlite_readonly_reopened=$true
             $report.saved_via_gui=$true
             $report.korean_5000= if($hangul -ge 4500 -and $nonspace.Length -ge 4500 -and $report.hangul_share -ge 0.78 -and $latin -le 0.05*$nonspace.Length -and $report.repeated_sentence_share -le 0.12 -and $parts.Count -ge 10 -and $report.native_foreground_matches_gui -and $report.gui_quality_status -eq 'FORMAT_CHECK_ONLY'){'PASS'}else{'FAIL'}
             $report.status=$report.korean_5000
@@ -314,11 +323,13 @@ jobs:
             if($process){Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue}
           }
           if($report.status -ne 'PASS'){throw ('real_compiled_windows_gui_korean_5000_FAIL_stage_'+$report.current_stage)}
-      - name: Preserve sanitized GUI quality metrics only (never draft or reference text)
+      - name: Preserve CI synthetic original prose for human reading and sanitized metrics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: anf-native-windows-gui-korean-quality-evidence-${{ matrix.os }}
-          path: build/ci/korean-real-gui/metadata.json
+          path: |
+            build/ci/korean-real-gui/metadata.json
+            build/ci/korean-real-gui/qa_original_scene.txt
           if-no-files-found: warn
           retention-days: 7
