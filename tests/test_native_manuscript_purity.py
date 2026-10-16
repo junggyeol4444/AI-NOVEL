@@ -43,6 +43,21 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                 module.validate_clean_manuscript(text)
 
 
+    def test_strip_only_b11624_exact_terminal_eog_marker(self):
+        prose = '조사자는 낡은 책장을 열었다. 사서는 창문을 닫았다.'
+        output = prose + ' [end of text]\n'
+        self.assertEqual(module.validate_clean_manuscript(output), prose)
+
+    def test_reject_eog_banner_in_middle_or_alone(self):
+        for value in (
+            '조사자는 들어왔다. [end of text] 사서가 답했다.',
+            ' [end of text]\n',
+            '조사자는 들어왔다. [end of text]\nExiting...',
+        ):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                module.validate_clean_manuscript(value)
+
+
     def test_existing_qwen_uses_noninteractive_completion_not_console_shell(self):
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as directory:

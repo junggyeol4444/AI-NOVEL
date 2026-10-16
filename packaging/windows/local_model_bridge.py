@@ -37,13 +37,19 @@ def validate_clean_manuscript(raw: str) -> str:
     if not isinstance(raw, str):
         raise ValueError('invalid native output type')
     text = raw.strip()
+    # llama.cpp b11624 tools/completion/completion.cpp prints this exact
+    # transport terminator after EOG. Remove ONLY the fixed trailing marker;
+    # do not rewrite model-authored prose or strip lookalikes in the middle.
+    terminator = ' [end of text]'
+    if text.endswith(terminator):
+        text = text[:-len(terminator)].strip()
     if not text or len(text) > 100_000 or '\x00' in text or '\x1b' in text:
         raise ValueError('invalid native output')
     lower = text.lower()
     forbidden = (
         'loading model...', 'available commands:', 'using custom system prompt',
         'build      :', 'model      :', 'ftype      :', 'modalities :',
-        'exiting...', '[ prompt:', 'generation:', 't/s ]',
+        'exiting...', '[ prompt:', 'generation:', 't/s ]', '[end of text]',
         '작품의 최우선 설정 (novel bible):',
         '회차/장면의 작가 소유 플롯:',
     )
