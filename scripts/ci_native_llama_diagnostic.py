@@ -100,15 +100,12 @@ def probe(cli: Path, model: Path) -> dict:
             except (OSError, subprocess.TimeoutExpired):
                 completion['help_error'] = 'noninteractive_help_unavailable'
         if completion['supported']:
-            framed = (
-                '<|im_start|>system\n한국어 원문 소설만 쓰세요.<|im_end|>\n'
-                '<|im_start|>user\n' + synthetic +
-                '<|im_end|>\n<|im_start|>assistant\n'
-            )
             command = [str(completion_exe), '--model', str(model),
-                       '--prompt', framed, '--predict', '48', '--ctx-size', '2048',
-                       '--threads', '1', '--threads-batch', '1',
-                       '--no-display-prompt', '--log-disable', '--no-show-timings']
+                       '--system-prompt', '한국어 원문 소설만 쓰세요.',
+                       '--prompt', synthetic, '--predict', '48',
+                       '--ctx-size', '2048', '--threads', '1',
+                       '--threads-batch', '1', '--single-turn',
+                       '--no-display-prompt', '--log-disable']
             try:
                 cp = subprocess.run(command, cwd=cli.parent, capture_output=True,
                                     timeout=150, check=False)
@@ -132,9 +129,10 @@ def probe(cli: Path, model: Path) -> dict:
                 ) if pattern in native_error]
                 if cp.returncode != 0:
                     minimal = [str(completion_exe), '--model', str(model),
-                               '--prompt', framed, '--predict', '8',
-                               '--threads', '1', '--no-display-prompt',
-                               '--log-disable']
+                               '--system-prompt', '한국어 원문 소설만 쓰세요.',
+                               '--prompt', synthetic, '--predict', '8',
+                               '--threads', '1', '--single-turn',
+                               '--no-display-prompt', '--log-disable']
                     try:
                         fallback = subprocess.run(minimal, cwd=cli.parent,
                                                   capture_output=True, timeout=90,

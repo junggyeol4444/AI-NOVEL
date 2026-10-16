@@ -57,39 +57,34 @@ def validate_clean_manuscript(raw: str) -> str:
 
 def build_native_command(llama: Path, model: Path, system_prompt: str,
                          prompt: str, prediction_budget: str) -> list[str]:
-    """Use non-interactive completion for the existing Qwen 2.5 QA weight.
+    """Use the bundled completion executable for the existing Qwen QA model.
 
-    Newer llama-cli enters a chat shell and writes its banner and echoed input
-    to stdout even with --no-display-prompt. The bundle already copies all
-    llama.cpp Windows executables, including llama-completion.exe. Never
-    silently fall back to the interactive CLI for this model.
+    The separate completion executable avoids llama-cli's chat shell. It
+    applies the model's own chat template to ordinary --system-prompt and
+    --prompt arguments; never embed raw ChatML into author-controlled text.
+    Its argument set excludes CLI-only --no-show-timings.
     """
     common = [
         '--model', str(model), '--predict', prediction_budget,
         '--ctx-size', '4096', '--threads', '1', '--threads-batch', '1',
         '--repeat-penalty', '1.16', '--repeat-last-n', '256',
-        '--temp', '0.8', '--top-p', '0.92',
-        '--no-display-prompt', '--log-disable', '--no-show-timings',
+        '--temp', '0.8', '--top-p', '0.92', '--no-display-prompt',
     ]
     if model.name.lower().startswith('qwen2.5-') and model.suffix.lower() == '.gguf':
         completion = llama.with_name('llama-completion.exe')
         if not completion.is_file():
             raise ValueError('non-interactive completion runtime missing')
-        # Treat Novel Bible and the scene brief as USER content, never as raw
-        # ChatML delimiters capable of forging system or assistant roles.
+        # Reject attempts to inject chat roles into the local prompt.
         if any(token in part for part in (system_prompt, prompt) for token in
                ('<|im_start|>', '<|im_end|>', '<|im_sep|>')):
             raise ValueError('unsafe chat template delimiter')
-        framed = (
-            '<|im_start|>system\n' + system_prompt + '<|im_end|>\n'
-            '<|im_start|>user\n' + prompt + '<|im_end|>\n'
-            '<|im_start|>assistant\n'
-        )
-        return [str(completion), *common, '--prompt', framed]
-    # Preserve the existing tiny smoke-model behavior and its safety checks.
-    return [str(llama), *common, '--system-prompt', system_prompt,
-            '--prompt', prompt, '--single-turn']
-
+        return [str(completion), *common, '--log-disable',
+                '--system-prompt', system_prompt, '--prompt', prompt,
+                '--single-turn']
+    # Keep the existing small-model CLI route and its CLI-only timing flag.
+    return [str(llama), *common, '--log-disable', '--no-show-timings',
+            '--system-prompt', system_prompt, '--prompt', prompt,
+            '--single-turn']
 
 def main(argv=None) -> int:
     args = sys.argv[1:] if argv is None else argv

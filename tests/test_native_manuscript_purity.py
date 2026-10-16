@@ -51,16 +51,20 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             completion = root / 'llama-completion.exe'
             completion.touch()
             model = root / 'qwen2.5-1.5b-instruct-q4_k_m.gguf'
+            system_prompt = '한국어 소설 작가'
+            scene_prompt = '도서관의 비밀을 쓴다.'
             command = module.build_native_command(
-                cli, model, '한국어 소설 작가', '도서관의 비밀을 쓴다.', '256')
+                cli, model, system_prompt, scene_prompt, '256')
             self.assertEqual(command[0], str(completion))
-            self.assertNotIn('--single-turn', command)
+            self.assertIn('--single-turn', command)
             self.assertIn('--no-display-prompt', command)
             self.assertIn('--log-disable', command)
-            body = command[command.index('--prompt') + 1]
-            self.assertIn('<|im_start|>system\n한국어 소설 작가<|im_end|>', body)
-            self.assertIn('<|im_start|>user\n도서관의 비밀을 쓴다.<|im_end|>', body)
-            self.assertTrue(body.endswith('<|im_start|>assistant\n'))
+            self.assertNotIn('--no-show-timings', command)
+            self.assertEqual(command[command.index('--system-prompt') + 1],
+                             system_prompt)
+            self.assertEqual(command[command.index('--prompt') + 1],
+                             scene_prompt)
+            self.assertNotIn('<|im_start|>', ' '.join(command))
 
     def test_no_qwen_fallback_to_interactive_shell_without_completion(self):
         from tempfile import TemporaryDirectory
