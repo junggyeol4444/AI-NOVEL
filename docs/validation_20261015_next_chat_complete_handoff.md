@@ -1,5 +1,20 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 09:50 KST — 사용자가 요구한 실제 Windows EXE·GUI·한국어 5,000자 검사 (FAIL 입증)
+
+- 요청의 핵심: 개별 Python/Qt QTest/합성 원고를 프로그램 인수 PASS로 부르지 말고 **실제 Windows EXE를 일반 화면에 열고 외부 Windows UIAutomation으로 클릭해 실제 로컬 GGUF의 한국어 약 5,000자 소설을 생성·저장·재검사**. 종전 `250화 PASS`는 **합성 Python 프로세스/반복 문장으로 250화 SQLite 저장만 검증**한 것이어서 실제 소설 품질 PASS 주장을 철회했다.
+- 신규 QA 구현: [`anf-real-windows-exe-korean-literary-gate.yml`](https://github.com/junggyeol4444/AI-NOVEL/blob/validation/gui-authoring-e2e-20261014/.github/workflows/anf-real-windows-exe-korean-literary-gate.yml), 커밋 `e991bcd`, `a2aaf91`, `db2464a`, `985c38b`, `aaefe00`. 기존 공개 번들 GUI EXE+로컬 GGUF를 다운받아 `QT_QPA_PLATFORM=windows`로 실행. 프로그램 외부 프로세스의 OS UIAutomation으로 작품/Bible/회차/장면/한국어 목표 5,000자 입력, 실제 로컬 GGUF 생성 버튼, SQLite 초고 저장. 분석 결과는 **원고 대신 숫자·SHA만** 7일간 CI 아티팩트로 저장; 외부 AI/API·실사용자 데이터·출판 없음. 물리 사람 사용 인수와 구별.
+- 중간 CI [#38830805664](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38830805664)와 [#38830934954](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38830934954)는 Win2022 Qt 접근성에 `authoring_db`가 `ControlType.Text`/ValuePattern 미지원으로 잡혀 실패. 실제 진단 후 편집기 선택과 LegacyIAccessible/TextPattern 대체 추가. [#38831085016](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38831085016)도 실패. [#38831258020](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38831258020)은 신규 OS 비교 도입 때 YAML 들여쓰기 오류로 실행 전 실패; `aaefe00`에서 수정.
+- **실제 최종 신규 [Windows 두 OS CI #38831322016](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38831322016): 모두 FAIL**. 아티팩트 `anf-native-windows-gui-korean-quality-evidence-windows-2022` / `...-windows-11-arm` 직접 ZIP 열어 증거 확인:
+  - Windows Server 2022: **완성된 EXE 창 생성·실제 OS 전경 점유·외부 UIAutomation 화면 입력→로컬 GGUF 집필→초고 저장 PASS**. 그러나 실제 산출물 **총 1,326자, 한글 음절 204자, 영문 알파벳 509자, 공백 제외 한글 비율 21.36%**. 한국어 5,000자 **FAIL**.
+  - Windows 11 ARM x64 에뮬레이션: **EXE 창 생성·외부 UIAutomation 입력→로컬 GGUF 집필→초고 저장 PASS**, 실제 산출물 **총 2,061자, 한글 음절 71자, 영문 알파벳 1,198자, 한글 비율 4.58%**. 한국어 5,000자 **FAIL**; 실제 `native_foreground_matches_gui=false`로 OS 전경 인수도 **FAIL**. OS 프라이버시/WWAHost 창 강제 종료·우회 없음.
+  - **최종 회차 승인·출판·원고 전문 아티팩트 업로드 없음**. 두 작업의 원고 본문은 메타데이터에서 제외하고 해시만 저장. 작품의 문학적 일관성/문체도 **NOT_VERIFIED**.
+- 직접 코드 원인: `packaging/windows/local_model_bridge.py`의 기본 프롬프트는 영어이고 네이티브 `llama-cli` 인수에 `--predict 384` 출력 제한, 로컬 프로세스 타임아웃 110초; 현재 공개 `SmolLM2-135M-Instruct-Q4_K_M.gguf` CPU 번들은 한국어 장편 소설 5천자를 입증하지 못함. `src/ai_novel_factory/desktop/ci_portable_gui.py`의 기존 Qt 내부 실GGUF QTest는 목표 `80자`, `ci_user_journey.py`의 모델 배치는 80자 시험이라는 사실도 확인. 이를 실제 한글 5,000자 × 250화 성공으로 혼동 금지.
+- 기존 전체 합성 자동 회귀 [#38829228839](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38829228839): Linux와 Windows 각 작업 종료 SUCCESS. **이것은 사용자가 요구한 앱 중심 한국어 창작 인수가 아니며**, 새로운 OS GUI 실제 집필 품질 CI는 실패.
+- 다음 실개발 우선순위는 사용 가능한 **한국어 장편 적합 로컬 모델**과 문맥 길이/출력 토큰·장면 이어쓰기·시간 제한의 실연동, 실제 GUI 앞단 한국어 분량·영문 혼입·반복 검사/위험 재작성·재검사, 우선 **1화 한국어 ~5,000자 제품 GUI 인수 PASS** 확립 후에 실제 30·100·250화 단계로 진행하는 것. 구형 135M 모형으로 글자 채우기·영어 번역·합성 패딩 금지. 사용자의 기존 모델/실계정/원고/SQLite/환경설정/자동화·오전 8시 비활성 작업 변경 금지.
+- 검증 브랜치 작업만 수행, 보호 main `69225edeed0a09ded5f847dad9b9ea63bc45367c` 불변. 물리 Windows 10/11 사람 인수, 250화 실제 한국어 문학 품질, 참고작 전수 Similarity, 모든 품질/재작성/Memory Delta 및 01~100 종단 인수 미완. **RELEASE_BLOCKED** 유지.
+
+
 ## 2026-10-16 오전 Windows 실검증 — GGUF 5회, 250화 합성 저장/복원, 참고작 20개 검사 + Windows 회귀 타임아웃 수정
 
 - 기준 커밋 `af797ca7439bb1d984581c763a1c50610dcf3111`: 새 Windows CI [#38827312292](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38827312292)의 **compiled x64 GGUF 실제 로컬 추론 5회 연속 PASS** (각 출력 글자 수 3032, 2911, 2916, 3087, 2884). 동일 QA 아티팩트의 공개 GGUF와 컴파일 브리지 사용, 사용자 원고·키·실계정·외부 AI 호출 없음. 5회는 장기 무중단/한국어 문학 품질 보증이 아님.
