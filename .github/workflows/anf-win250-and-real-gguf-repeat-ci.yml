@@ -2,6 +2,11 @@ name: ANF Windows extended 250-episode stress and repeated offline GGUF (VALIDAT
 on:
   push:
     branches: [validation/gui-authoring-e2e-20261014]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'packaging/**'
   workflow_dispatch:
 permissions:
   contents: read

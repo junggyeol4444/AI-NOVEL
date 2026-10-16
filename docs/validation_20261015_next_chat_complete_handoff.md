@@ -1,5 +1,16 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 오전 Windows 실검증 — GGUF 5회, 250화 합성 저장/복원, 참고작 20개 검사 + Windows 회귀 타임아웃 수정
+
+- 기준 커밋 `af797ca7439bb1d984581c763a1c50610dcf3111`: 새 Windows CI [#38827312292](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38827312292)의 **compiled x64 GGUF 실제 로컬 추론 5회 연속 PASS** (각 출력 글자 수 3032, 2911, 2916, 3087, 2884). 동일 QA 아티팩트의 공개 GGUF와 컴파일 브리지 사용, 사용자 원고·키·실계정·외부 AI 호출 없음. 5회는 장기 무중단/한국어 문학 품질 보증이 아님.
+- 같은 CI의 별도 Windows 작업 **PASS**: 실제 프로젝트 `run_auto_novel` 경로에 합성 로컬 실행 파일을 연결해 30화 신규 저장, 100화까지 추가 70화, 250화까지 추가 150화, 각 회차 5000자 이상·SQLite 재오픈 검증, 재실행 시 기존 250화 덮어쓰기 0건. 총 합성 모델 프로세스 호출 151+350+750=1251회. **실제 AI 250화 집필이 아님**, similarity/continuity/logic/timeline/foreshadow/reader가 NOT_RUN이며 최종 승인 없음.
+- 합성 참고작 20개를 메타데이터 카탈로그에 분석 완료로 등록 후 20개 대상으로 실제 `check_reference_similarity` 검사 **PASS**. 완전 복제 의심 원고 `review`, 1개 누락 거부, 21개 입력 거부 확인. 이 20개 상한은 실제 사용자 카탈로그 전수 검사 완성이 아니라 **기능적 미완료**이므로 출판 승인하지 않음.
+- 새 소스 기준 Windows EXE·오프라인 GGUF #38827312169 **SUCCESS**. Windows 11 외부 UIA #38827312296 **FAILURE**: `SelectedUnique=12`, `NativeSelectionClicks=12` 성공이지만 `ForegroundRequestAccepted=False`, `QtForeground=False`, `ForegroundBlockerProcess=WWAHost`. Qt offscreen 검증을 사용자 실제 전경 인수로 대체하지 않음.
+- 새 전체 회귀 #38827312216: Linux SUCCESS, **Windows FAILURE**. 단위 테스트 모듈 120개 중 119개 PASS, `test_stage87_long_memory_stability_trial.py` 150초 `MODULE_TIMEOUT`; 실제 아티팩트 `anf-full-unittest-Windows`의 해당 로그에서 앞 9개 테스트 PASS 후 `test_mock_provider_error_is_sanitized` 실행 중 모듈 예산 만료. Windows 3377건 기록, 4 SKIP, 모듈 1개 실패. 결함/테스트 지연을 PASS라 쓰지 않음.
+- 이 후속 커밋은 Windows 모듈별 타임아웃을 **150초→300초**, 전체 Windows 잡을 **25분→35분**으로 상향하되 전체 실행·미완 모듈 FAIL 판정 유지. 긴 장기 기억 모의 스트레스의 실제 완료 여부는 **이 커밋 뒤 신규 CI 종료 전 NOT_RUN**. 추가 QA 워크플로는 `src/scripts/tests/packaging` 코드 푸시 및 수동 dispatch에서만 실행하도록 제한해 문서 수정만으로 10분 이상의 Windows GGUF/250화 검증이 연속 취소·중복되지 않게 조정.
+- 보호 `main` SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 불변. 원고/SQLite/키/설정/외부 계정·출판/기존 자동화 변경·전송 없음. 물리 Windows 10/11 사람 인수, 전수 참고작 Similarity(21개 초과 포함)·위험 장면 재작성 및 재검사, 실제 로컬 AI 장편 30/100/250화×5000자 문학 품질, 전체 100단계 종단 인수는 여전히 **RELEASE_BLOCKED**.
+
+
 ## 2026-10-16 약 08:51 KST — 전체 120모듈 Linux/Windows 실 CI PASS 및 남은 물리 전경 차단
 
 - EPUB 통합 `f6c97ee366aaefb11a9c7a9402bcaf6632596a15`: import→Profile→SQLite 등록/복원/안전 거부, EPUB 합성 테스트 20/20가 Linux Qt #38822239110 / Windows Qt #38822239075에서 각각 PASS. 기존 PostgreSQL·Redis·Celery #38822239077 PASS, Windows EXE·로컬 GGUF #38822239105 PASS.

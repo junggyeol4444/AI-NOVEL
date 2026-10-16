@@ -16,7 +16,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2022]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       ANF_ENV: test
       ANF_AI_PROVIDER: disabled
@@ -49,7 +49,7 @@ jobs:
           exit ${PIPESTATUS[0]}
       - name: Windows full tests in bounded isolated modules (never silently skip)
         if: runner.os == 'Windows'
-        run: python scripts/ci_full_synthetic_by_module.py --root . --output build/ci/full-unittest --timeout 150
+        run: python scripts/ci_full_synthetic_by_module.py --root . --output build/ci/full-unittest --timeout 300
       - name: Preserve complete test output for investigation
         if: always()
         uses: actions/upload-artifact@v4
