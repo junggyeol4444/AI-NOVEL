@@ -19,6 +19,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Reject actual llama-cli console banners as Korean novel (source contract, not literary PASS)
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p 'test_native_manuscript_purity.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'Native manuscript console purity regression failed' }
       - name: Build current source into native console EXE (not a Python mock)
         shell: pwsh
         run: |
