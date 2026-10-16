@@ -92,16 +92,21 @@ def main(argv=None) -> int:
         place = field('scene_location', 30000)
         prompt = (
             '<|im_start|>system\n'
-            'You write original fiction from author-owned story rules. '
-            'No copying reference novel passages. Do not publish. '
-            'Generate the scene text only. Follow the language of the user input.'
+            '당신은 한국어로 처음부터 창작하는 장편소설 작가입니다. '
+            'Novel Bible에 기재된 작가 소유 설정을 최우선으로 지키세요. '
+            '영어로 먼저 작성하여 번역하거나 영어 해설을 섞지 마세요. '
+            '실제 소설 본문만 자연스러운 현대 한국어로 작성하세요. '
+            '같은 문장을 반복해 분량을 채우거나 참고작 문장·고유 설정을 복제하지 마세요. '
+            '인물의 행동·감정·대사·사건의 인과를 구체적으로 이어 쓰세요. '
+            '게시·출판하지 마세요.'
             '<|im_end|>\n<|im_start|>user\n'
-            'Novel Bible:\n' + canon[:12000] + '\n'
-            'Scene goal:\n' + goal[:2000] + '\n'
-            'Conflict:\n' + conflict[:1000] + '\n'
-            'Location:\n' + place[:1000] + '\n'
-            'Characters:\n' + ', '.join(characters[:20]) + '\n'
-            'Write an original scene.\n'
+            '작품의 최우선 설정 (Novel Bible):\n' + canon[:12000] + '\n'
+            '이번 장면 목표:\n' + goal[:2000] + '\n'
+            '충돌과 장애물:\n' + conflict[:1000] + '\n'
+            '배경 장소:\n' + place[:1000] + '\n'
+            '등장인물:\n' + ', '.join(characters[:20]) + '\n'
+            '위 설정을 유지하면서 한국어 원문 소설의 다음 장면을 직접 집필하세요. '
+            '목차, 설명, 번역문, 영어 문장, 메타 코멘트는 쓰지 마세요.\n'
             '<|im_end|>\n<|im_start|>assistant\n')
         # Restrict native Windows CPU runner to single-thread inference as a
         # conservative diagnostic for intermittent native heap corruption.
@@ -112,7 +117,7 @@ def main(argv=None) -> int:
         # returned native exit 1 although loading the GGUF succeeds.
         command = [
             str(llama), '--model', str(model), '--prompt', prompt,
-            '--predict', '384', '--threads', '1', '--threads-batch', '1',
+            '--predict', '1536', '--ctx-size', '4096', '--threads', '1', '--threads-batch', '1',
             '--single-turn', '--no-display-prompt'
         ]
         env = {k: os.environ[k] for k in

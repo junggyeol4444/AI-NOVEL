@@ -8,7 +8,33 @@ permissions:
   contents: read
   actions: read
 jobs:
+  build-current-korean-model-bridge:
+    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build current source into native console EXE (not a Python mock)
+        shell: pwsh
+        run: |
+          python -m pip install "pyinstaller>=6.10,<7"
+          if ($LASTEXITCODE -ne 0) { throw 'PyInstaller dependency failed' }
+          python -m PyInstaller --noconfirm --onefile --console --name ANF_Local_Model --distpath build/ci/newbridge --workpath build/ci/newbridge-work packaging/windows/local_model_bridge.py
+          if ($LASTEXITCODE -ne 0) { throw 'Current bridge build failed' }
+          if (-not (Test-Path build/ci/newbridge/ANF_Local_Model.exe)) { throw 'Current bridge EXE missing' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anf-korean-bridge-from-current-commit
+          path: build/ci/newbridge/ANF_Local_Model.exe
+          retention-days: 3
+          if-no-files-found: error
   real-windows-exe-external-gui-korean-5000:
+    needs: build-current-korean-model-bridge
     if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
     strategy:
       fail-fast: false
@@ -32,6 +58,28 @@ jobs:
           name: ANF-Full-Offline-Portable-QA-Windows-x64-Not-Release
           path: build/ci/real-windows-bundle
           github-token: ${{ github.token }}
+      - name: Download current-commit compiled bridge executable
+        uses: actions/download-artifact@v4
+        with:
+          name: anf-korean-bridge-from-current-commit
+          path: build/ci/current-model-bridge
+      - name: Download updated native bridge from current source and stage multilingual QA weight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $bridge=Get-ChildItem 'build/ci/real-windows-bundle' -Recurse -File -Filter 'ANF_Local_Model.exe' | Select-Object -First 1
+          if (-not $bridge) { throw 'QA bundle native bridge missing' }
+          $qaRoot=$bridge.DirectoryName
+          $newBridge='build/ci/current-model-bridge/ANF_Local_Model.exe'
+          if (-not (Test-Path $newBridge)) { throw 'Current branch compiled model bridge missing' }
+          Copy-Item -LiteralPath $newBridge -Destination $bridge.FullName -Force
+          $model=Join-Path $qaRoot 'models/qwen2.5-0.5b-instruct-q4_k_m.gguf'
+          $url='https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf'
+          curl.exe --fail --location --retry 2 --max-time 300 --output $model $url
+          if ($LASTEXITCODE -ne 0) { throw 'Public Qwen GGUF download failed' }
+          $size=(Get-Item $model).Length
+          if($size -lt 300000000 -or $size -gt 900000000){throw 'Public Qwen GGUF size out of allowed range'}
+          Write-Host ('Current bridge and public QA Qwen GGUF ready. Weight bytes: '+$size)
       - name: Operate real Windows EXE via EXTERNAL UIAutomation and test original Korean prose
         shell: pwsh
         run: |
@@ -153,6 +201,11 @@ jobs:
             SetField 'authoring_conflict' '갈등' '날짜 기록이 실제 기억과 어긋나면서 주인공은 증거를 다시 확인한다.'
             SetField 'authoring_location' '장소' '완전히 가상의 섬 도서관'
             SetField 'authoring_characters' '등장인물 (쉼표 구분)' '조사자, 사서'
+            $modelQaPath=Join-Path $root 'models/qwen2.5-0.5b-instruct-q4_k_m.gguf'
+            if(-not (Test-Path $modelQaPath)){throw 'selected_qa_korean_model_missing'}
+            SetField 'authoring_arguments' '실행 인수' ('--gguf "'+$modelQaPath+'"')
+            $report.qa_model='Qwen2.5-0.5B-Instruct-Q4_K_M'
+            $report.model_variant='downloaded_public_weights_ci_only'
             $modelControl=Ui 'authoring_executable' '신뢰한 실행 파일 절대 경로'
             if($null -eq $modelControl){throw 'bundled_gui_model_field_missing'}
             $pval=$null
