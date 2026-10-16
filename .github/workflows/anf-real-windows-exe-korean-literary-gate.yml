@@ -2,7 +2,11 @@ name: ANF native Windows EXE Korean manuscript acceptance (VALIDATION ONLY)
 on:
   push:
     branches: [validation/gui-authoring-e2e-20261014]
-    paths: ['.github/workflows/anf-real-windows-exe-korean-literary-gate.yml']
+    paths:
+      - '.github/workflows/anf-real-windows-exe-korean-literary-gate.yml'
+      - 'packaging/windows/local_model_bridge.py'
+      - 'scripts/ci_native_llama_diagnostic.py'
+      - 'tests/test_native_manuscript_purity.py'
   workflow_dispatch:
 permissions:
   contents: read
