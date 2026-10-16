@@ -58,9 +58,9 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             self.assertIn('--no-display-prompt', command)
             self.assertIn('--log-disable', command)
             body = command[command.index('--prompt') + 1]
-            self.assertIn('<|im_start|>system\\n한국어 소설 작가<|im_end|>', body)
-            self.assertIn('<|im_start|>user\\n도서관의 비밀을 쓴다.<|im_end|>', body)
-            self.assertTrue(body.endswith('<|im_start|>assistant\\n'))
+            self.assertIn('<|im_start|>system\n한국어 소설 작가<|im_end|>', body)
+            self.assertIn('<|im_start|>user\n도서관의 비밀을 쓴다.<|im_end|>', body)
+            self.assertTrue(body.endswith('<|im_start|>assistant\n'))
 
     def test_no_qwen_fallback_to_interactive_shell_without_completion(self):
         from tempfile import TemporaryDirectory
