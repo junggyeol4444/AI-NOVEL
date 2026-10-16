@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import time
 
 FLAGS = ('--single-turn', '--system-prompt', '--no-display-prompt',
          '--log-disable', '--no-show-timings', '--repeat-penalty')
@@ -107,9 +108,11 @@ def probe(cli: Path, model: Path) -> dict:
                        '--threads-batch', '1', '--single-turn',
                        '--no-display-prompt', '--log-verbosity', '0']
             try:
+                completion_started = time.monotonic()
                 cp = subprocess.run(command, cwd=cli.parent, capture_output=True,
                                     timeout=150, check=False)
                 output = cp.stdout.decode('utf-8', 'replace')
+                completion['elapsed_s'] = round(time.monotonic() - completion_started, 2)
                 completion['exit'] = cp.returncode
                 completion['hangul'] = any('가' <= c <= '힣' for c in output)
                 completion['banner'] = any(x in output.lower() for x in
@@ -154,6 +157,38 @@ def probe(cli: Path, model: Path) -> dict:
                 completion['timeout'] = True
             except (OSError, ValueError):
                 completion['error'] = 'native_completion_probe_error'
+        # Compare the existing single-thread native runtime to a four-thread
+        # invocation before changing the product. Report only timings, exit
+        # status and output shape, never generated text or author material.
+        parallel = dict(kind='ci_only_speed_diagnostic', threads=4,
+                        exit=None, elapsed_s=None, chars=0, hangul=False,
+                        timeout=False, banner=False)
+        if completion['supported'] and completion.get('exit') == 0:
+            four_thread_cmd = [str(completion_exe), '--model', str(model),
+                               '--system-prompt', '한국어 원문 소설만 쓰세요.',
+                               '--prompt', synthetic, '--predict', '48',
+                               '--ctx-size', '2048', '--threads', '4',
+                               '--threads-batch', '4', '--single-turn',
+                               '--no-display-prompt', '--log-verbosity', '0']
+            started = time.monotonic()
+            try:
+                p4 = subprocess.run(four_thread_cmd, cwd=cli.parent,
+                                    capture_output=True, timeout=150,
+                                    check=False)
+                output4 = p4.stdout.decode('utf-8', 'replace')
+                parallel['exit'] = p4.returncode
+                parallel['chars'] = len(output4)
+                parallel['hangul'] = any('가' <= c <= '힣' for c in output4)
+                parallel['banner'] = any(x in output4.lower() for x in
+                    ('loading model...', 'available commands:',
+                     'exiting...', '[ prompt:'))
+            except subprocess.TimeoutExpired:
+                parallel['timeout'] = True
+            except (OSError, ValueError):
+                parallel['error'] = 'four_thread_native_probe_error'
+            finally:
+                parallel['elapsed_s'] = round(time.monotonic() - started, 2)
+        report['four_thread_noninteractive_diagnostic'] = parallel
         report['noninteractive_completion'] = completion
         report['reason'] = 'native_short_probe_completed'
     except subprocess.TimeoutExpired:
