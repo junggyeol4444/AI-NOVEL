@@ -17,7 +17,8 @@ class DraftWorker(QThread):
             self.generated.emit(draft_scene(self._request, self._provider))
         except LocalModelError as exc:
             reason = str(exc)
-            self.failed.emit(reason if reason in ('native_timeout', 'native_inference_failure')
+            self.failed.emit(reason if reason in ('native_timeout', 'native_inference_failure',
+                                                'native_output_rejected')
                              else 'LocalModelError')
         except (ValueError, OSError) as exc:
             self.failed.emit(type(exc).__name__)

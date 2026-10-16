@@ -89,6 +89,22 @@ class OfflineModelTests(unittest.TestCase):
         with self.assertRaises(LocalModelError):
             LocalExecutableProvider(sys.executable, explicitly_allowed=True, arguments=('x\x00y',))
 
+    def test_native_validation_rejection_has_safe_category(self):
+        provider = self._worker('''import sys
+sys.stderr.write("LOCAL_MODEL_GENERATION_FAILED;STAGE=text_validation;TYPE=ValueError\\n")
+sys.exit(1)
+''')
+        with self.assertRaisesRegex(LocalModelError, 'native_output_rejected'):
+            provider.generate(self.request)
+
+    def test_native_exit_has_separate_safe_category(self):
+        provider = self._worker('''import sys
+sys.stderr.write("LOCAL_MODEL_GENERATION_FAILED;STAGE=native_inference;TYPE=ValueError\\n")
+sys.exit(1)
+''')
+        with self.assertRaisesRegex(LocalModelError, 'native_inference_failure'):
+            provider.generate(self.request)
+
     def test_timeout_bounds(self):
         for seconds in (0, -1, 481, True):
             with self.subTest(seconds=seconds), self.assertRaises(LocalModelError):

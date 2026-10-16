@@ -239,8 +239,14 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.status.setText('AI 결과 반영 실패. 원고는 자동 저장되지 않았습니다.')
 
     def _on_generation_failed(self, category):
-        self.status.setAccessibleName('로컬 AI 생성 실패')
-        self.status.setText('로컬 AI 생성 실패 (' + category + '): 초고 저장 없음.')
+        safe_category = category if category in (
+            'native_timeout', 'native_inference_failure',
+            'native_output_rejected', 'LocalModelError') else 'UnknownError'
+        self.status.setAccessibleName('로컬 AI 생성 실패 ' + safe_category)
+        if safe_category == 'native_output_rejected':
+            self.status.setText('소설 외 콘솔 출력·입력 재출력 또는 비한국어 출력 감지: 원고 저장을 차단했습니다.')
+        else:
+            self.status.setText('로컬 AI 생성 실패 (' + safe_category + '): 초고 저장 없음.')
 
     def _on_generation_finished(self):
         self.buttons['generate'].setEnabled(True)

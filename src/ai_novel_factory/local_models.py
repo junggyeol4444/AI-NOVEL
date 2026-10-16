@@ -147,10 +147,13 @@ class LocalExecutableProvider:
             match = re.search(
                 r'LOCAL_MODEL_GENERATION_FAILED;STAGE=([a-z_]+);TYPE=([A-Za-z]+)',
                 completed.stderr[:300])
-            if match and match.group(1) == 'native_inference':
-                if match.group(2) == 'TimeoutExpired':
-                    raise LocalModelError('native_timeout')
-                raise LocalModelError('native_inference_failure')
+            if match:
+                if match.group(1) == 'native_inference':
+                    if match.group(2) == 'TimeoutExpired':
+                        raise LocalModelError('native_timeout')
+                    raise LocalModelError('native_inference_failure')
+                if match.group(1) == 'text_validation':
+                    raise LocalModelError('native_output_rejected')
             raise LocalModelError('local provider rejected')
         if len(completed.stdout) > MAX_DRAFT_CHARS + 5000:
             raise LocalModelError('local provider oversized response')

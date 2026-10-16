@@ -143,8 +143,9 @@ def main(argv=None) -> int:
         # This is a hypothesis until repeated compiled-GGUF CI verifies it.
         # Verified against b11624 Windows CPU runtime: the minimal
         # --single-turn --no-display-prompt invocation exits successfully.
-        # The previous combination with --no-conversation / --simple-io
-        # returned native exit 1 although loading the GGUF succeeds.
+        # Earlier Windows CI found that --simple-io plus conversation flags
+        # returned native exit 1. Use single-turn without simple-io while
+        # keeping fail-closed console-output rejection.
         # Keep the small bundled 135M smoke route responsive. Larger, explicitly
         # selected multilingual GGUF weights need a separate bounded CPU budget.
         is_bundled_qa_model = model.name == MODEL_NAME
@@ -158,7 +159,7 @@ def main(argv=None) -> int:
             '--repeat-penalty', '1.16', '--repeat-last-n', '256',
             '--temp', '0.8', '--top-p', '0.92',
             '--single-turn', '--no-display-prompt',
-            '--simple-io', '--log-disable', '--no-show-timings'
+            '--log-disable', '--no-show-timings'
         ]
         env = {k: os.environ[k] for k in
                ('SYSTEMROOT', 'WINDIR', 'PATH', 'TEMP', 'TMP') if k in os.environ}

@@ -1,5 +1,14 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 14:09 이후 — Windows 실제 EXE 비어 있는 원고 재현, llama 옵션 및 오류 분류
+
+- 지난 [Windows EXE #38853010881](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38853010881)의 Win2022/Win11 ARM 모두 **실제 EXE 창 기동 성공, 모델 원고 비어 있음 `real_model_generated_empty_draft`, 한국어 창작 FAIL**. 오염 거부 소스 단위 검사가 통과했을 뿐 소설 품질 개선 아님. metadata만 있는 QA 아티팩트에서 원고 없음을 확인.
+- 실제 `packaging/windows/local_model_bridge.py`에 `--single-turn`과 `--simple-io` 동시 사용. 같은 소스의 이전 QA 기록이 `--simple-io` 결합 시 native exit 1을 지적. `--simple-io` 제거, 모델 설정/프롬프트는 유지. `--log-disable --no-show-timings --no-display-prompt` 및 **CLI 배너/Novel Bible echo 등 오염 FAIL-CLOSED** 유지. b11624 실제 Windows에서 다시 검증; 문자열 삭제만으로 모델 양질 소설 생성 주장 금지.
+- `LOCAL_MODEL_GENERATION_FAILED;STAGE=text_validation`을 안전한 `native_output_rejected` 상태로 분리하고 UIA에서 파악 가능하도록 함. `native_inference_failure`와 구분, 모델 stderr/원고/사용자 프롬프트/경로를 CI 로그로 유출하지 않음. 테스트용 독립 Python 회귀는 실제 모델 PASS 근거 아님. 새 Windows EXE 빌드→외부 UIAutomation→실제 GGUF의 **읽을 수 있는 원고 아티팩트**를 다시 사람이 직접 확인할 것.
+- **RELEASE_BLOCKED**, 1화 한국어 5000자 실원고 문학 품질 0건 PASS. 실제 30/100/250화 원본 집필 인수 및 참고작 전수 Similarity 등 01~100 단계도 미완. 사용자 SQLite, 원고, 계정, 키, 출판, 비활성 8시 예약 불변. 보호 `main` SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 불변, 검증 브랜치만 수정.
+
+
+
 ## 2026-10-16 — 실제 원고 직접 독서에서 발견한 제품 차단 결함: llama 콘솔 출력이 SQLite 소설에 저장됨
 
 - 사용자가 요구한 것은 코드/해시/글자수가 아닌 **실제 프로그램 집필 결과를 직접 읽어 볼 만한 소설인가를 평가하는 것**. [Windows 실제 GUI + Qwen 1.5B #38852276017](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38852276017)에서 격리 가상 작품 원본 `qa_original_scene.txt`를 처음 보존하고 직접 읽었다.
