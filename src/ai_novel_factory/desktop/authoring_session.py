@@ -184,7 +184,8 @@ class AuthoringSession:
                         expected_revision=ep.revision, text=text)
         self.pending_draft = None
 
-    def generate(self, executable, arguments, approved, goal, conflict, location, characters):
+    def prepare_generation(self, executable, arguments, approved, goal, conflict, location, characters):
+        """Resolve the author-owned canon and identity on the GUI thread."""
         if approved is not True:
             raise AuthoringError('로컬 실행 파일을 명시적으로 승인하세요.')
         ep, scene = self.episode(), self.scene()
@@ -201,9 +202,29 @@ class AuthoringSession:
         request = SceneDraftRequest(
             self.project_id, ep.episode, scene.position, canon,
             goal, conflict, location, characters, ep.plot + '\n' + scene.text)
-        result = draft_scene(request, provider)
+        identity = (str(self.path), self.project_id, ep.episode, scene.scene_id,
+                    ep.revision, scene.text)
+        return request, provider, identity
+
+    def accept_generation(self, request, result, identity):
+        """Discard stale async drafts; never attach them to a different manuscript."""
+        if (not self.store or not self.path
+                or (str(self.path), self.project_id, self.episode_number, self.scene_id)
+                != identity[:4]):
+            raise AuthoringError('작품/회차/장면이 변경되어 이전 AI 결과를 적용하지 않았습니다.')
+        ep, scene = self.episode(), self.scene()
+        if ep.revision != identity[4] or scene.text != identity[5]:
+            raise AuthoringError('집필 도중 회차/장면이 바뀌어 AI 결과를 적용하지 않았습니다.')
+        if result.project_id != request.project_id or result.episode_number != request.episode_number:
+            raise AuthoringError('AI 결과의 작품/회차가 일치하지 않습니다.')
         self.pending_draft = result.draft
         return result.draft
+
+    def generate(self, executable, arguments, approved, goal, conflict, location, characters):
+        """Backward-compatible synchronous API for non-GUI callers."""
+        request, provider, identity = self.prepare_generation(
+            executable, arguments, approved, goal, conflict, location, characters)
+        return self.accept_generation(request, draft_scene(request, provider), identity)
 
     def save_draft(self, text):
         if self.pending_draft is None or not text.strip():

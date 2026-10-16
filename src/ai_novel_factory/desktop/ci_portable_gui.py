@@ -85,7 +85,13 @@ def run(out: str) -> int:
         check('explicit_model_approval_required', not ui.approved.isChecked())
         ui.approved.setChecked(True)
         QTest.mouseClick(ui.buttons['generate'], Qt.MouseButton.LeftButton)
+        from time import monotonic
+        deadline = monotonic() + 150
+        while ui.is_generating() and monotonic() < deadline:
+            app.processEvents()
+            QTest.qWait(80)
         app.processEvents()
+        check('real_gguf_worker_completed_off_gui_thread', not ui.is_generating())
         draft = ui._text('draft')
         check('real_bundled_gguf_model_generated_prose_via_gui',
               bool(draft.strip())

@@ -193,6 +193,10 @@ class MainWindow(QMainWindow):
         # A blocked shutdown must never discard manuscript text. Check
         # running workers *before* any user confirmation that can discard it.
         authoring = getattr(self, 'authoring', None)
+        if authoring is not None and authoring.is_generating():
+            self.statusBar().showMessage('로컬 AI 단일 장면 집필 중 · 완료 후 종료해 주세요.')
+            event.ignore()
+            return
         if authoring is not None and authoring.auto_panel.is_running():
             authoring.auto_panel.request_stop()
             self.statusBar().showMessage('로컬 AI 집필 작업 중단 요청 중 · 프로세스 완료 후 종료해 주세요.')

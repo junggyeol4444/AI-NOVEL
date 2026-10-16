@@ -4,11 +4,17 @@ import shlex
 from PySide6.QtWidgets import QWidget, QFileDialog
 from .authoring_controls import AuthoringControls
 from .authoring_session import AuthoringSession
+from .draft_worker import DraftWorker
+
+_ASYNC_STARTED = object()
 
 class AuthoringWorkflowWidget(AuthoringControls, QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.session = AuthoringSession()
+        self._draft_worker = None
+        self._draft_request = None
+        self._draft_identity = None
         self.build_controls()
         # The optional portable QA bundle includes both the console IPC bridge
         # and real GGUF weights. Detect only sibling files: never download
@@ -29,9 +35,10 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
 
     def _run(self, fn, message):
         try:
-            fn()
-            self.status.setText(message)
-            self._sync()
+            outcome = fn()
+            if outcome is not _ASYNC_STARTED:
+                self.status.setText(message)
+                self._sync()
         except (ValueError, OSError) as exc:
             self.status.setText(str(exc)[:200])
         except Exception:
@@ -178,14 +185,67 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.session.pending_draft = None
             self._sync_scene()
 
+    def is_generating(self):
+        return self._draft_worker is not None and self._draft_worker.isRunning()
+
     def _generate(self):
+        if self.is_generating():
+            raise ValueError('이미 로컬 AI 집필이 실행 중입니다.')
         arguments = tuple(shlex.split(self._text('arguments')))
         characters = tuple(v.strip() for v in self._text('characters').split(',') if v.strip())
-        self.session.generate(self._text('executable'), arguments, self.approved.isChecked(),
-                              self._text('goal'), self._text('conflict'), self._text('location'),
-                              characters)
+        request, provider, identity = self.session.prepare_generation(
+            self._text('executable'), arguments, self.approved.isChecked(),
+            self._text('goal'), self._text('conflict'), self._text('location'), characters)
         self.approved.setChecked(False)
+        self._draft_request, self._draft_identity = request, identity
+        worker = DraftWorker(request, provider, self)
+        self._draft_worker = worker
+        worker.generated.connect(self._on_generation_result)
+        worker.failed.connect(self._on_generation_failed)
+        worker.finished.connect(self._on_generation_finished)
+        self.buttons['generate'].setEnabled(False)
+        self.buttons['save_draft'].setEnabled(False)
+        self.status.setText('로컬 AI 집필 중 — 화면은 계속 응답합니다. 자동 저장·출판 없음.')
+        worker.start()
+        return _ASYNC_STARTED
+
+    def _on_generation_result(self, result):
+        try:
+            self.session.accept_generation(self._draft_request, result, self._draft_identity)
+            self._sync_episode()
+            draft = result.draft
+            hangul = sum('가' <= ch <= '힣' for ch in draft)
+            target = self._text('characters_per_episode').strip()
+            target = int(target) if target.isdecimal() else 5000
+            if len(draft) < target or hangul < target * 0.8:
+                self.status.setText(
+                    f'실제 초고 {len(draft)}자 / 한글 {hangul}자: 한국어 목표 {target}자 미달. '
+                    '검수·재집필 필요. 자동 확정·출판 없음.')
+            else:
+                self.status.setText(
+                    f'로컬 초고 {len(draft)}자 / 한글 {hangul}자. '
+                    '연속성·유사성·문학 품질은 검수 전 상태입니다.')
+        except (ValueError, OSError):
+            self.status.setText('작품/회차/장면이 변경되어 결과를 적용하지 않았습니다.')
+        except Exception:
+            self.status.setText('AI 결과 반영 실패. 원고는 자동 저장되지 않았습니다.')
+
+    def _on_generation_failed(self, category):
+        self.status.setText('로컬 AI 생성 실패 (' + category + '): 초고 저장 없음.')
+
+    def _on_generation_finished(self):
+        self.buttons['generate'].setEnabled(True)
+        self.buttons['save_draft'].setEnabled(True)
+        self._draft_request = self._draft_identity = None
+        worker = self._draft_worker
+        self._draft_worker = None
+        if worker is not None:
+            worker.deleteLater()
 
     def closeEvent(self, event):
+        if self.is_generating():
+            self.status.setText('로컬 AI 작업 중입니다. 작업 완료 후 종료하세요.')
+            event.ignore()
+            return
         self.session.close()
         event.accept()

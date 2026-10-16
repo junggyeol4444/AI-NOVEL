@@ -88,6 +88,13 @@ def run(args):
         ui._set('characters', '여행자')
         ui.approved.setChecked(True)
         QTest.mouseClick(ui.buttons['generate'], Qt.MouseButton.LeftButton)
+        from time import monotonic
+        deadline = monotonic() + 150
+        while ui.is_generating() and monotonic() < deadline:
+            app.processEvents()
+            QTest.qWait(80)
+        app.processEvents()
+        check('native_gui_background_model_completed', not ui.is_generating())
         draft = ui._text('draft')
         check('local_cpu_model_via_gui', bool(draft.strip()) and ui.session.pending_draft == draft)
         with EpisodeStore(db_path) as db:
