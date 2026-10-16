@@ -7,6 +7,7 @@ open a CI-owned SQLite file beneath the per-run temporary QA directory.
 from __future__ import annotations
 
 import hashlib
+from contextlib import closing
 import os
 from pathlib import Path
 import re
@@ -30,7 +31,7 @@ def verify_sqlite_saved_draft(database: Path, expected_hash: str, runner_temp: P
         if re.fullmatch(r'[0-9a-f]{64}', expected_hash) is None:
             return False
         uri = 'file:' + quote(path.as_posix(), safe='/:') + '?mode=ro'
-        with sqlite3.connect(uri, uri=True, timeout=8) as con:
+        with closing(sqlite3.connect(uri, uri=True, timeout=8)) as con:
             con.execute('PRAGMA query_only=ON')
             rows = con.execute(
                 "SELECT draft FROM bible_episodes WHERE length(trim(draft)) > 0"
@@ -63,7 +64,7 @@ def export_synthetic_review_sample(database: Path, expected_hash: str,
             return False
         db = database.resolve(strict=True)
         uri = 'file:' + quote(db.as_posix(), safe='/:') + '?mode=ro'
-        with sqlite3.connect(uri, uri=True, timeout=8) as con:
+        with closing(sqlite3.connect(uri, uri=True, timeout=8)) as con:
             con.execute('PRAGMA query_only=ON')
             rows = con.execute(
                 'SELECT draft FROM bible_episodes WHERE length(trim(draft)) > 0'

@@ -96,7 +96,7 @@ def probe(cli: Path, model: Path) -> dict:
                 completion['flag_support'] = {flag: flag in help_text for flag in
                     ('--prompt', '--predict', '--ctx-size', '--threads',
                      '--threads-batch', '--repeat-penalty', '--repeat-last-n',
-                     '--no-display-prompt', '--log-disable', '--no-show-timings')}
+                     '--no-display-prompt', '--log-verbosity', '--no-show-timings')}
             except (OSError, subprocess.TimeoutExpired):
                 completion['help_error'] = 'noninteractive_help_unavailable'
         if completion['supported']:
@@ -105,7 +105,7 @@ def probe(cli: Path, model: Path) -> dict:
                        '--prompt', synthetic, '--predict', '48',
                        '--ctx-size', '2048', '--threads', '1',
                        '--threads-batch', '1', '--single-turn',
-                       '--no-display-prompt', '--log-disable']
+                       '--no-display-prompt', '--log-verbosity', '0']
             try:
                 cp = subprocess.run(command, cwd=cli.parent, capture_output=True,
                                     timeout=150, check=False)
@@ -132,7 +132,7 @@ def probe(cli: Path, model: Path) -> dict:
                                '--system-prompt', '한국어 원문 소설만 쓰세요.',
                                '--prompt', synthetic, '--predict', '8',
                                '--threads', '1', '--single-turn',
-                               '--no-display-prompt', '--log-disable']
+                               '--no-display-prompt', '--log-verbosity', '0']
                     try:
                         fallback = subprocess.run(minimal, cwd=cli.parent,
                                                   capture_output=True, timeout=90,

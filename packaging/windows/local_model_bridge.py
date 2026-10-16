@@ -62,7 +62,8 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
     The separate completion executable avoids llama-cli's chat shell. It
     applies the model's own chat template to ordinary --system-prompt and
     --prompt arguments; never embed raw ChatML into author-controlled text.
-    Its argument set excludes CLI-only --no-show-timings.
+    Its argument set excludes CLI-only --no-show-timings. Only verbosity 0
+    keeps response tokens while hiding informational messages.
     """
     common = [
         '--model', str(model), '--predict', prediction_budget,
@@ -78,7 +79,7 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
         if any(token in part for part in (system_prompt, prompt) for token in
                ('<|im_start|>', '<|im_end|>', '<|im_sep|>')):
             raise ValueError('unsafe chat template delimiter')
-        return [str(completion), *common, '--log-disable',
+        return [str(completion), *common, '--log-verbosity', '0',
                 '--system-prompt', system_prompt, '--prompt', prompt,
                 '--single-turn']
     # Keep the existing small-model CLI route and its CLI-only timing flag.

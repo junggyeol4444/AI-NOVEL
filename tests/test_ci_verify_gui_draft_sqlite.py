@@ -1,5 +1,6 @@
 """Non-acceptance regression for Windows compiled GUI SQLite evidence integrity."""
 import hashlib
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 from tempfile import TemporaryDirectory
@@ -17,7 +18,7 @@ class SavedDraftEvidenceTests(unittest.TestCase):
         self.work.mkdir()
         self.db = self.work / 'only-synthetic.sqlite'
         self.data = '합성 검수 원고\n가상의 장면만 포함한다.'
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             con.execute('CREATE TABLE bible_episodes (draft TEXT)')
             con.execute('INSERT INTO bible_episodes VALUES (?)', (self.data,))
         self.digest = hashlib.sha256(self.data.encode('utf-8')).hexdigest()
@@ -33,7 +34,7 @@ class SavedDraftEvidenceTests(unittest.TestCase):
         self.assertFalse(verify_sqlite_saved_draft(self.db, self.digest, self.work))
 
     def test_multiple_nonempty_manuscripts_do_not_report_success(self):
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             con.execute('INSERT INTO bible_episodes VALUES (?)', (self.data,))
         self.assertFalse(verify_sqlite_saved_draft(self.db, self.digest, self.root))
 
@@ -53,7 +54,7 @@ class SavedDraftEvidenceTests(unittest.TestCase):
             (self.root / 'build/ci/korean-real-gui/qa_original_scene.txt').exists())
 
     def test_export_normalizes_windows_crlf_in_synthetic_draft(self):
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             con.execute('UPDATE bible_episodes SET draft=?', ('첫째\r\n둘째',))
         digest = hashlib.sha256('첫째\n둘째'.encode('utf-8')).hexdigest()
         self.assertTrue(export_synthetic_review_sample(
@@ -63,7 +64,7 @@ class SavedDraftEvidenceTests(unittest.TestCase):
         self.assertEqual(content, '첫째\n둘째')
 
     def test_newlines_normalized_for_windows_qt(self):
-        with sqlite3.connect(self.db) as con:
+        with closing(sqlite3.connect(self.db)) as con, con:
             con.execute('UPDATE bible_episodes SET draft=?', ('첫째\r\n둘째',))
         digest = hashlib.sha256('첫째\n둘째'.encode('utf-8')).hexdigest()
         self.assertTrue(verify_sqlite_saved_draft(self.db, digest, self.root))

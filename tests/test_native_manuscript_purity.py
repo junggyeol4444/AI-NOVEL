@@ -58,7 +58,9 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             self.assertEqual(command[0], str(completion))
             self.assertIn('--single-turn', command)
             self.assertIn('--no-display-prompt', command)
-            self.assertIn('--log-disable', command)
+            self.assertIn('--log-verbosity', command)
+            self.assertEqual(command[command.index('--log-verbosity') + 1], '0')
+            self.assertNotIn('--log-disable', command)
             self.assertNotIn('--no-show-timings', command)
             self.assertEqual(command[command.index('--system-prompt') + 1],
                              system_prompt)
