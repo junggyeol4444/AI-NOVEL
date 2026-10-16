@@ -28,6 +28,32 @@ def bundled_files() -> tuple[Path, Path]:
     return folder / 'runtime' / 'llama-cli.exe', folder / 'models' / MODEL_NAME
 
 
+def validate_clean_manuscript(raw: str) -> str:
+    """Fail closed on native llama-cli banners, echoed author settings or timings.
+
+    Never mistake a command-line program's stdout for the model's novel.
+    This is a transport-integrity check, not literary quality approval.
+    """
+    if not isinstance(raw, str):
+        raise ValueError('invalid native output type')
+    text = raw.strip()
+    if not text or len(text) > 100_000 or '\x00' in text or '\x1b' in text:
+        raise ValueError('invalid native output')
+    lower = text.lower()
+    forbidden = (
+        'loading model...', 'available commands:', 'using custom system prompt',
+        'build      :', 'model      :', 'ftype      :', 'modalities :',
+        'exiting...', '[ prompt:', 'generation:', 't/s ]',
+        '작품의 최우선 설정 (novel bible):',
+        '회차/장면의 작가 소유 플롯:',
+    )
+    if any(fragment in lower for fragment in forbidden):
+        raise ValueError('native console output mixed with draft')
+    if not any('가' <= ch <= '힣' for ch in text):
+        raise ValueError('native output lacks Korean novel prose')
+    return text
+
+
 def main(argv=None) -> int:
     args = sys.argv[1:] if argv is None else argv
     llama, model = bundled_files()
@@ -131,7 +157,8 @@ def main(argv=None) -> int:
             '--threads', '1', '--threads-batch', '1',
             '--repeat-penalty', '1.16', '--repeat-last-n', '256',
             '--temp', '0.8', '--top-p', '0.92',
-            '--single-turn', '--no-display-prompt'
+            '--single-turn', '--no-display-prompt',
+            '--simple-io', '--log-disable', '--no-show-timings'
         ]
         env = {k: os.environ[k] for k in
                ('SYSTEMROOT', 'WINDIR', 'PATH', 'TEMP', 'TMP') if k in os.environ}
@@ -146,12 +173,7 @@ def main(argv=None) -> int:
             print('LLAMA_NATIVE_EXIT=' + str(proc.returncode), file=sys.stderr)
             raise ValueError('model process failed')
         stage = 'text_validation'
-        draft = proc.stdout.strip()
-        # Some llama.cpp builds emit terminal control codes; fail instead of
-        # quietly storing an incomplete or malformed model result.
-        if (not draft or len(draft) > 100000 or '\x00' in draft
-                or draft.startswith('error:')):
-            raise ValueError('invalid local model output')
+        draft = validate_clean_manuscript(proc.stdout)
         response = {'protocol': MODEL_PROTO, 'draft': draft}
         stage = 'json_output'
         # Windows frozen console executables may use a legacy code page even

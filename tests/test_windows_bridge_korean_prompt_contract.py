@@ -17,6 +17,8 @@ class KoreanNativeBridgeSourceContract(unittest.TestCase):
         self.assertIn('Novel Bible', source)
         self.assertIn("'--system-prompt', system_prompt", source)
         self.assertIn("'--repeat-penalty', '1.16'", source)
+        self.assertIn("'--simple-io', '--log-disable', '--no-show-timings'", source)
+        self.assertIn('validate_clean_manuscript(proc.stdout)', source)
 
     def test_output_budget_no_longer_384(self):
         source = SOURCE.read_text(encoding='utf-8')

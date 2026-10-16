@@ -70,7 +70,7 @@ def export_synthetic_review_sample(database: Path, expected_hash: str,
             ).fetchmany(2)
         if len(rows) != 1 or type(rows[0][0]) is not str:
             return False
-        manuscript = rows[0][0].replace('\\r\\n', '\\n').replace('\\r', '\\n')
+        manuscript = rows[0][0].replace('\r\n', '\n').replace('\r', '\n')
         if len(manuscript) > 100_000:
             return False
         dest.parent.mkdir(parents=True, exist_ok=True)

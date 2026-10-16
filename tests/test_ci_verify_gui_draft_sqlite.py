@@ -52,6 +52,16 @@ class SavedDraftEvidenceTests(unittest.TestCase):
         self.assertFalse(
             (self.root / 'build/ci/korean-real-gui/qa_original_scene.txt').exists())
 
+    def test_export_normalizes_windows_crlf_in_synthetic_draft(self):
+        with sqlite3.connect(self.db) as con:
+            con.execute('UPDATE bible_episodes SET draft=?', ('첫째\r\n둘째',))
+        digest = hashlib.sha256('첫째\n둘째'.encode('utf-8')).hexdigest()
+        self.assertTrue(export_synthetic_review_sample(
+            self.db, digest, self.root, self.root))
+        content = (self.root / 'build/ci/korean-real-gui/qa_original_scene.txt').read_text(
+            encoding='utf-8')
+        self.assertEqual(content, '첫째\n둘째')
+
     def test_newlines_normalized_for_windows_qt(self):
         with sqlite3.connect(self.db) as con:
             con.execute('UPDATE bible_episodes SET draft=?', ('첫째\r\n둘째',))

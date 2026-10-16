@@ -1,5 +1,15 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 — 실제 원고 직접 독서에서 발견한 제품 차단 결함: llama 콘솔 출력이 SQLite 소설에 저장됨
+
+- 사용자가 요구한 것은 코드/해시/글자수가 아닌 **실제 프로그램 집필 결과를 직접 읽어 볼 만한 소설인가를 평가하는 것**. [Windows 실제 GUI + Qwen 1.5B #38852276017](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38852276017)에서 격리 가상 작품 원본 `qa_original_scene.txt`를 처음 보존하고 직접 읽었다.
+- **Win2022**: 가상 작품 저장 원고에 `Loading model...`, llama CLI 배너/버전·모델 경로·명령 목록·사용자가 입력한 Novel Bible 프롬프트 echo·추론 토큰속도·`Exiting...`가 혼입. 전체 대략 1,787자 중 이야기로 보이는 부분 **685자(한글 443자)**뿐. “어떤 사람의 음성에 의해 대답받았다”, “추적자는 낚시로 발견된 날짜…” 등 비문/번역투, 3인칭에서 '우리'로 시점 전환, 인물 동기·장면 인과 부족 → **읽을 만한 소설 FAIL**. 이전 숫자 `total_chars`는 **콘솔 출력 포함 길이**였으므로 실제 소설 분량으로 인정하지 말 것.
+- **Windows11 ARM**: 같은 배너·입력 prompt·메타데이터가 저장됐고 소설 대신 영문 거절문 “Sorry, but I am not able to assist with that request.”가 생성됐다. 정상적인 한국어 창작 아님 → FAIL. 양쪽 모두 실제 EXE+OS UIAutomation 클릭 후 SQLite 원본 재검증이 통과하여, **CLI 오염을 바로 SQLite에 저장하는 실제 제품 결함이 입증**됨. 아티팩트는 QA 합성 가상 작품이며 실제 사용자의 문서나 원고가 아니다.
+- 수정: `packaging/windows/local_model_bridge.py`에서 `--simple-io --log-disable --no-show-timings`를 사용하고 `validate_clean_manuscript`로 콘솔 배너·명령 안내·프롬프트 echo·성능 수치·탈출 시퀀스를 **원고로 오인하면 FAIL CLOSED**. 정상 한국어 원문만 IPC JSON `draft`로 보내도록 제한. 모델의 원고가 문학적 우수하다고 보증하는 검사는 아님. 공식 llama.cpp 옵션은 b11624 실제 Windows에서 다시 확인할 것. 증명은 수정된 네이티브 EXE+GUI 빌드→외부 Windows GUI 클릭→실제 원문 아티팩트 직접 읽기.
+- 별도 CRLF 줄바꿈 정규화 회귀검사를 격리 Windows SQLite·원고 아티팩트 보조 로직에 추가. 형식·전수 Similarity·Novel Bible/Arc/Episode/Scene·인과·위험 재작성·Memory Delta 등 01~100 통합 인수 미달. **RELEASE_BLOCKED**. 사용자 원고·DB·계정·키·출판·자동화 및 보호 main SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 불변.
+
+
+
 ## 2026-10-16 — 사용자 지적: 소설을 실제로 읽고 문학 품질을 평가해야 함
 
 - 기존 Windows Qwen1.5B [#38849931388](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38849931388)의 Win2022는 전체 2,190자/한글 787자/영문 393자/한글 49.81%, Win11 ARM 전체 1,512자/한글 437자/영문 393자/한글 40.61%로 실제 EXE 집필 **FAIL**. 당시 CI 아티팩트는 메타데이터와 SHA만 남겨 **원고를 사람이 읽고 문학성을 확인할 수 없었다**. 이를 개발상 검증 공백으로 인정.
