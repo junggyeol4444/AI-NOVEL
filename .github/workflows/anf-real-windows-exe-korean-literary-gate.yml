@@ -119,13 +119,13 @@ jobs:
             $osInfo=Get-CimInstance Win32_OperatingSystem
             $report.windows_version=$osInfo.Caption
             Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-public static class ANFNativeForeground {
-  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
-}
-'@
+          using System;
+          using System.Runtime.InteropServices;
+          public static class ANFNativeForeground {
+            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+            [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+          }
+          '@
             [void][ANFNativeForeground]::SetForegroundWindow($hwnd)
             Start-Sleep -Milliseconds 300
             $report.native_foreground_matches_gui=([ANFNativeForeground]::GetForegroundWindow() -eq $hwnd)
