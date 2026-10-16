@@ -57,8 +57,18 @@ jobs:
             $control=Ui $id $name
             if ($null -eq $control) { throw ('gui_field_not_found_'+$id) }
             $pattern=$null
-            if (-not $control.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$pattern)) { throw ('gui_value_pattern_missing_'+$id) }
-            ([System.Windows.Automation.ValuePattern]$pattern).SetValue($value)
+            if ($control.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$pattern)) {
+              ([System.Windows.Automation.ValuePattern]$pattern).SetValue($value)
+            } else {
+              $report.uia_missing_value_control_type=$control.Current.ControlType.ProgrammaticName
+              $report.uia_missing_value_patterns=@($control.GetSupportedPatterns() | ForEach-Object {$_.ProgrammaticName})
+              $legacy=$null
+              if ($control.TryGetCurrentPattern([System.Windows.Automation.LegacyIAccessiblePattern]::Pattern,[ref]$legacy)) {
+                ([System.Windows.Automation.LegacyIAccessiblePattern]$legacy).SetValue($value)
+              } else {
+                throw ('gui_value_and_legacy_patterns_missing_'+$id)
+              }
+            }
           }
           function Press([string]$id,[string]$name) {
             $script:last_ui_control=$id
@@ -130,8 +140,13 @@ jobs:
             }
             if($null -eq $editor){throw 'generated_draft_gui_field_missing'}
             $pv=$null
-            if(-not $editor.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$pv)){throw 'generated_manuscript_uia_value_missing'}
-            $draft=([System.Windows.Automation.ValuePattern]$pv).Current.Value
+            if($editor.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$pv)){
+              $draft=([System.Windows.Automation.ValuePattern]$pv).Current.Value
+            } else {
+              $tp=$null
+              if(-not $editor.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern,[ref]$tp)){throw 'generated_manuscript_uia_text_pattern_missing'}
+              $draft=([System.Windows.Automation.TextPattern]$tp).DocumentRange.GetText(-1)
+            }
             if(-not $draft){throw 'real_model_generated_empty_draft'}
             $report.current_stage='validate_korean_5000_no_english_padding'
             $nonspace=[regex]::Replace($draft,'\s','')
