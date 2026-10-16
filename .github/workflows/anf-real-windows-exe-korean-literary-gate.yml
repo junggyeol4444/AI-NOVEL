@@ -10,7 +10,11 @@ permissions:
 jobs:
   real-windows-exe-external-gui-korean-5000:
     if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
-    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-11-arm]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     env:
       HF_HUB_OFFLINE: '1'
@@ -46,11 +50,27 @@ jobs:
           $report=@{ mode='EXTERNAL_UIAUTOMATION_COMPILED_WINDOWS_GUI_REAL_GGUF'; status='FAIL'; korean_5000='FAIL'; literary_quality='NOT_CERTIFIED'; human_physical_acceptance='NOT_RUN'; reference_full_similarity='NOT_RUN'; user_data_accessed=$false; publication_executed=$false; current_stage='startup' }
           $process=$null
           function Ui([string]$id,[string]$name) {
-            $condition=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty,$id)
-            $item=$script:window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
-            if ($null -ne $item) { return $item }
-            $condition=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty,$name)
-            return $script:window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+            $matches=[System.Collections.Generic.List[System.Windows.Automation.AutomationElement]]::new()
+            foreach($pair in @(@('id',$id),@('name',$name))){
+              $property=if($pair[0] -eq 'id') {[System.Windows.Automation.AutomationElement]::AutomationIdProperty}else{[System.Windows.Automation.AutomationElement]::NameProperty}
+              $cond=[System.Windows.Automation.PropertyCondition]::new($property,[string]$pair[1])
+              foreach($x in $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$cond)){$matches.Add($x)}
+            }
+            if($matches.Count -eq 0){return $null}
+            # Qt labels can reuse the editor's accessibility name/ID; never send text to a static Text control.
+            foreach($x in $matches){
+              if($x.Current.ControlType.ProgrammaticName -in @('ControlType.Edit','ControlType.Document')){
+                $vp=$null
+                if($x.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$vp)){return $x}
+              }
+            }
+            foreach($x in $matches){
+              if($x.Current.ControlType.ProgrammaticName -in @('ControlType.Edit','ControlType.Document')){return $x}
+            }
+            foreach($x in $matches){
+              if($x.Current.ControlType.ProgrammaticName -in @('ControlType.Button','ControlType.CheckBox')){return $x}
+            }
+            return $matches[0]
           }
           function SetField([string]$id,[string]$name,[string]$value) {
             $script:last_ui_control=$id
@@ -95,6 +115,20 @@ jobs:
             $script:window=[System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
             if($null -eq $script:window){throw 'uia_attach_failed'}
             $report.real_exe_window_visible=$true
+            $report.windows_runner=$env:RUNNER_OS
+            $osInfo=Get-CimInstance Win32_OperatingSystem
+            $report.windows_version=$osInfo.Caption
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class ANFNativeForeground {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+}
+'@
+            [void][ANFNativeForeground]::SetForegroundWindow($hwnd)
+            Start-Sleep -Milliseconds 300
+            $report.native_foreground_matches_gui=([ANFNativeForeground]::GetForegroundWindow() -eq $hwnd)
             $report.current_stage='enter_author_owned_korean_project_via_uia'
             Press 'studioAdvancedButton' '세부 작업 도구'
             SetField 'authoring_db' '로컬 DB 파일 경로' $db
@@ -166,7 +200,7 @@ jobs:
             $report.draft_sha256=[Convert]::ToHexString($sha).ToLowerInvariant()
             Press 'saveAuthoringDraftButton' '검토한 초고 SQLite 저장'
             $report.saved_via_gui=$true
-            $report.korean_5000= if($hangul -ge 4500 -and $nonspace.Length -ge 4500 -and $report.hangul_share -ge 0.78 -and $report.repeated_sentence_share -le 0.12 -and $parts.Count -ge 10){'PASS'}else{'FAIL'}
+            $report.korean_5000= if($hangul -ge 4500 -and $nonspace.Length -ge 4500 -and $report.hangul_share -ge 0.78 -and $report.repeated_sentence_share -le 0.12 -and $parts.Count -ge 10 -and $report.native_foreground_matches_gui){'PASS'}else{'FAIL'}
             $report.status=$report.korean_5000
             if($report.korean_5000 -ne 'PASS'){throw 'actual_windows_gui_korean_5000_quality_gate_failed'}
             Write-Host 'EXTERNAL_WINDOWS_GUI_GGUF_KOREAN_5000_SCOPE_PASS_NOT_LITERARY_OR_HUMAN_CERTIFICATION'
@@ -188,7 +222,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: anf-native-windows-gui-korean-quality-evidence
+          name: anf-native-windows-gui-korean-quality-evidence-${{ matrix.os }}
           path: build/ci/korean-real-gui/metadata.json
           if-no-files-found: warn
           retention-days: 7
