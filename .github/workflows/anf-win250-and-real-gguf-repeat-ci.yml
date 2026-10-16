@@ -1,0 +1,249 @@
+name: ANF Windows extended 250-episode stress and repeated offline GGUF (VALIDATION ONLY)
+on:
+  push:
+    branches: [validation/gui-authoring-e2e-20261014]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  synthetic-windows-longform-and-reference:
+    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      ANF_ENV: test
+      ANF_AI_PROVIDER: disabled
+      HF_HUB_OFFLINE: '1'
+      TRANSFORMERS_OFFLINE: '1'
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUTF8: '1'
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated dependencies (no user data or models)
+        run: python -m pip install -e ".[desktop,api,database,queue,documents,graphics,quality]"
+      - name: 30 100 250 episodes x 5000 characters, idempotent restart, 20 reference gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/ci
+          cat > build/ci/windows_extended_test.py <<'PY'
+          """Disposable Windows-only 30/100/250-episode persistence stress probe.
+          
+          A deterministic local executable fixture is NOT a language model. This does not
+          certify fiction quality, full reference coverage, or publishing readiness.
+          Outputs only counts/statuses, never synthetic draft paragraphs.
+          """
+          from __future__ import annotations
+          import hashlib
+          import json
+          import sys
+          import tempfile
+          from pathlib import Path
+          from uuid import uuid4
+          
+          from ai_novel_factory.database.novel_bible import NovelBibleStore
+          from ai_novel_factory.database.episodes import EpisodeStore
+          from ai_novel_factory.database.reference_catalog import ReferenceCatalog
+          from ai_novel_factory.local_models import LocalExecutableProvider
+          from ai_novel_factory.auto_novel_run import run_auto_novel
+          from ai_novel_factory.reference_similarity_checker import (ReferenceMaterial,
+              ReferenceSimilarityError, check_reference_similarity)
+          
+          
+          def long_drafting() -> dict:
+              with tempfile.TemporaryDirectory(prefix='anf-only-synthetic-') as tmp:
+                  root = Path(tmp)
+                  dbpath = root / 'fixture.sqlite'
+                  fixture = root / 'sandboxed_local_fixture.py'
+                  fixture.write_text('''import hashlib,json,sys
+          q=json.load(sys.stdin)['request']
+          seed=f"{q['episode_number']}:{q['scene_number']}:{q['scene_goal'][:70]}"
+          chunks=[]
+          for i in range(85):
+           token=hashlib.sha256((seed+':'+str(i)).encode()).hexdigest()[:18]
+           chunks.append(f"가상 도시에 일어난 독립적인 사건 {i}의 결정은 기록 {token}에 남았고 인물들은 그 결과를 다시 살펴보았다.")
+          text='\\n'.join(chunks)
+          assert len(text)>2850
+          sys.stdout.write(json.dumps({'protocol':'anf-local-scene-v1','draft':text},ensure_ascii=False))
+          ''', encoding='utf-8')
+                  with NovelBibleStore(dbpath) as bible:
+                      project = bible.create_project('합성 격리 장편 소설')
+                      pid = project.project_id
+                      for key,val in {'genre':'가상 과학 미스터리', 'subject':'완전히 창작된 가상 기차 역의 수수께끼',
+                                      'mood':'사색적', 'target_episodes':'250'}.items():
+                          bible.save_rule(pid,key,val)
+                  provider = LocalExecutableProvider(sys.executable, arguments=(str(fixture),),
+                                                     timeout_seconds=45, explicitly_allowed=True)
+                  cumulative=0
+                  reports=[]
+                  for count in (30,100,250):
+                      report=run_auto_novel(dbpath,pid,provider,through_episode=count,
+                                            target_chars=5000,scenes_per_episode=2)
+                      expected=count-cumulative
+                      assert len(report.created_episodes)==expected,(count,len(report.created_episodes))
+                      assert not report.stopped and not report.quality_certified and not report.publisher_called
+                      assert len(report.review_required_episodes)==expected
+                      assert len(report.skipped_existing)==cumulative
+                      with EpisodeStore(dbpath) as db:
+                          episodes=db.list_episodes(pid)
+                          assert len(episodes)==count,(count,len(episodes))
+                          sampled=(1,30,100,250)
+                          for num in sampled:
+                              if num>count: continue
+                              ep=db.get_episode(pid,num)
+                              assert len(ep.draft)>=5000,(num,len(ep.draft))
+                              assert not ep.final_text,(num,'UNEXPECTED_FINAL')
+                              checks=db.list_checks(pid,num)
+                              names={c.category:c.outcome for c in checks}
+                              assert len(names)>=8,(num,names)
+                              assert names['length']=='PASS',(num,names)
+                              assert names['reference_similarity']=='NOT_RUN',(num,names)
+                              for required in ('continuity','logic','timeline','foreshadowing','reader_simulation'):
+                                  assert names[required]=='NOT_RUN',(num,required,names.get(required))
+                      reports.append({'through':count,'created':expected,'skipped_existing':cumulative,
+                                      'model_fixture_invocations':report.local_model_invocations,
+                                      'stored':count,'target_chars':5000,'quality_certified':False,
+                                      'reference_similarity':'NOT_RUN'})
+                      cumulative=count
+                  # Restart/idempotency: no existing episode is modified.
+                  with EpisodeStore(dbpath) as db:
+                      before=tuple((x.episode,x.revision,hashlib.sha256(x.draft.encode()).hexdigest())
+                                   for x in db.list_episodes(pid))
+                  replay=run_auto_novel(dbpath,pid,provider,through_episode=250,
+                                        target_chars=5000,scenes_per_episode=2)
+                  assert len(replay.created_episodes)==0 and len(replay.skipped_existing)==250
+                  with EpisodeStore(dbpath) as db:
+                      after=tuple((x.episode,x.revision,hashlib.sha256(x.draft.encode()).hexdigest())
+                                  for x in db.list_episodes(pid))
+                  assert before==after,'resume changed existing episodes'
+                  return {'mode':'SYNTHETIC_EXECUTABLE_NOT_AI','report':reports,'resume_unchanged':True}
+          
+          
+          def similarity_scope() -> dict:
+              refs=[]
+              with ReferenceCatalog(':memory:') as catalog:
+                  for n in range(20):
+                      text=('가상의 도시에는 인물이 독창적으로 설계한 기계가 있다. '
+                            f'{n}번째 문서의 결정은 여름의 공원에서 검토되었다. ')*2
+                      sha=hashlib.sha256(text.encode('utf-8')).hexdigest()
+                      record=catalog.register(file_name=f'synthetic-{n:02}.txt',source_format='txt',
+                                              byte_count=len(text.encode('utf-8')),sha256=sha)
+                      catalog.change_status(record.reference_id,'analyzing')
+                      catalog.change_status(record.reference_id,'analyzed')
+                      refs.append(ReferenceMaterial(record.reference_id,sha,text))
+                  selected=tuple(x.reference_id for x in refs)
+                  # Exact similarity to first registered reference must not clear.
+                  report=check_reference_similarity(uuid4().hex,1,refs[0].text,
+                                                    references=tuple(refs),required_reference_ids=selected,
+                                                    catalog=catalog)
+                  assert report.registration_checked and not report.passed_checked_scope
+                  assert not report.manuscript_approved and not report.publication_approved
+                  assert report.status in ('blocked','review','inconclusive')
+                  # An omitted registered reference must fail closed rather than claim full coverage.
+                  try:
+                      check_reference_similarity(uuid4().hex,1,refs[0].text,
+                                                 references=tuple(refs[:-1]),required_reference_ids=selected,
+                                                 catalog=catalog)
+                  except ReferenceSimilarityError:
+                      missing_rejected=True
+                  else:
+                      raise AssertionError('Unexamined registered reference accepted')
+                  # 21 registered references exceed current checker cap and cannot claim clearance.
+                  more=(ReferenceMaterial(uuid4().hex,hashlib.sha256(b'extra').hexdigest(),
+                                          '신규로 별도 등록된 참고 자료의 합성 문장입니다.'),)
+                  try:
+                      check_reference_similarity(uuid4().hex,1,refs[0].text,
+                                                 references=tuple(refs)+more)
+                  except ReferenceSimilarityError:
+                      beyond_limit_rejected=True
+                  else:
+                      raise AssertionError('21-reference overflow accepted')
+                  return {'registered_tested':20,'exact_copy_status':report.status,
+                          'registered_set_checked':report.registration_checked,
+                          'missing_reference_rejected':missing_rejected,
+                          'over_20_fail_closed':beyond_limit_rejected,'publication_approved':False}
+          
+          
+          def main() -> None:
+              long=long_drafting()
+              refs=similarity_scope()
+              result={'system':'Windows native Python project pipeline','longform':long,
+                      'similarity':refs,'status':'PASS','user_data_accessed':False,
+                      'real_llm_250_episodes_verified':False,'release_ready':False}
+              path=Path('build/ci/windows-extended-probe.json')
+              path.parent.mkdir(parents=True,exist_ok=True)
+              path.write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+              print(json.dumps(result,ensure_ascii=False,sort_keys=True))
+          
+          if __name__=='__main__':
+              main()
+          
+          PY
+          python -m py_compile build/ci/windows_extended_test.py
+          python build/ci/windows_extended_test.py
+      - name: Retain only synthetic counters, not generated manuscripts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-win250-synthetic-counts-NOT-literary-approval
+          path: build/ci/windows-extended-probe.json
+          retention-days: 7
+          if-no-files-found: warn
+  windows-compiled-gguf-five-repeats:
+    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download previously verified QA x64 EXE plus PUBLIC GGUF only
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 38824690498
+          name: ANF-Full-Offline-Portable-QA-Windows-x64-Not-Release
+          path: build/ci/offline-reused
+          github-token: ${{ github.token }}
+      - name: Run compiled GGUF inference offline five sequential times
+        shell: pwsh
+        env:
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+          PYTHONUTF8: '1'
+        run: |
+          $ErrorActionPreference='Stop'
+          $bridge=Get-ChildItem build/ci/offline-reused -Filter ANF_Local_Model.exe -Recurse -File | Select-Object -First 1
+          if (-not $bridge) { throw 'Compiled bridge missing in previous QA artifact' }
+          $folder=$bridge.DirectoryName
+          $results=@()
+          1..5 | ForEach-Object {
+            python scripts/ci_portable_model_e2e.py $folder
+            if ($LASTEXITCODE -ne 0) { throw "Native GGUF run $_ FAILED" }
+            $result=Get-Content build/ci/portable_model_e2e.json -Raw | ConvertFrom-Json
+            if ($result.status -ne 'PASS' -or -not $result.actual_gguf_local_inference -or $result.draft_char_count -lt 1) { throw 'Real inference evidence missing' }
+            $results+=@{run=$_;status='PASS'; sha256=$result.draft_sha256;chars=$result.draft_char_count}
+          }
+          New-Item build/ci/gguf-five -ItemType Directory -Force | Out-Null
+          $results | ConvertTo-Json -Depth 4 | Out-File build/ci/gguf-five/metadata.json -Encoding utf8
+          Write-Host 'FIVE_REAL_WINDOWS_OFFLINE_GGUF_RUNS_PASS;NOT_250_EPISODE_LITERARY_APPROVAL'
+      - name: Upload only counters and hashes, never text or model weights
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-win-real-GGUF-five-run-metadata
+          path: build/ci/gguf-five/metadata.json
+          retention-days: 7
+          if-no-files-found: warn
