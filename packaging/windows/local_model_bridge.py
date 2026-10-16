@@ -90,24 +90,28 @@ def main(argv=None) -> int:
         goal = field('scene_goal', 30000)
         conflict = field('scene_conflict', 30000)
         place = field('scene_location', 30000)
+        style_bible = req.get('style_bible', '')
+        if type(style_bible) is not str or len(style_bible) > 30000:
+            raise ValueError('invalid style_bible')
+        # llama-cli --single-turn applies model GGUF chat templates.
+        # Raw, nested ChatML tokens inside user prompts harm local model output.
+        system_prompt = (
+            '당신은 처음부터 자연스러운 한국어로 독창적인 소설을 집필하는 원어민 작가입니다. '
+            '작가 소유 Novel Bible 설정과 이번 회차·장면 플롯을 최우선으로 지키세요. '
+            '참고작 문장과 고유 설정을 복제하지 마세요. '
+            '영어로 먼저 작성하여 번역하거나 영어 문장을 섞지 마세요. '
+            '같은 문장을 반복해 분량을 채우지 마세요. '
+            '행동과 감정과 대사, 인물 선택의 인과 관계를 구체적으로 보여주세요. '
+            '소설 본문 외의 목차·설명·지시문 반복·메타 해설·출판은 하지 마세요.')
         prompt = (
-            '<|im_start|>system\n'
-            '당신은 한국어로 처음부터 창작하는 장편소설 작가입니다. '
-            'Novel Bible에 기재된 작가 소유 설정을 최우선으로 지키세요. '
-            '영어로 먼저 작성하여 번역하거나 영어 해설을 섞지 마세요. '
-            '실제 소설 본문만 자연스러운 현대 한국어로 작성하세요. '
-            '같은 문장을 반복해 분량을 채우거나 참고작 문장·고유 설정을 복제하지 마세요. '
-            '인물의 행동·감정·대사·사건의 인과를 구체적으로 이어 쓰세요. '
-            '게시·출판하지 마세요.'
-            '<|im_end|>\n<|im_start|>user\n'
             '작품의 최우선 설정 (Novel Bible):\n' + canon[:12000] + '\n'
+            '회차/장면의 작가 소유 플롯:\n' + style_bible[:5000] + '\n'
             '이번 장면 목표:\n' + goal[:2000] + '\n'
             '충돌과 장애물:\n' + conflict[:1000] + '\n'
             '배경 장소:\n' + place[:1000] + '\n'
             '등장인물:\n' + ', '.join(characters[:20]) + '\n'
-            '위 설정을 유지하면서 한국어 원문 소설의 다음 장면을 직접 집필하세요. '
-            '목차, 설명, 번역문, 영어 문장, 메타 코멘트는 쓰지 마세요.\n'
-            '<|im_end|>\n<|im_start|>assistant\n')
+            '첫 문장부터 한국어 소설 본문만 작성하세요. '
+            '영어와 중복 구절을 피하고 사건이 앞으로 진행되도록 집필하세요.')
         # Restrict native Windows CPU runner to single-thread inference as a
         # conservative diagnostic for intermittent native heap corruption.
         # This is a hypothesis until repeated compiled-GGUF CI verifies it.
@@ -121,9 +125,12 @@ def main(argv=None) -> int:
         prediction_budget = '384' if is_bundled_qa_model else '1536'
         native_timeout = 110 if is_bundled_qa_model else 400
         command = [
-            str(llama), '--model', str(model), '--prompt', prompt,
+            str(llama), '--model', str(model),
+            '--system-prompt', system_prompt, '--prompt', prompt,
             '--predict', prediction_budget, '--ctx-size', '4096',
             '--threads', '1', '--threads-batch', '1',
+            '--repeat-penalty', '1.16', '--repeat-last-n', '256',
+            '--temp', '0.8', '--top-p', '0.92',
             '--single-turn', '--no-display-prompt'
         ]
         env = {k: os.environ[k] for k in

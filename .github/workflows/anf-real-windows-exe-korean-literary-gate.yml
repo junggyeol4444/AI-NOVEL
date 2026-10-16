@@ -92,12 +92,12 @@ jobs:
           $newGui='build/ci/current-gui/AI_Novel_Factory.exe'
           if (-not (Test-Path $newGui)) { throw 'Current branch GUI EXE missing' }
           Copy-Item -LiteralPath $newGui -Destination (Join-Path $qaRoot 'AI_Novel_Factory.exe') -Force
-          $model=Join-Path $qaRoot 'models/qwen2.5-0.5b-instruct-q4_k_m.gguf'
-          $url='https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf'
+          $model=Join-Path $qaRoot 'models/qwen2.5-1.5b-instruct-q4_k_m.gguf'
+          $url='https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf'
           curl.exe --fail --location --retry 2 --max-time 300 --output $model $url
           if ($LASTEXITCODE -ne 0) { throw 'Public Qwen GGUF download failed' }
           $size=(Get-Item $model).Length
-          if($size -lt 300000000 -or $size -gt 900000000){throw 'Public Qwen GGUF size out of allowed range'}
+          if($size -lt 900000000 -or $size -gt 1400000000){throw 'Public Qwen GGUF size out of allowed range'}
           Write-Host ('Current bridge and public QA Qwen GGUF ready. Weight bytes: '+$size)
       - name: Operate real Windows EXE via EXTERNAL UIAutomation and test original Korean prose
         shell: pwsh
@@ -220,10 +220,10 @@ jobs:
             SetField 'authoring_conflict' '갈등' '날짜 기록이 실제 기억과 어긋나면서 주인공은 증거를 다시 확인한다.'
             SetField 'authoring_location' '장소' '완전히 가상의 섬 도서관'
             SetField 'authoring_characters' '등장인물 (쉼표 구분)' '조사자, 사서'
-            $modelQaPath=Join-Path $root 'models/qwen2.5-0.5b-instruct-q4_k_m.gguf'
+            $modelQaPath=Join-Path $root 'models/qwen2.5-1.5b-instruct-q4_k_m.gguf'
             if(-not (Test-Path $modelQaPath)){throw 'selected_qa_korean_model_missing'}
             SetField 'authoring_arguments' '실행 인수' ('--gguf "'+$modelQaPath+'"')
-            $report.qa_model='Qwen2.5-0.5B-Instruct-Q4_K_M'
+            $report.qa_model='Qwen2.5-1.5B-Instruct-Q4_K_M'
             $report.model_variant='downloaded_public_weights_ci_only'
             $modelControl=Ui 'authoring_executable' '신뢰한 실행 파일 절대 경로'
             if($null -eq $modelControl){throw 'bundled_gui_model_field_missing'}

@@ -1,5 +1,14 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 오후 — 실제 Windows EXE 한국어 집필 품질: Qwen 중첩 ChatML 제거·반복 억제·1.5B 모델 실검증 후보
+
+- 한국어 약 5,000자 **실제 앱 중심** 집필만 합격 대상으로 삼는다. 0.5B의 [Windows 실GUI #38839872590](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38839872590): Win2022 총 7,945자 중 한글 145자(2.3%), 영문 5,410자, 문장 반복률 64.04% → **FAIL**; Win11 ARM은 `real_model_generated_empty_draft` 및 실제 전경 불일치 → **FAIL**. 250화 합성 저장 PASS를 문학 품질 완료로 계산하지 않는다.
+- 실제 네이티브 브리지는 그동안 llama.cpp `--single-turn` 대화 템플릿을 사용하면서 `--prompt` 내부에 수동 ChatML 토큰도 넣었다. 이중 템플릿 위험을 제거하고 공식 `--system-prompt`와 한국어 일반 프롬프트로 분리. `style_bible`에 있는 작가 소유 회차/장면 설정을 실제 모델 입력에 추가. `--repeat-penalty 1.16 --repeat-last-n 256 --temp 0.8 --top-p 0.92`를 부여해 반복 억제. 정확한 효과는 **Windows에서 실제 EXE+모델**로 확인하며 변경만으로 한글/문학 품질 PASS 주장 금지.
+- QA 모델은 공개 `Qwen2.5-0.5B-Instruct-Q4_K_M.gguf`에서 공식 `Qwen2.5-1.5B-Instruct-Q4_K_M.gguf`로 전환(대화·원고 외부 전송 없음, QA 실행 시 공개 모델 파일만 다운로드). 전체 GUI 흐름, 원고 SQLite 저장, UIA 전경 및 한글 비율·반복 검사 조건 유지. 사용자 로컬 모델·SQLite/계정/키·예약·실출판·기존 원고 변경 없음.
+- 접근성·구형 테스트 실패 수정은 [검증 브랜치 `ca1f703`](https://github.com/junggyeol4444/AI-NOVEL/commit/ca1f703874e81621fd5780f65421742192c954f9)이며 새 CI 로그 확인 필수. 실제 Win10/11 인간 인수, 30/100/250화 × 한국어 약5000자 장편, 모든 참고작 전수 Similarity/재작성·재검사/Memory Delta/01~100 종단 검증은 여전히 미완. `RELEASE_BLOCKED`.
+- 보호 `main` SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 불변, 작업 대상은 `validation/gui-authoring-e2e-20261014`만.
+
+
 ## 2026-10-16 11시 이후 — 실제 Windows 2022 EXE 영어/반복 불합격 및 Qt 상태 접근성 개선
 
 - 실제 EXE + 로컬 Qwen2.5-0.5B GGUF + 외부 Windows UIAutomation [Actions #38839872590](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38839872590)의 Windows 2022 메타데이터 아티팩트 확인: 총 7,945자 중 한글 **145자**, 영문 **5,410자**, 공백 제외 한글 **2.3%**, 반복 문장 **64.04%**. 즉 **한국어 소설 5000자 FAIL**. CLI 총 글자 수를 한국어 분량으로 착각 금지. 별도 Windows 11 ARM 결과는 같은 run에서 최신 확인 필요.
