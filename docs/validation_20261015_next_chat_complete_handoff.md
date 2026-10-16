@@ -1,5 +1,14 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 11시 이후 — 실제 Windows 2022 EXE 영어/반복 불합격 및 Qt 상태 접근성 개선
+
+- 실제 EXE + 로컬 Qwen2.5-0.5B GGUF + 외부 Windows UIAutomation [Actions #38839872590](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38839872590)의 Windows 2022 메타데이터 아티팩트 확인: 총 7,945자 중 한글 **145자**, 영문 **5,410자**, 공백 제외 한글 **2.3%**, 반복 문장 **64.04%**. 즉 **한국어 소설 5000자 FAIL**. CLI 총 글자 수를 한국어 분량으로 착각 금지. 별도 Windows 11 ARM 결과는 같은 run에서 최신 확인 필요.
+- 소설 프로그램의 신규 형식 검사 `screen_korean_draft`는 문장 반복·중복 구간과 영문 비율을 검사하여 단순 합성 텍스트를 자동 합격으로 표시하지 않음. 이는 문학·독창성·장편 연속성 실검수 통과와 별개.
+- Windows 2022 CI에서 Qt `authoringStatus`의 화면 텍스트 상태를 UIAutomation으로 얻지 못해 `actual_windows_gui_quality_status_missing`도 기록됨. 실제 모델의 영어/반복 실패와 **별도 접근성 결함**. GUI `QLabel.setAccessibleName`으로 '한국어 형식 검사 미달' / '한국어 형식 1차 검사 충족' / '로컬 AI 집필 중' 상태를 노출하고 QA가 ID 또는 한국어 접근성 이름으로 찾도록 개선.
+- 전체 Linux CI [#38839872516](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38839872516)의 3405개 중 한 가지 실패는 기존 소스 계약 테스트가 **삭제된 UI 메시지 '한국어 목표'**를 찾았기 때문으로 확인. 새 화면의 정확한 한국어 품질 검사 이름과 `screen_korean_draft` 연결을 검증하도록 테스트 수정. 한때 실패한 CI를 PASS로 왜곡하지 않음. Windows 전체 테스트 최종 결과는 해당 run에서 별도 확인.
+- 보호 main `69225edeed0a09ded5f847dad9b9ea63bc45367c` 불변. 실사용자 원고/SQLite/키/환경설정/연동 앱·출판·오전 8시 비활성 예약 접근·변경 없음. **RELEASE_BLOCKED**; 목표는 실제 EXE 한국어 ~5000자 1화 반복/복제 없이 창작, 이어서 30/100/250화 종단 검증.
+
+
 ## 2026-10-16 11시 KST — 실제 Windows EXE 한국어 반복·언어 검사 연동 및 Novel Bible 변경 보호
 
 - 검증 기준: 소스/합성 회귀검사를 완성된 앱 테스트 PASS로 표시하지 않는다. 실제 Windows EXE + 외부 UIAutomation + 오프라인 GGUF의 약 5,000자 **한국어 원문 소설**만 집필 인수 대상. 현재 `RELEASE_BLOCKED`.

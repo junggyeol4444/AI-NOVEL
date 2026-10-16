@@ -206,6 +206,7 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         worker.finished.connect(self._on_generation_finished)
         self.buttons['generate'].setEnabled(False)
         self.buttons['save_draft'].setEnabled(False)
+        self.status.setAccessibleName('로컬 AI 집필 중')
         self.status.setText('로컬 AI 집필 중 — 화면은 계속 응답합니다. 자동 저장·출판 없음.')
         worker.start()
         return _ASYNC_STARTED
@@ -223,10 +224,12 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
                      f'중복문장 {screening.repeated_sentence_share:.1%} / '
                      f'중복구간 {screening.repeated_chunk_share:.1%}')
             if not screening.format_gate_pass:
+                self.status.setAccessibleName('한국어 형식 검사 미달')
                 self.status.setText(
                     f'한국어 형식 검사 미달: {stats}. 목표 {target}자. '
                     '검수·수정·재집필 필요, 자동 확정·출판 없음.')
             else:
+                self.status.setAccessibleName('한국어 형식 1차 검사 충족')
                 self.status.setText(
                     f'한국어 형식 1차 검사 충족: {stats}. '
                     '문학적 품질·독창성·참고작 유사성·연속성은 미검증입니다.')
@@ -236,6 +239,7 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.status.setText('AI 결과 반영 실패. 원고는 자동 저장되지 않았습니다.')
 
     def _on_generation_failed(self, category):
+        self.status.setAccessibleName('로컬 AI 생성 실패')
         self.status.setText('로컬 AI 생성 실패 (' + category + '): 초고 저장 없음.')
 
     def _on_generation_finished(self):

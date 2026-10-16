@@ -285,7 +285,8 @@ jobs:
             $report.sentence_units=$parts.Count
             $report.unique_sentence_units=$unique.Count
             $report.repeated_sentence_share=[math]::Round(1-($unique.Count/[math]::Max(1,$parts.Count)),4)
-            $qualityLabel=Ui 'authoringStatus' '로컬 전용'
+            $qualityLabel=Ui 'authoringStatus' '한국어 형식 검사 미달'
+            if($null -eq $qualityLabel){$qualityLabel=Ui 'authoringStatus' '한국어 형식 1차 검사 충족'}
             if($null -eq $qualityLabel){throw 'actual_windows_gui_quality_status_missing'}
             $qualityMessage=[string]$qualityLabel.Current.Name
             if($qualityMessage -match '한국어 형식 검사 미달'){$report.gui_quality_status='REJECTED_BY_REAL_GUI'}
