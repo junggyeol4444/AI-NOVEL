@@ -1,0 +1,173 @@
+name: ANF native Windows EXE Korean manuscript acceptance (VALIDATION ONLY)
+on:
+  push:
+    branches: [validation/gui-authoring-e2e-20261014]
+    paths: ['.github/workflows/anf-real-windows-exe-korean-literary-gate.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-windows-exe-external-gui-korean-5000:
+    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    runs-on: windows-2022
+    timeout-minutes: 35
+    env:
+      HF_HUB_OFFLINE: '1'
+      TRANSFORMERS_OFFLINE: '1'
+      QT_QPA_PLATFORM: windows
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Download actual compiled Windows GUI and public offline GGUF bundle
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 38824690498
+          name: ANF-Full-Offline-Portable-QA-Windows-x64-Not-Release
+          path: build/ci/real-windows-bundle
+          github-token: ${{ github.token }}
+      - name: Operate real Windows EXE via EXTERNAL UIAutomation and test original Korean prose
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          Add-Type -AssemblyName UIAutomationClient
+          Add-Type -AssemblyName UIAutomationTypes
+          $env:QT_QPA_PLATFORM='windows'
+          $bridge=Get-ChildItem 'build/ci/real-windows-bundle' -Recurse -File -Filter 'ANF_Local_Model.exe' | Select-Object -First 1
+          if (-not $bridge) { throw 'qa_bundle_missing' }
+          $root=$bridge.DirectoryName
+          $exe=Join-Path $root 'AI_Novel_Factory.exe'
+          if (-not (Test-Path $exe)) { throw 'actual_gui_executable_missing' }
+          $qa=Join-Path $env:RUNNER_TEMP ('anf-korean-gui-'+[guid]::NewGuid().ToString('N'))
+          New-Item -Path $qa -ItemType Directory -ErrorAction Stop | Out-Null
+          $db=Join-Path $qa 'only-synthetic.sqlite'
+          $report=@{ mode='EXTERNAL_UIAUTOMATION_COMPILED_WINDOWS_GUI_REAL_GGUF'; status='FAIL'; korean_5000='FAIL'; literary_quality='NOT_CERTIFIED'; human_physical_acceptance='NOT_RUN'; reference_full_similarity='NOT_RUN'; user_data_accessed=$false; publication_executed=$false; current_stage='startup' }
+          $process=$null
+          function Ui([string]$id,[string]$name) {
+            $condition=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::AutomationIdProperty,$id)
+            $item=$script:window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+            if ($null -ne $item) { return $item }
+            $condition=[System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty,$name)
+            return $script:window.FindFirst([System.Windows.Automation.TreeScope]::Descendants,$condition)
+          }
+          function SetField([string]$id,[string]$name,[string]$value) {
+            $control=Ui $id $name
+            if ($null -eq $control) { throw ('gui_field_not_found_'+$id) }
+            $pattern=$null
+            if (-not $control.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$pattern)) { throw ('gui_value_pattern_missing_'+$id) }
+            ([System.Windows.Automation.ValuePattern]$pattern).SetValue($value)
+          }
+          function Press([string]$id,[string]$name) {
+            $control=Ui $id $name
+            if ($null -eq $control) { throw ('gui_button_not_found_'+$id) }
+            $pattern=$null
+            if (-not $control.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$pattern)) { throw ('gui_invoke_pattern_missing_'+$id) }
+            ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
+            Start-Sleep -Milliseconds 400
+          }
+          try {
+            $report.current_stage='launch_visible_windows_exe'
+            $process=Start-Process -FilePath $exe -PassThru
+            $hwnd=[IntPtr]::Zero
+            for($i=0;$i -lt 80;$i++){
+              Start-Sleep -Milliseconds 500
+              foreach($p in @(Get-Process -Name AI_Novel_Factory -ErrorAction SilentlyContinue)){
+                $p.Refresh()
+                if($p.MainWindowHandle -ne [IntPtr]::Zero -and $p.MainWindowTitle -match 'AI Novel Factory') { $hwnd=$p.MainWindowHandle; break }
+              }
+              if($hwnd -ne [IntPtr]::Zero){break}
+            }
+            if($hwnd -eq [IntPtr]::Zero){ throw 'compiled_exe_visible_window_not_found' }
+            $script:window=[System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+            if($null -eq $script:window){throw 'uia_attach_failed'}
+            $report.real_exe_window_visible=$true
+            $report.current_stage='enter_author_owned_korean_project_via_uia'
+            Press 'studioAdvancedButton' '세부 작업 도구'
+            SetField 'authoring_db' '로컬 DB 파일 경로' $db
+            SetField 'authoring_title' '작품 제목' '가상 한국어 문학 검사'
+            SetField 'authoring_author' '작가 이름' '합성 독립 검증'
+            SetField 'authoring_premise' '최상위 설정' '가상의 섬에서 과거의 기록을 복원하는 조사자의 모험. 저작권 있는 참고작 없이 창작.'
+            SetField 'authoring_genre' '장르' '한국어 현대 판타지'
+            SetField 'authoring_subject' '소재/핵심 아이디어' '가상 섬의 도서관, 기억과 선택'
+            SetField 'authoring_target_episodes' '목표 회차 수 (1~1000000)' '250'
+            SetField 'authoring_characters_per_episode' '회차당 목표 글자 수' '5000'
+            SetField 'authoring_mood' '분위기' '절제된 한국어 문학적 서술'
+            Press 'createProjectButton' '새 작품 생성'
+            if(-not (Test-Path $db)){throw 'gui_project_sqlite_not_created'}
+            SetField 'authoring_bible' '설정' '가상 섬에는 계급도 마법도 없다. 주인공은 조사자이고, 사건의 실마리는 낡은 도서관 기록에 있다. 기존 작품 문장·고유명사 사용 금지.'
+            Press 'authoring_save_bible' '설정 저장'
+            SetField 'authoring_plot' '회차 플롯' '첫 회에서 조사자는 기록의 빈 페이지를 발견하고 스스로 원인을 추적한다.'
+            Press 'authoring_create_episode' '새 회차 생성'
+            Press 'authoring_add_scene' '장면 추가'
+            SetField 'authoring_scene' '장면 플롯' '도서관에서 비가 시작되고, 주인공이 사라진 날짜를 발견한다.'
+            Press 'authoring_save_scene' '장면 저장'
+            SetField 'authoring_goal' '장면 목표' '완전한 한국어로 독창적인 첫 장면을 약 5000자 작성한다. 영어 문장이나 반복 문장은 사용하지 않는다.'
+            SetField 'authoring_conflict' '갈등' '날짜 기록이 실제 기억과 어긋나면서 주인공은 증거를 다시 확인한다.'
+            SetField 'authoring_location' '장소' '완전히 가상의 섬 도서관'
+            SetField 'authoring_characters' '등장인물 (쉼표 구분)' '조사자, 사서'
+            $modelControl=Ui 'authoring_executable' '신뢰한 실행 파일 절대 경로'
+            if($null -eq $modelControl){throw 'bundled_gui_model_field_missing'}
+            $pval=$null
+            if(-not $modelControl.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$pval)){throw 'model_path_not_readable'}
+            $actualPath=([System.Windows.Automation.ValuePattern]$pval).Current.Value
+            if($actualPath -ne (Join-Path $root 'ANF_Local_Model.exe')){throw 'bundled_model_not_selected_in_real_gui'}
+            $approval=Ui 'authoringLocalModelApproval' '이 로컬 실행 파일의 이번 실행을 승인합니다'
+            if($null -eq $approval){throw 'model_approval_control_missing'}
+            $pt=$null
+            if(-not $approval.TryGetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern,[ref]$pt)){throw 'model_approval_toggle_pattern_missing'}
+            if(([System.Windows.Automation.TogglePattern]$pt).Current.ToggleState -ne [System.Windows.Automation.ToggleState]::On){([System.Windows.Automation.TogglePattern]$pt).Toggle()}
+            $report.current_stage='click_actual_gui_generate_local_gguf'
+            Press 'generateSceneWithLocalModel' '로컬 AI 초고 생성'
+            $editor=$null
+            for($i=0;$i -lt 40;$i++){
+              Start-Sleep -Milliseconds 400
+              $editor=Ui 'authoring_draft' '검토 가능한 초고'
+              if($null -ne $editor){break}
+            }
+            if($null -eq $editor){throw 'generated_draft_gui_field_missing'}
+            $pv=$null
+            if(-not $editor.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern,[ref]$pv)){throw 'generated_manuscript_uia_value_missing'}
+            $draft=([System.Windows.Automation.ValuePattern]$pv).Current.Value
+            if(-not $draft){throw 'real_model_generated_empty_draft'}
+            $report.current_stage='validate_korean_5000_no_english_padding'
+            $nonspace=[regex]::Replace($draft,'\s','')
+            $hangul=[regex]::Matches($nonspace,'[\uAC00-\uD7A3]').Count
+            $latin=[regex]::Matches($nonspace,'[A-Za-z]').Count
+            $report.total_chars=$draft.Length
+            $report.nonspace_chars=$nonspace.Length
+            $report.hangul_syllables=$hangul
+            $report.latin_letters=$latin
+            $report.hangul_share=[math]::Round($hangul/[math]::Max(1,$nonspace.Length),4)
+            $parts=@($draft -split '(?<=[.!?。])\s+|\r?\n+' | Where-Object {$_.Trim().Length -ge 16})
+            $unique=@($parts | ForEach-Object {$_.Trim()} | Select-Object -Unique)
+            $report.sentence_units=$parts.Count
+            $report.unique_sentence_units=$unique.Count
+            $report.repeated_sentence_share=[math]::Round(1-($unique.Count/[math]::Max(1,$parts.Count)),4)
+            $sha=[System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($draft))
+            $report.draft_sha256=[Convert]::ToHexString($sha).ToLowerInvariant()
+            Press 'saveAuthoringDraftButton' '검토한 초고 SQLite 저장'
+            $report.saved_via_gui=$true
+            $report.korean_5000= if($hangul -ge 4500 -and $nonspace.Length -ge 4500 -and $report.hangul_share -ge 0.78 -and $report.repeated_sentence_share -le 0.12 -and $parts.Count -ge 10){'PASS'}else{'FAIL'}
+            $report.status=$report.korean_5000
+            if($report.korean_5000 -ne 'PASS'){throw 'actual_windows_gui_korean_5000_quality_gate_failed'}
+            Write-Host 'EXTERNAL_WINDOWS_GUI_GGUF_KOREAN_5000_SCOPE_PASS_NOT_LITERARY_OR_HUMAN_CERTIFICATION'
+          } catch {
+            $report.error_code= if($report.current_stage){$report.current_stage}else{'unknown'}
+            Write-Host ('EXTERNAL_WINDOWS_GUI_QA_FAIL_STAGE='+$report.error_code)
+          } finally {
+            $dest='build/ci/korean-real-gui'
+            New-Item -Path $dest -ItemType Directory -Force | Out-Null
+            $report | ConvertTo-Json -Depth 6 | Out-File (Join-Path $dest 'metadata.json') -Encoding utf8
+            if($process){Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue}
+          }
+          if($report.status -ne 'PASS'){throw ('real_compiled_windows_gui_korean_5000_FAIL_stage_'+$report.current_stage)}
+      - name: Preserve sanitized GUI quality metrics only (never draft or reference text)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-native-windows-gui-korean-quality-evidence
+          path: build/ci/korean-real-gui/metadata.json
+          if-no-files-found: warn
+          retention-days: 7
