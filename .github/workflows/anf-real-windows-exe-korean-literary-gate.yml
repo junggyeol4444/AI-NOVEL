@@ -104,7 +104,7 @@ jobs:
           $size=(Get-Item $model).Length
           if($size -lt 900000000 -or $size -gt 1400000000){throw 'Public Qwen GGUF size out of allowed range'}
           Write-Host ('Current bridge and public QA Qwen GGUF ready. Weight bytes: '+$size)
-      - name: Diagnose real native llama binary compatibility (synthetic only, never a quality PASS)
+      - name: Compare real llama interactive CLI against Qwen raw completion (synthetic, not literary PASS)
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'

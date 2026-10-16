@@ -18,6 +18,8 @@ class NativeWindowsDiagnosticContract(unittest.TestCase):
         self.assertNotIn('print(prose)', PROBE)
         self.assertNotIn('print(synthetic)', PROBE)
         self.assertIn('capture_output=True', PROBE)
+        self.assertIn("'--no-conversation'", PROBE)
+        self.assertIn("'no_conversation_raw_completion'", PROBE)
 
 
 if __name__ == '__main__':

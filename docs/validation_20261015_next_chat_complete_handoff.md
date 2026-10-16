@@ -1,5 +1,13 @@
 # AI NOVEL FACTORY — 다음 대화 전체 개발·검증 인수인계
 
+## 2026-10-16 — 소설이 아닌 llama 터미널 출력만 반환되는 원인 입증·비대화 원시 완성 비교
+
+- 실제 [Windows11 EXE/진단 #38856170827](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38856170827): CLI `--help` 필수 옵션 **지원**, 진짜 공개 Qwen1.5B 48토큰 짧은 한국어 생성 **native_exit=0**, 한글 있음. 그러나 **출력 길이 902자에 `Loading model...` 등 터미널 배너와 입력 프롬프트 echo 존재**. 따라서 GUI가 `native_output_rejected`로 초고 저장을 차단한 것이 정당함; 실제 한국어 소설 5000자/문학적 작품 **FAIL**. Win11 물리 전경 확보도 미통과. Win2022는 같은 CI 최종 메타데이터 개별 확인 필요.
+- 원인 격리를 위해 **검증용 synthetic Qwen ChatML 단일 요청을 `--no-conversation` 비대화 완성 모드에서도 직접 실행**해 기존 `--single-turn` 대화형 CLI와 종료 코드, 한글 존재, 터미널 배너/프롬프트 재출력 유무만 비교한다. 진단은 파일/프롬프트/원고 본문을 로그에 유출하지 않고 한글 글자 수나 원고 생성 품질을 합격으로 표시하지 않음. 충분한 실제 Windows 지표가 있을 때만 제품 브리지 구동 방식을 변경할 것. 이전 메타데이터를 소설의 문학적 PASS로 상향 금지.
+- 검증 브랜치 전용, main SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 불변. 실사용자 SQLite/원고/키/출판/비활성 8시 예약 변경 없음. RELEASE_BLOCKED.
+
+
+
 ## 2026-10-16 14시 이후 — 마지막 Windows 실제 EXE 전부 FAIL, 네이티브 오류 원인 진단 도입
 
 - 최신 실제 [Windows EXE run #38854627927](https://github.com/junggyeol4444/AI-NOVEL/actions/runs/38854627927): Win2022와 Win11 ARM 양쪽 컴파일된 GUI 창 기동 **PASS**, 모델 집필 버튼 후 초고 **0자 FAIL** (`real_model_generated_empty_draft`), 품질 검수·원문 독서 가능한 새 장면 없음. Win11 실제 Windows 전경 **FAIL**. 보호 main SHA `69225edeed0a09ded5f847dad9b9ea63bc45367c` 동일.

@@ -44,6 +44,41 @@ def probe(cli: Path, model: Path) -> dict:
             ('loading model...', 'available commands:', 'exiting...', '[ prompt:'))
         report['prompt_echo'] = synthetic in prose
         report['output_chars'] = len(prose)
+
+        # A Qwen-only alternative: disable the interactive chat shell and
+        # supply exact GGUF ChatML framing directly. This should expose whether
+        # the console banner/prompt echo is solely an interactive-mode artifact.
+        # Nothing here changes product model settings or prints generated text.
+        alternate = dict(supported=('--no-conversation' in options),
+                         exit=None, hangul=False, banner=False, echo=False,
+                         chars=0, timeout=False)
+        if alternate['supported']:
+            raw = (
+                '<|im_start|>system\n한국어 원문 소설만 쓰세요.<|im_end|>\n'
+                '<|im_start|>user\n' + synthetic +
+                '<|im_end|>\n<|im_start|>assistant\n')
+            command = [str(cli), '--model', str(model),
+                       '--no-conversation', '--prompt', raw,
+                       '--predict', '48', '--ctx-size', '2048',
+                       '--threads', '1', '--threads-batch', '1',
+                       '--no-display-prompt', '--log-disable',
+                       '--no-show-timings']
+            try:
+                p2 = subprocess.run(command, cwd=cli.parent, capture_output=True,
+                                    timeout=150, check=False)
+                output = p2.stdout.decode('utf-8', 'replace')
+                alternate['exit'] = p2.returncode
+                alternate['hangul'] = any('가' <= c <= '힣' for c in output)
+                alternate['banner'] = any(x in output.lower() for x in
+                    ('loading model...', 'available commands:',
+                     'exiting...', '[ prompt:'))
+                alternate['echo'] = synthetic in output
+                alternate['chars'] = len(output)
+            except subprocess.TimeoutExpired:
+                alternate['timeout'] = True
+            except (OSError, ValueError):
+                alternate['error'] = 'native_alternate_probe_error'
+        report['no_conversation_raw_completion'] = alternate
         report['reason'] = 'native_short_probe_completed'
     except subprocess.TimeoutExpired:
         report['timed_out'] = True
