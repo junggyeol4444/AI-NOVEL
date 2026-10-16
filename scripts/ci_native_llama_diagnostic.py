@@ -79,6 +79,38 @@ def probe(cli: Path, model: Path) -> dict:
             except (OSError, ValueError):
                 alternate['error'] = 'native_alternate_probe_error'
         report['no_conversation_raw_completion'] = alternate
+        # Exercise the same non-interactive Qwen transport used by the GUI
+        # bridge. This reports only structural facts, never synthetic prose.
+        completion_exe = cli.with_name('llama-completion.exe')
+        completion = dict(supported=completion_exe.is_file(), exit=None,
+                          hangul=False, banner=False, echo=False, chars=0,
+                          timeout=False)
+        if completion['supported']:
+            framed = (
+                '<|im_start|>system\n한국어 원문 소설만 쓰세요.<|im_end|>\n'
+                '<|im_start|>user\n' + synthetic +
+                '<|im_end|>\n<|im_start|>assistant\n'
+            )
+            command = [str(completion_exe), '--model', str(model),
+                       '--prompt', framed, '--predict', '48', '--ctx-size', '2048',
+                       '--threads', '1', '--threads-batch', '1',
+                       '--no-display-prompt', '--log-disable', '--no-show-timings']
+            try:
+                cp = subprocess.run(command, cwd=cli.parent, capture_output=True,
+                                    timeout=150, check=False)
+                output = cp.stdout.decode('utf-8', 'replace')
+                completion['exit'] = cp.returncode
+                completion['hangul'] = any('가' <= c <= '힣' for c in output)
+                completion['banner'] = any(x in output.lower() for x in
+                    ('loading model...', 'available commands:',
+                     'exiting...', '[ prompt:'))
+                completion['echo'] = synthetic in output
+                completion['chars'] = len(output)
+            except subprocess.TimeoutExpired:
+                completion['timeout'] = True
+            except (OSError, ValueError):
+                completion['error'] = 'native_completion_probe_error'
+        report['noninteractive_completion'] = completion
         report['reason'] = 'native_short_probe_completed'
     except subprocess.TimeoutExpired:
         report['timed_out'] = True
