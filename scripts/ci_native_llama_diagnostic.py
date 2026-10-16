@@ -86,6 +86,20 @@ def probe(cli: Path, model: Path) -> dict:
                           hangul=False, banner=False, echo=False, chars=0,
                           timeout=False)
         if completion['supported']:
+            try:
+                help_process = subprocess.run([str(completion_exe), '--help'],
+                                              cwd=cli.parent, capture_output=True,
+                                              timeout=30, check=False)
+                help_text = (help_process.stdout + help_process.stderr).decode(
+                    'utf-8', 'replace')
+                completion['help_exit'] = help_process.returncode
+                completion['flag_support'] = {flag: flag in help_text for flag in
+                    ('--prompt', '--predict', '--ctx-size', '--threads',
+                     '--threads-batch', '--repeat-penalty', '--repeat-last-n',
+                     '--no-display-prompt', '--log-disable', '--no-show-timings')}
+            except (OSError, subprocess.TimeoutExpired):
+                completion['help_error'] = 'noninteractive_help_unavailable'
+        if completion['supported']:
             framed = (
                 '<|im_start|>system\n한국어 원문 소설만 쓰세요.<|im_end|>\n'
                 '<|im_start|>user\n' + synthetic +
@@ -106,6 +120,38 @@ def probe(cli: Path, model: Path) -> dict:
                      'exiting...', '[ prompt:'))
                 completion['echo'] = synthetic in output
                 completion['chars'] = len(output)
+                # Never emit stderr itself: some native tools echo the prompt.
+                # Diagnose only fixed, non-sensitive categories.
+                native_error = cp.stderr.decode('utf-8', 'replace').lower()
+                completion['stderr_bytes'] = len(cp.stderr)
+                completion['stderr_categories'] = [pattern for pattern in (
+                    'unknown argument', 'invalid argument', 'unknown option',
+                    'unrecognized option', 'failed to load model',
+                    'error loading model', 'could not load', 'failed to open',
+                    'context size', 'out of memory', 'error:'
+                ) if pattern in native_error]
+                if cp.returncode != 0:
+                    minimal = [str(completion_exe), '--model', str(model),
+                               '--prompt', framed, '--predict', '8',
+                               '--threads', '1', '--no-display-prompt',
+                               '--log-disable']
+                    try:
+                        fallback = subprocess.run(minimal, cwd=cli.parent,
+                                                  capture_output=True, timeout=90,
+                                                  check=False)
+                        completion['minimal_exit'] = fallback.returncode
+                        completion['minimal_stdout_chars'] = len(
+                            fallback.stdout.decode('utf-8', 'replace'))
+                        error = fallback.stderr.decode('utf-8', 'replace').lower()
+                        completion['minimal_error_categories'] = [
+                            word for word in ('unknown argument', 'invalid argument',
+                                'unknown option', 'unrecognized option',
+                                'failed to load model', 'error loading model',
+                                'failed to open', 'error:') if word in error]
+                    except subprocess.TimeoutExpired:
+                        completion['minimal_timeout'] = True
+                    except (OSError, ValueError):
+                        completion['minimal_error'] = 'native_minimal_probe_error'
             except subprocess.TimeoutExpired:
                 completion['timeout'] = True
             except (OSError, ValueError):
