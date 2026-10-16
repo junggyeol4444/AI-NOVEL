@@ -14,6 +14,7 @@ class KoreanNativeBridgeSourceContract(unittest.TestCase):
         source = SOURCE.read_text(encoding='utf-8')
         self.assertIn('영어로 먼저 작성하여 번역하거나 영어 문장을 섞지 마세요', source)
         self.assertIn('같은 문장을 반복해 분량을 채우지 마세요', source)
+        self.assertIn('장면 계획을 설명하거나 작성할 것을 약속하지 마세요', source)
         self.assertIn('Novel Bible', source)
         self.assertIn("'--system-prompt', system_prompt", source)
         self.assertIn("'--repeat-penalty', '1.16'", source)
