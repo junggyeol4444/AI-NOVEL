@@ -50,6 +50,79 @@ jobs:
       - name: Windows full tests in bounded isolated modules (never silently skip)
         if: runner.os == 'Windows'
         run: python scripts/ci_full_synthetic_by_module.py --root . --output build/ci/full-unittest --timeout 300
+      - name: Stage68 independent Windows subprocesses (31/3/34 x 2)
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          @'
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+          import sys
+          import time
+
+          root = Path.cwd()
+          dest = Path(os.environ["RUNNER_TEMP"]) / "anf-stage68-six"
+          dest.mkdir(parents=True, exist_ok=True)
+          if not (root / "tests" / "test_stage68_task_monitor.py").is_file():
+              raise SystemExit("Stage68 original tests not found")
+          groups = (("non_gui", 31, "TaskMonitorTests"),
+                    ("gui", 3, "TaskMonitorGuiTests"),
+                    ("mixed", 34, None))
+          results = []
+          for name, expected, match in groups:
+              for iteration in (1, 2):
+                  cmd = [sys.executable, "-X", "faulthandler", "-m", "unittest",
+                         "discover", "-s", "tests", "-p", "test_stage68_task_monitor.py", "-v"]
+                  if match:
+                      cmd += ["-k", match]
+                  started = time.monotonic()
+                  exit_code = None
+                  timed_out = False
+                  try:
+                      proc = subprocess.run(cmd, cwd=root, capture_output=True, timeout=100,
+                                            text=True, encoding="utf-8", errors="replace")
+                      exit_code = proc.returncode
+                      log = proc.stdout + "\n" + proc.stderr
+                  except subprocess.TimeoutExpired as exc:
+                      timed_out = True
+                      def decode(x):
+                          return x.decode("utf-8", "replace") if isinstance(x, bytes) else (x or "")
+                      log = decode(exc.stdout) + "\n" + decode(exc.stderr) + "\n[TIMEOUT]\n"
+                  except OSError as exc:
+                      log = "[SPAWN ERROR] " + type(exc).__name__ + "\n"
+                  (dest / f"{name}_{iteration}.log").write_text(log, encoding="utf-8")
+                  summaries = list(re.finditer(r"(?m)^Ran\s+(\d+)\s+tests?\s+in\s+[\d.]+s\s*$", log))
+                  count = int(summaries[-1].group(1)) if summaries else None
+                  end = log[summaries[-1].end():] if summaries else ""
+                  verdict = re.search(r"(?m)^OK(?:\s*\(skipped=(\d+)\))?\s*$", end)
+                  skipped = int(verdict.group(1)) if verdict and verdict.group(1) else 0
+                  fatal = bool(re.search(r"(?i)Windows fatal exception|Fatal Python error|access violation", log))
+                  success = (exit_code == 0 and not timed_out and count == expected
+                             and verdict is not None and skipped == 0 and not fatal)
+                  result = dict(group=name, repeat=iteration, tests=count,
+                                expected=expected, skipped=skipped, exit_code=exit_code,
+                                exit_hex=f"0x{exit_code & 0xFFFFFFFF:08X}" if exit_code is not None else None,
+                                timeout=timed_out, fatal=fatal, pass_=success,
+                                elapsed=round(time.monotonic() - started, 3))
+                  (dest / f"{name}_{iteration}.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+                  results.append(result)
+                  print(json.dumps(result), flush=True)
+          (dest / "summary.json").write_text(json.dumps({"cases":results,
+              "all_pass":len(results)==6 and all(x["pass_"] for x in results)}, indent=2), encoding="utf-8")
+          raise SystemExit(0 if len(results)==6 and all(x["pass_"] for x in results) else 1)
+          '@ | Set-Content -LiteralPath "$env:RUNNER_TEMP\anf_stage68_six.py" -Encoding utf8
+          python "$env:RUNNER_TEMP\anf_stage68_six.py"
+      - name: Upload six independent Windows Stage68 logs
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: anf-stage68-six-windows
+          path: ${{ runner.temp }}/anf-stage68-six/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Preserve complete test output for investigation
         if: always()
         uses: actions/upload-artifact@v4
