@@ -268,7 +268,22 @@ class TaskMonitorGuiTests(unittest.TestCase):
         import os
         os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
         from PySide6.QtWidgets import QApplication
+        cls._created_app = QApplication.instance() is None
         cls.app = QApplication.instance() or QApplication([])
+
+    @classmethod
+    def tearDownClass(cls):
+        # Release GUI fixtures before Python unloads PySide6/shiboken6.
+        from PySide6.QtCore import QCoreApplication, QEvent
+        from PySide6.QtWidgets import QApplication
+        for widget in list(QApplication.topLevelWidgets()):
+            widget.close()
+            widget.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        cls.app.processEvents()
+        if cls._created_app:
+            cls.app.quit()
+        cls.app = None
 
     def test_page_present_and_no_auto_connection(self):
         from ai_novel_factory.desktop.app import MainWindow
