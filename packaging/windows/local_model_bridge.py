@@ -222,8 +222,19 @@ def main(argv=None) -> int:
     except (ValueError, OSError, UnicodeError, json.JSONDecodeError,
             subprocess.TimeoutExpired) as exc:
         # Do not print the exception, stderr, prompts, filenames, or output.
+        # Validation errors below have only fixed, source-authored messages.
+        # Expose a finite category, not raw native text or author content.
+        reason = ''
+        if stage == 'text_validation' and type(exc) is ValueError:
+            category = {
+                'invalid native output type': 'INVALID_TYPE',
+                'invalid native output': 'EMPTY_CONTROL_OR_LENGTH',
+                'native console output mixed with draft': 'CONSOLE_OR_PROMPT_ECHO',
+                'native output lacks Korean novel prose': 'NO_HANGUL',
+            }.get(str(exc), 'OTHER')
+            reason = ';REASON=' + category
         print('LOCAL_MODEL_GENERATION_FAILED;STAGE=' + stage
-              + ';TYPE=' + type(exc).__name__, file=sys.stderr)
+              + ';TYPE=' + type(exc).__name__ + reason, file=sys.stderr)
         return 1
 
 
