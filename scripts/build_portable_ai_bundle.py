@@ -104,6 +104,8 @@ def main(argv=None) -> int:
                 shutil.copyfileobj(src, dst, 1024 * 1024)
     if not (runtime / 'llama-cli.exe').is_file():
         raise RuntimeError('CPU package did not contain llama-cli.exe')
+    if not (runtime / 'llama-completion.exe').is_file():
+        raise RuntimeError('CPU package did not contain non-interactive llama-completion.exe')
     shutil.copy2(model_cache, model / MODEL_FILE)
 
     licenses_sources = {

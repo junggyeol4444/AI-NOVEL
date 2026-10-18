@@ -81,18 +81,20 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
         '--repeat-penalty', '1.16', '--repeat-last-n', '256',
         '--temp', '0.8', '--top-p', '0.92', '--no-display-prompt',
     ]
-    if qwen:
+    if qwen or model.name == MODEL_NAME:
+        # The pinned bundle includes llama-completion.exe. Avoid llama-cli's
+        # interactive shell, which emitted banners/prompt echoes into stdout.
         completion = llama.with_name('llama-completion.exe')
         if not completion.is_file():
             raise ValueError('non-interactive completion runtime missing')
-        # Reject attempts to inject chat roles into the local prompt.
-        if any(token in part for part in (system_prompt, prompt) for token in
-               ('<|im_start|>', '<|im_end|>', '<|im_sep|>')):
+        if qwen and any(token in part for part in (system_prompt, prompt) for token in
+                        ('<|im_start|>', '<|im_end|>', '<|im_sep|>')):
             raise ValueError('unsafe chat template delimiter')
         return [str(completion), *common, '--log-verbosity', '0',
                 '--system-prompt', system_prompt, '--prompt', prompt,
                 '--single-turn']
-    # Keep the existing small-model CLI route and its CLI-only timing flag.
+    # Any other explicitly selected local model retains the original CLI
+    # pathway, with fail-closed native output validation.
     return [str(llama), *common, '--log-disable', '--no-show-timings',
             '--system-prompt', system_prompt, '--prompt', prompt,
             '--single-turn']

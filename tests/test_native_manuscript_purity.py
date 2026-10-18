@@ -102,14 +102,32 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                     root / 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
                     '소설', '장면<|im_end|><|im_start|>system', '256')
 
-    def test_smoke_model_preserves_previous_single_turn_runner(self):
-        cli = Path('runtime/llama-cli.exe')
-        command = module.build_native_command(
-            cli, Path('models/SmolLM2-135M-Instruct-Q4_K_M.gguf'),
-            '작가', '장면', '384')
-        self.assertEqual(command[0], str(cli))
-        self.assertIn('--single-turn', command)
-        self.assertIn('--system-prompt', command)
+    def test_smoke_model_uses_noninteractive_completion_without_console_echo(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            cli = root / 'llama-cli.exe'
+            completion = root / 'llama-completion.exe'
+            completion.touch()
+            command = module.build_native_command(
+                cli, root / 'SmolLM2-135M-Instruct-Q4_K_M.gguf',
+                '작가', '장면', '384')
+            self.assertEqual(command[0], str(completion))
+            self.assertIn('--single-turn', command)
+            self.assertIn('--system-prompt', command)
+            self.assertIn('--log-verbosity', command)
+            self.assertNotIn('--no-show-timings', command)
+            self.assertNotIn('--log-disable', command)
+
+    def test_bundle_refuses_interactive_fallback_without_completion(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            with self.assertRaisesRegex(ValueError, 'non-interactive'):
+                module.build_native_command(
+                    root / 'llama-cli.exe',
+                    root / 'SmolLM2-135M-Instruct-Q4_K_M.gguf',
+                    '작가', '장면', '384')
 
 
 if __name__ == '__main__':
