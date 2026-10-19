@@ -12,10 +12,10 @@ SOURCE = Path(__file__).resolve().parents[1] / 'packaging' / 'windows' / 'local_
 class KoreanNativeBridgeSourceContract(unittest.TestCase):
     def test_korean_native_not_translation(self):
         source = SOURCE.read_text(encoding='utf-8')
-        self.assertIn('영어로 먼저 작성하여 번역하거나 영어 문장을 섞지 마세요', source)
-        self.assertIn('같은 문장을 반복해 분량을 채우지 마세요', source)
-        self.assertIn('장면 계획을 설명하거나 작성할 것을 약속하지 마세요', source)
-        self.assertIn('Novel Bible', source)
+        self.assertIn('def build_story_prompts(', source)
+        self.assertIn('한국어 서술과 자연스러운 대화로 하나의 장면을 전개합니다', source)
+        self.assertIn('인물의 선택, 행동, 대화', source)
+        self.assertIn('system_prompt, prompt = build_story_prompts(', source)
         self.assertIn("'--system-prompt', system_prompt", source)
         self.assertIn("'--repeat-penalty', '1.16'", source)
         self.assertIn("'--log-disable', '--no-show-timings'", source)

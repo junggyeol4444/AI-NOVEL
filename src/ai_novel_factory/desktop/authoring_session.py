@@ -198,10 +198,14 @@ class AuthoringSession:
                                            timeout_seconds=limit, explicitly_allowed=True)
         metadata = {r.key: r.value for r in self.store.list_rules(self.project_id)}
         canon = self.rule('premise')
-        for field in ('genre', 'subject', 'mood', 'target_episodes',
-                      'characters_per_episode'):
+        # Use Korean labels when sending the unchanged stored metadata to
+        # local models. English schema keys appeared verbatim in bad drafts.
+        author_labels = {'genre': '장르', 'subject': '주제',
+                         'mood': '분위기', 'target_episodes': '목표 회차 수',
+                         'characters_per_episode': '회차당 목표 글자 수'}
+        for field, label in author_labels.items():
             if metadata.get(field):
-                canon += '\n' + field + ': ' + metadata[field]
+                canon += '\n' + label + ': ' + metadata[field]
         # The saved episode length must reach the model, even when a user
         # does not repeat "5000자" in the free-text scene goal. Distribute
         # across the episode's real scene count; never multiply the target

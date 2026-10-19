@@ -45,6 +45,8 @@ class AuthoringCreationSafetyTests(TestCase):
         one = prepared()
         self.assertEqual(one.target_chars, 5000)
         self.assertEqual(_message(one)['request']['target_chars'], 5000)
+        self.assertIn('회차당 목표 글자 수: 5000', one.novel_bible)
+        self.assertNotIn('characters_per_episode:', one.novel_bible)
         self.session.add_scene('뒷문으로 나가는 다른 장면')
         two = prepared()
         self.assertEqual(two.target_chars, 2500)

@@ -189,6 +189,30 @@ def requested_scene_target(goal: str, request: dict) -> int | None:
     return int(match.group(1)) if match else stored
 
 
+def build_story_prompts(canon: str, goal: str, conflict: str, place: str,
+                        style_bible: str, characters: list[str]) -> tuple[str, str]:
+    """Use concise, story-first Korean instructions for the same author facts.
+
+    English planning labels and repeated prohibitions leaked literally into
+    the actual Windows Qwen GUI drafts. This changes prompts, not the model,
+    author canon, acceptance thresholds, or any persisted manuscript.
+    """
+    system = (
+        '당신은 한국어 소설 작가입니다. 주어진 작품 설정을 유지하며 바로 소설 본문을 씁니다. '
+        '인물의 선택, 행동, 대화, 주변 변화가 시간 순서대로 이어집니다. '
+        '각 문단에는 이전 문단에서 일어난 사건의 결과와 새로운 진전이 있습니다. '
+        '한국어 서술과 자연스러운 대화로 하나의 장면을 전개합니다.')
+    scene = (
+        '작품 설정:\n' + canon[:12000] + '\n'
+        '회차와 장면의 사건:\n' + style_bible[:5000] + '\n'
+        '이번 장면의 목표:\n' + goal[:2000] + '\n'
+        '충돌과 장애물:\n' + conflict[:1000] + '\n'
+        '배경 장소:\n' + place[:1000] + '\n'
+        '등장인물:\n' + ', '.join(characters[:20]) + '\n'
+        '첫 문장부터 인물의 행동을 한국어 소설 문단으로 이어 쓰세요.')
+    return system, scene
+
+
 def main(argv=None) -> int:
     args = sys.argv[1:] if argv is None else argv
     llama, model = bundled_files()
@@ -254,29 +278,10 @@ def main(argv=None) -> int:
         style_bible = req.get('style_bible', '')
         if type(style_bible) is not str or len(style_bible) > 30000:
             raise ValueError('invalid style_bible')
-        # llama-cli --single-turn applies model GGUF chat templates.
-        # Raw, nested ChatML tokens inside user prompts harm local model output.
-        system_prompt = (
-            '당신은 처음부터 자연스러운 한국어로 독창적인 소설을 집필하는 원어민 작가입니다. '
-            '작가 소유 Novel Bible 설정과 이번 회차·장면 플롯을 최우선으로 지키세요. '
-            '참고작 문장과 고유 설정을 복제하지 마세요. '
-            '영어로 먼저 작성하여 번역하거나 영어 문장을 섞지 마세요. '
-            '같은 문장을 반복해 분량을 채우지 마세요. '
-            '행동과 감정과 대사, 인물 선택의 인과 관계를 구체적으로 보여주세요. '
-            '소설 본문 외의 목차·설명·지시문 반복·메타 해설·출판은 하지 마세요. '
-            '하나의 장면을 인물의 행동, 대화, 그 결과가 이어지는 서술문으로 완성하세요. '
-            '장면 계획을 설명하거나 작성할 것을 약속하지 마세요. '
-            '글자 수가 충분하다고 주장하거나 집필을 완료했다는 보고문을 쓰지 마세요. '
-            '인물의 행동·대사·감각과 그 결과를 실제 이야기로 바로 서술하세요.')
-        prompt = (
-            '작품의 최우선 설정 (Novel Bible):\n' + canon[:12000] + '\n'
-            '회차/장면의 작가 소유 플롯:\n' + style_bible[:5000] + '\n'
-            '이번 장면 목표:\n' + goal[:2000] + '\n'
-            '충돌과 장애물:\n' + conflict[:1000] + '\n'
-            '배경 장소:\n' + place[:1000] + '\n'
-            '등장인물:\n' + ', '.join(characters[:20]) + '\n'
-            '첫 문장부터 한국어 소설 본문만 작성하세요. '
-            '영어와 중복 구절을 피하고 사건이 앞으로 진행되도록 집필하세요.')
+        # Keep the author's original facts, but do not teach Qwen English
+        # prompt/format labels that appeared in actual malformed GUI drafts.
+        system_prompt, prompt = build_story_prompts(
+            canon, goal, conflict, place, style_bible, characters)
         # Keep the previously verified non-interactive Windows runtime path.
         # A longer Qwen scene budget is still subject to the native timeout.
         # Verified against b11624 Windows CPU runtime: the minimal

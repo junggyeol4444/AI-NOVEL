@@ -67,6 +67,20 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertNotIn('이미 집필된 소설의 마지막 부분(반복하여 다시 쓰지 마세요):', prompts[0])
         self.assertNotIn('머리말·해설·작성 예정 보고·요약을 쓰지 마세요.', prompts[0])
 
+    def test_korean_author_prompt_avoids_observed_english_scaffolding(self):
+        system, prompt = module.build_story_prompts(
+            '가상의 도서관에 사는 두 인물', '사라진 기록을 찾는다',
+            '열쇠가 없다', '도서관 서가', '두 인물이 문 앞에서 만난다',
+            ['사서', '조사자'])
+        self.assertIn('한국어 소설', system)
+        self.assertIn('작품 설정:', prompt)
+        self.assertIn('회차와 장면의 사건:', prompt)
+        self.assertIn('사서, 조사자', prompt)
+        for contamination in ('Novel Bible', 'Chapter', 'Ending Note',
+                              '영어 문장', '목차·설명', '금지'):
+            with self.subTest(contamination=contamination):
+                self.assertNotIn(contamination, system + prompt)
+
     def test_allow_only_clean_korean_story_from_transport_perspective(self):
         prose = '조사자는 책갈피에서 3월의 날짜가 지워진 흔적을 발견했다. 사서는 아무 말 없이 창문을 잠갔다.'
         self.assertEqual(module.validate_clean_manuscript(prose), prose)
