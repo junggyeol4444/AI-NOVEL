@@ -31,5 +31,23 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertIn("setAccessibleName('한국어 형식 검사 미달')", GUI)
 
 
+    def test_async_worker_keeps_safe_native_failure_categories(self):
+        for reason in (
+            'native_timeout', 'native_inference_failure', 'native_process_crash',
+            'native_output_rejected', 'native_no_hangul',
+            'native_non_korean_script', 'native_prompt_echo',
+        ):
+            with self.subTest(reason=reason):
+                self.assertIn("'" + reason + "'", WORKER)
+        self.assertIn("else 'LocalModelError'", WORKER)
+
+    def test_windows_uia_finds_changed_model_failure_accessible_name(self):
+        source = (ROOT / '.github/workflows/anf-real-windows-exe-korean-literary-gate.yml').read_text(encoding='utf-8')
+        self.assertIn('function UiStatus', source)
+        self.assertIn('[System.Windows.Automation.ControlType]::Text', source)
+        self.assertIn('$liveStatus=UiStatus', source)
+        self.assertIn('$statusView=UiStatus', source)
+
+
 if __name__ == '__main__':
     unittest.main()
