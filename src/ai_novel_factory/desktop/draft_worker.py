@@ -18,7 +18,9 @@ class DraftWorker(QThread):
         except LocalModelError as exc:
             reason = str(exc)
             self.failed.emit(reason if reason in ('native_timeout', 'native_inference_failure',
-                                                'native_output_rejected')
+                                                'native_process_crash', 'native_output_rejected',
+                                                'native_no_hangul', 'native_non_korean_script',
+                                                'native_prompt_echo')
                              else 'LocalModelError')
         except (ValueError, OSError) as exc:
             self.failed.emit(type(exc).__name__)
