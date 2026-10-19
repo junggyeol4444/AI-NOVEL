@@ -35,6 +35,9 @@ class SceneDraftRequest:
     scene_location: str
     characters: tuple[str, ...]
     style_bible: str = ''
+    # User's per-scene share of the saved episode-length target.
+    # Optional to preserve existing provider and fixture compatibility.
+    target_chars: int | None = None
 
 
 @dataclass(frozen=True)
@@ -75,6 +78,10 @@ def validate_request(request: SceneDraftRequest) -> None:
         raise LocalModelError('invalid characters')
     for name in request.characters:
         _clean(name, label='character', maximum=200)
+    if request.target_chars is not None and (
+            type(request.target_chars) is not int
+            or not 1 <= request.target_chars <= 1_000_000):
+        raise LocalModelError('invalid scene target length')
     if sum(len(getattr(request, f)) for f in
            ('novel_bible', 'scene_goal', 'scene_conflict', 'scene_location', 'style_bible')) + sum(map(len, request.characters)) > MAX_CONTEXT_CHARS:
         raise LocalModelError('context exceeds limit')
@@ -91,7 +98,9 @@ def _message(request: SceneDraftRequest) -> dict:
                         'scene_conflict': request.scene_conflict,
                         'scene_location': request.scene_location,
                         'characters': list(request.characters),
-                        'style_bible': request.style_bible}}
+                        'style_bible': request.style_bible,
+                        **({'target_chars': request.target_chars}
+                           if request.target_chars is not None else {})}}
 
 
 class MockSceneProvider:

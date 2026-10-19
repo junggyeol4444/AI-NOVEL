@@ -164,6 +164,18 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                     '작가', '장면', '384')
 
 
+    def test_explicit_scene_target_or_saved_episode_share(self):
+        # A project target should reach the native bridge even when the
+        # author's ordinary scene description contains no numeric length.
+        self.assertEqual(module.requested_scene_target(
+            '조사자가 빈 페이지를 발견한다', {'target_chars': 5000}), 5000)
+        self.assertEqual(module.requested_scene_target(
+            '한국어 원고 6000자 작성', {'target_chars': 2500}), 6000)
+        self.assertIsNone(module.requested_scene_target('조사와 추적', {}))
+        for bad in (True, -1, '5000', 0, 1000001):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                module.requested_scene_target('조사와 추적', {'target_chars': bad})
+
     def test_real_continuation_reaches_requested_chars_without_padding(self):
         intro = '조사자가 기록을 살폈다. ' * 32
         chunks = ['사서는 새로운 사건을 조사하고 결정했다. ' * 55 + '단서' + str(i)

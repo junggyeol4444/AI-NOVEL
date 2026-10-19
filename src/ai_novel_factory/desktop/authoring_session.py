@@ -202,9 +202,20 @@ class AuthoringSession:
                       'characters_per_episode'):
             if metadata.get(field):
                 canon += '\n' + field + ': ' + metadata[field]
+        # The saved episode length must reach the model, even when a user
+        # does not repeat "5000자" in the free-text scene goal. Distribute
+        # across the episode's real scene count; never multiply the target
+        # by the number of scenes. Existing free-text scene targets remain
+        # author-owned and can override this fallback in the model bridge.
+        episode_length = metadata.get('characters_per_episode', '').strip()
+        scene_target = None
+        if episode_length.isdecimal() and 1 <= int(episode_length) <= 1_000_000:
+            scene_count = max(1, len(self.store.list_scenes(self.project_id, ep.episode)))
+            scene_target = (int(episode_length) + scene_count - 1) // scene_count
         request = SceneDraftRequest(
             self.project_id, ep.episode, scene.position, canon,
-            goal, conflict, location, characters, ep.plot + '\n' + scene.text)
+            goal, conflict, location, characters, ep.plot + '\n' + scene.text,
+            target_chars=scene_target)
         rules_snapshot = tuple(sorted(
             (rule.key, rule.value, rule.revision)
             for rule in self.store.list_rules(self.project_id)))

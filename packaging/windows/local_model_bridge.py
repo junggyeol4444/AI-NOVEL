@@ -176,6 +176,19 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
     return draft
 
 
+def requested_scene_target(goal: str, request: dict) -> int | None:
+    """Respect an explicit author scene target, else the saved episode share.
+
+    This determines how much real model continuation to *attempt*; it never
+    pads a manuscript or changes the GUI's original quality acceptance gate.
+    """
+    stored = request.get('target_chars')
+    if stored is not None and (type(stored) is not int or not 1 <= stored <= 1_000_000):
+        raise ValueError('invalid scene target length')
+    match = re.search(r'(?<!\\d)(\\d{4,5})\\s*자', goal)
+    return int(match.group(1)) if match else stored
+
+
 def main(argv=None) -> int:
     args = sys.argv[1:] if argv is None else argv
     llama, model = bundled_files()
@@ -308,10 +321,9 @@ def main(argv=None) -> int:
         # EOS after ~775 characters even when asked for ~5000. Continue only
         # actual model prose under the existing single 400-second deadline.
         # Never pretend that a short/incoherent scene meets the quality gate.
-        target_match = re.search(r'(?<!\d)(\d{4,5})\s*자', goal)
+        target = requested_scene_target(goal, req)
         if (not is_bundled_qa_model and model.name.lower().startswith('qwen2.5-')
-                and target_match is not None):
-            target = int(target_match.group(1))
+                and target is not None):
             draft = continue_korean_scene(
                 draft, original_prompt=prompt, target_chars=target,
                 invoke=invoke_native, deadline=deadline)
