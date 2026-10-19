@@ -34,6 +34,19 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.validate_clean_manuscript('조사자는 문을 열었다.\x1b[31m')
 
+    def test_reject_windows_qwen_continuation_instruction_echo(self):
+        # The compiled Windows GUI evidence reproduced these exact bridge
+        # commands inside qa_original_scene.txt. Not literary certification.
+        echoes = (
+            '이미 집필된 소설의 마지막 부분(반복하여 다시 쓰지 마세요):',
+            '이어서 새로운 사건·인물 행동·대사를 한국어 소설 본문으로만 직접 집필하세요.',
+            '지금까지 쓴 문장은 다시 쓰지 마세요.',
+            '머리말·해설·작성 예정 보고·요약을 쓰지 마세요.',
+        )
+        for echo in echoes:
+            with self.subTest(echo=echo), self.assertRaises(ValueError):
+                module.validate_clean_manuscript('기록관은 서랍을 열었다. ' + echo)
+
     def test_allow_only_clean_korean_story_from_transport_perspective(self):
         prose = '조사자는 책갈피에서 3월의 날짜가 지워진 흔적을 발견했다. 사서는 아무 말 없이 창문을 잠갔다.'
         self.assertEqual(module.validate_clean_manuscript(prose), prose)
