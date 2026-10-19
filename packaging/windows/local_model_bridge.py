@@ -182,7 +182,8 @@ def retry_qwen_korean_text(prompt: str, *, first_error: ValueError,
 
 
 def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int,
-                          invoke, deadline: float, clock=time.monotonic) -> str:
+                          invoke, deadline: float, clock=time.monotonic,
+                          retry_invalid=None) -> str:
     """Continue real native model prose if a requested scene ends prematurely.
 
     No synthetic padding, translation, invented facts, prompt leaks or approvals.
@@ -221,12 +222,20 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
             break
         try:
             new = validate_clean_manuscript(next_raw).strip()
-        except ValueError:
-            # A later invalid/English/native-failed completion must never
-            # destroy the initial, already validated Korean draft. Preserve
-            # it as an unapproved partial draft and let the unchanged GUI
-            # length/language/literary gates reject an inadequate result.
-            break
+        except ValueError as invalid_continuation:
+            # Real Windows Qwen occasionally mixes scripts in a continuation.
+            # Make at most one fresh inference with the SAME GGUF when there
+            # is time. Never sanitize, translate or append rejected text.
+            if retry_invalid is None or deadline - clock() < 25:
+                break
+            try:
+                retry_raw = retry_invalid(
+                    continuation_prompt, invalid_continuation,
+                    deadline - clock())
+                new = validate_clean_manuscript(retry_raw).strip()
+            except (ValueError, subprocess.TimeoutExpired):
+                # Preserve only previously validated, unapproved prose.
+                break
         # Do not silently fill short drafts by repeating previous generations.
         if not new or new in draft or len(new) < 80:
             break
@@ -435,7 +444,11 @@ def main(argv=None) -> int:
                 and target is not None):
             draft = continue_korean_scene(
                 draft, original_prompt=prompt, target_chars=target,
-                invoke=invoke_native, deadline=deadline)
+                invoke=invoke_native, deadline=deadline,
+                retry_invalid=lambda continuation_prompt, first_error, seconds:
+                    retry_qwen_korean_text(
+                        continuation_prompt, first_error=first_error,
+                        invoke=invoke_native, remaining=seconds))
         response = {'protocol': MODEL_PROTO, 'draft': draft}
         stage = 'json_output'
         # Windows frozen console executables may use a legacy code page even
