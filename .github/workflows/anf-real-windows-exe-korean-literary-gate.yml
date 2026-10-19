@@ -5,8 +5,14 @@ on:
     paths:
       - '.github/workflows/anf-real-windows-exe-korean-literary-gate.yml'
       - 'packaging/windows/local_model_bridge.py'
+      - 'src/ai_novel_factory/local_models.py'
+      - 'src/ai_novel_factory/desktop/authoring_session.py'
+      - 'src/ai_novel_factory/desktop/authoring_workflow.py'
+      - 'src/ai_novel_factory/korean_draft_quality.py'
       - 'scripts/ci_native_llama_diagnostic.py'
       - 'tests/test_native_manuscript_purity.py'
+      - 'tests/test_korean_draft_quality.py'
+      - 'tests/test_authoring_session_safety.py'
   workflow_dispatch:
 permissions:
   contents: read

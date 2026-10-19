@@ -26,6 +26,30 @@ class AuthoringCreationSafetyTests(TestCase):
             kwargs.get('author', '실험 작가'),
             kwargs.get('premise', '가상의 마을에 존재하는 원본 설정'))
 
+    def test_saved_episode_character_goal_reaches_native_scene_payload(self):
+        # This exercises the real authoring session and an isolated temporary
+        # SQLite DB; it never invokes an external model or accesses user files.
+        import sys
+        from ai_novel_factory.local_models import _message
+        self.session.create_project(
+            str(self.path), '가상 원고', '테스트 작가', '가상의 고문서 사건',
+            extra_rules={'characters_per_episode': '5000'})
+        self.session.create_episode(1, '사라진 기록을 찾는다')
+        self.session.add_scene('서가에서 첫 번째 흔적을 발견한다')
+        def prepared():
+            request, _, _ = self.session.prepare_generation(
+                sys.executable, ('--gguf', 'synthetic.gguf'), True,
+                '기록관이 낡은 종이를 읽는다', '사서가 문을 막는다',
+                '도서관 서가', ('기록관', '사서'))
+            return request
+        one = prepared()
+        self.assertEqual(one.target_chars, 5000)
+        self.assertEqual(_message(one)['request']['target_chars'], 5000)
+        self.session.add_scene('뒷문으로 나가는 다른 장면')
+        two = prepared()
+        self.assertEqual(two.target_chars, 2500)
+        self.assertEqual(_message(two)['request']['target_chars'], 2500)
+
     def test_new_file_is_private_and_can_be_reopened(self):
         pid = self.create()
         self.assertTrue(self.path.is_file())
