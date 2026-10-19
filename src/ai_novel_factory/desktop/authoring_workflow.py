@@ -222,7 +222,9 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             stats = (f'총 {screening.total_chars}자 / 한글 {screening.hangul_syllables}자 / '
                      f'영문 {screening.latin_letters}자 / '
                      f'중복문장 {screening.repeated_sentence_share:.1%} / '
-                     f'중복구간 {screening.repeated_chunk_share:.1%}')
+                     f'중복구간 {screening.repeated_chunk_share:.1%} / '
+                     f'한자·중국어 문자 {screening.han_script_chars}개 / '
+                     f'소설 외 형식 {screening.non_prose_markers}건')
             if not screening.format_gate_pass:
                 self.status.setAccessibleName('한국어 형식 검사 미달')
                 self.status.setText(

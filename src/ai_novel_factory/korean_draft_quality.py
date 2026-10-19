@@ -7,6 +7,14 @@ import re
 _SENTENCES = re.compile(r'(?<=[.!?。])\s+|\r?\n+')
 _WHITESPACE = re.compile(r'\s+')
 _NON_LETTERS = re.compile(r'[^가-힣A-Za-z]+')
+# The real Windows Qwen manuscript mixed Chinese characters, Markdown
+# headings, screenplay speaker tags and model-authored introduction text.
+# Treat these as format defects, not as proof of literary merit.
+_HAN_SCRIPT = re.compile(r'[\u3400-\u9fff]')
+_NON_PROSE_LINE = re.compile(
+    r'(?m)^[ \t]*(?:#{1,6}[ \t]+\S|(?:\*\*)?(?:제목|등장인물|장면|'
+    r'조사를 위한 준비|사서의 설명과 검토|조사자의 선택 및 행동|작성 계획)\s*:'
+    r'|<[^>\r\n]{1,30}>\s*:|[-*]{3,}[ \t]*$|안녕하세요[,.!]|저는 인공지능)')
 
 
 @dataclass(frozen=True)
@@ -19,6 +27,8 @@ class KoreanDraftScreen:
     repeated_sentence_share: float
     repeated_chunk_share: float
     sentence_units: int
+    han_script_chars: int
+    non_prose_markers: int
     format_gate_pass: bool
 
 
@@ -38,12 +48,15 @@ def screen_korean_draft(text: str, *, target_chars: int = 5000) -> KoreanDraftSc
     normalized = _NON_LETTERS.sub('', text).casefold()
     chunks = [normalized[i:i + 40] for i in range(0, len(normalized) - 39, 40)]
     repeated_chunks = 1.0 - len(set(chunks)) / max(1, len(chunks))
+    han_script_chars = len(_HAN_SCRIPT.findall(text))
+    non_prose_markers = len(_NON_PROSE_LINE.findall(text))
     minimum = math.ceil(target_chars * 0.9)
     passed = (nonspace_chars >= minimum and hangul >= minimum
               and hangul_share >= 0.78
               and latin <= max(5, math.ceil(nonspace_chars * 0.05))
               and repeated_sentences <= 0.12
               and repeated_chunks <= 0.15
+              and han_script_chars == 0 and non_prose_markers == 0
               and len(sentences) >= (10 if target_chars >= 1000 else 2))
     return KoreanDraftScreen(
         total_chars=len(text), nonspace_chars=nonspace_chars,
@@ -52,4 +65,6 @@ def screen_korean_draft(text: str, *, target_chars: int = 5000) -> KoreanDraftSc
         repeated_sentence_share=round(repeated_sentences, 4),
         repeated_chunk_share=round(repeated_chunks, 4),
         sentence_units=len(sentences),
+        han_script_chars=han_script_chars,
+        non_prose_markers=non_prose_markers,
         format_gate_pass=passed)

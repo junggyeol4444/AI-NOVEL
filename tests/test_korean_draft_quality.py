@@ -44,6 +44,26 @@ class KoreanDraftScreenTests(unittest.TestCase):
             with self.subTest(target=target), self.assertRaises(ValueError):
                 screen_korean_draft(text, target_chars=target)
 
+    def test_real_windows_qwen_language_and_headings_not_format_approved(self):
+        # The CI screenshot/source evidence contained these exact categories:
+        # Chinese script '起床', headings '### 첫 장면', and '<사서>:' labels.
+        # A format PASS must not be obtained by adding otherwise clean prose.
+        base = '\\n'.join(
+            '탐사자가 단서를 읽었다. ' + ''.join(
+                chr(0xAC00 + (i * 61 + j) % 11172) for j in range(65)) +
+            ' 사서는 문을 닫았다.' for i in range(90))
+        plain = screen_korean_draft(base)
+        self.assertTrue(plain.format_gate_pass)
+        self.assertEqual(plain.han_script_chars, 0)
+        self.assertEqual(plain.non_prose_markers, 0)
+        for contamination in ('起床', '### 첫 장면: 도서관',
+                              '**제목: 도서관**', '<사서>: 대답',
+                              '---', '안녕하세요, 저는 AI입니다.'):
+            with self.subTest(contamination=contamination):
+                polluted = screen_korean_draft(base + '\\n' + contamination)
+                self.assertFalse(polluted.format_gate_pass)
+                self.assertTrue(polluted.han_script_chars or polluted.non_prose_markers)
+
     def test_metrics_not_literary_certificate(self):
         q = screen_korean_draft('한국어 문장도 부족하다. 다음 장면이 없다.')
         self.assertFalse(q.format_gate_pass)
