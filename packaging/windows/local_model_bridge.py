@@ -73,12 +73,17 @@ def validate_clean_manuscript(raw: str) -> str:
     )
     if any(fragment in lower for fragment in forbidden):
         raise ValueError('native console output mixed with draft')
+    # The real Windows 11 ARM Qwen output included an instruction-like
+    # "next scene ... assume" sentence, not a fictional character's action.
+    # Fail closed rather than persisting this observed meta narration.
+    if re.search(r'다음 장면은.{0,120}가정하겠습니다\s*:', text):
+        raise ValueError('native console output mixed with draft')
     if not any('가' <= ch <= '힣' for ch in text):
         raise ValueError('native output lacks Korean novel prose')
-    # Japanese kana / Han ideographs leaked into the literal Windows EXE
-    # manuscript. Reject mixed-language output before giving it to the GUI.
-    # Never silently delete or translate an author's model-generated text.
-    if re.search(r'[\u3400-\u9fff\u3040-\u30ff]', text):
+    # Actual Windows 2022 output leaked CJK; Windows 11 ARM output also
+    # contained Cyrillic letters and a U+FFFD decoding replacement.
+    # Reject those observed corruptions, never rewrite model-authored prose.
+    if re.search(r'[\u3400-\u9fff\u3040-\u30ff\u0400-\u052f\ufffd]', text):
         raise ValueError('native non-Korean script in draft')
     return text
 

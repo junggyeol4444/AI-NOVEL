@@ -90,6 +90,12 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             '조사는 신중하게 눈을眯ませ고 묻기 시작했다.',
             '그가 문을 열었다. 이어서 등장인물이 선택하고 행동하는 다음 사건을 한국어 소설 문단으로 서술하세요.',
             '그는 다음 장소로 향했다. 장소와 인물의 대화를 자연스럽게 연결하고, 사건으로 생긴 변화를 보여주세요.',
+            # Exact failure classes found in Windows 11 ARM real Qwen QA
+            # artifact 12213829380: Cyrillic leak, decode corruption, and
+            # instruction-like meta narration. This is NOT literary approval.
+            '그는 자신을 뒤바иру하려 한다.',
+            '그녀는 작은 어깨를 �',
+            '다음 장면은 그녀가 무엇에 대해 물었다고 가정하겠습니다:',
         )
         for text in contaminated:
             with self.subTest(fragment=text), self.assertRaises(ValueError):
