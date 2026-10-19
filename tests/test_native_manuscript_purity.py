@@ -402,5 +402,45 @@ class NativeManuscriptPurityTests(unittest.TestCase):
 
 
 
+
+    def test_qwen_invalid_continuation_retries_same_model_once(self):
+        # Transport regression only; these strings are not literary output.
+        original = '조사자는 도서관 복도를 걸었다. ' * 20
+        valid = '조사자는 낡은 문을 열고 사서에게 출입 기록을 물었다. ' * 9
+        calls = []
+        def invoke(prompt, remaining, budget=None):
+            calls.append((prompt, remaining, budget))
+            if len(calls) == 1:
+                return '조사자는 새로운 서가를 찾았다. 異'
+            return valid
+        def retry(prompt, error, remaining):
+            return module.retry_qwen_korean_text(
+                prompt, first_error=error, invoke=invoke, remaining=remaining)
+        actual = module.continue_korean_scene(
+            original, original_prompt='가상 도서관의 조사 장면',
+            target_chars=5000, invoke=invoke, deadline=100,
+            clock=lambda: 0, retry_invalid=retry)
+        self.assertIn(valid.strip(), actual)
+        self.assertNotIn('異', actual)
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(calls[1][2], '160')
+        self.assertLess(len(''.join(actual.split())), 4500)
+
+    def test_qwen_repeated_invalid_continuation_keeps_only_valid_partial(self):
+        original = '조사자는 오래된 기록을 펼쳤다. ' * 20
+        calls = []
+        def invoke(_prompt, _remaining, _budget=None):
+            calls.append(True)
+            return '사서는 어떤 기록을 발견했다. 異'
+        def retry(prompt, error, remaining):
+            return module.retry_qwen_korean_text(
+                prompt, first_error=error, invoke=invoke, remaining=remaining)
+        actual = module.continue_korean_scene(
+            original, original_prompt='가상 도서관',
+            target_chars=5000, invoke=invoke, deadline=100,
+            clock=lambda: 0, retry_invalid=retry)
+        self.assertEqual(actual, original)
+        self.assertEqual(len(calls), 2)
+
 if __name__ == '__main__':
     unittest.main()
