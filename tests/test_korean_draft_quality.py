@@ -64,6 +64,19 @@ class KoreanDraftScreenTests(unittest.TestCase):
                 self.assertFalse(polluted.format_gate_pass)
                 self.assertTrue(polluted.han_script_chars or polluted.non_prose_markers)
 
+    def test_scene_level_length_not_confused_with_entire_episode(self):
+        # Byte/format fixture only. Distinguish a ~2500-character scene
+        # from its still-unverified 5000-character parent chapter.
+        scene = '\n'.join(
+            '탐사자가 사건을 확인했다. ' + ''.join(
+                chr(0xAC00 + (i * 103 + j) % 11172) for j in range(80)) +
+            ' 사서는 돌아섰다.' for i in range(34))
+        single = screen_korean_draft(scene, target_chars=2500)
+        entire = screen_korean_draft(scene, target_chars=5000)
+        self.assertGreaterEqual(single.hangul_syllables, 2250)
+        self.assertTrue(single.format_gate_pass)
+        self.assertFalse(entire.format_gate_pass)
+
     def test_metrics_not_literary_certificate(self):
         q = screen_korean_draft('한국어 문장도 부족하다. 다음 장면이 없다.')
         self.assertFalse(q.format_gate_pass)

@@ -250,7 +250,8 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             original, original_prompt='도서관', target_chars=5000,
             invoke=invoke, deadline=999, clock=lambda: 0)
         self.assertEqual(len(seen), 2)
-        self.assertEqual(actual.count(copied), 1)
+        # Validation trims surrounding whitespace from native responses.
+        self.assertEqual(actual.count(copied.strip()), 1)
 
     def test_bundled_retry_one_real_native_run_only(self):
         calls = []
@@ -265,6 +266,14 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0][2], '160')
         self.assertIn('작가 소유 설정: 도서관', calls[0][0])
+        crash_invokes = []
+        module.retry_bundled_korean_text(
+            '장면의 작가 소유 설정', first_error=ValueError('model process failed'),
+            invoke=lambda prompt, seconds, budget: crash_invokes.append(
+                (prompt, seconds, budget)) or '사서가 벽 뒤를 보았다.',
+            remaining=25)
+        self.assertEqual(len(crash_invokes), 1)
+        self.assertEqual(crash_invokes[0][2], '160')
         for reason, remaining in (('native output lacks Korean novel prose', 10),
                                   ('native console output mixed with draft', 60)):
             with self.subTest(reason=reason), self.assertRaises(ValueError):
