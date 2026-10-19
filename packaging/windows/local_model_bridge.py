@@ -64,11 +64,22 @@ def validate_clean_manuscript(raw: str) -> str:
         # Exact labels exposed by compiled Windows Qwen GUI prose evidence.
         # This rejects leaked scaffolding; it does not certify literature.
         '마크다운 제목:', '역할별 대사 목록:',
+        # These lines appeared inside the actual Windows2022 Qwen draft,
+        # including copies of the formerly supplied continuation command.
+        '지금까지 이어진 이야기의 마지막 문단:',
+        '이어서 등장인물이 선택하고 행동하는 다음 사건을 한국어 소설 문단으로 서술하세요.',
+        '장소와 인물의 대화를 자연스럽게 연결하고, 사건으로 생긴 변화를 보여주세요.',
+        '이어서 등장인물이 선택하고 행동하는 다음 사건으로 장면이 이어집니다.',
     )
     if any(fragment in lower for fragment in forbidden):
         raise ValueError('native console output mixed with draft')
     if not any('가' <= ch <= '힣' for ch in text):
         raise ValueError('native output lacks Korean novel prose')
+    # Japanese kana / Han ideographs leaked into the literal Windows EXE
+    # manuscript. Reject mixed-language output before giving it to the GUI.
+    # Never silently delete or translate an author's model-generated text.
+    if re.search(r'[\u3400-\u9fff\u3040-\u30ff]', text):
+        raise ValueError('native non-Korean script in draft')
     return text
 
 
@@ -128,15 +139,14 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
     for _ in range(24):
         if nonspace_count(draft) >= minimum or clock() >= deadline:
             break
-        previous = draft[-650:]
-        # Request a concrete next passage using existing author-owned context.
-        # The older long negative list was copied into actual Qwen prose.
+        previous = draft[-320:]
+        # The former long continuation instructions appeared verbatim inside
+        # real Windows 2022 prose, creating repetitious meta narration.
+        # Preserve original author-owned facts, but minimize prompt scaffolding.
         continuation_prompt = (
-            original_prompt[:2400] + '\n'
-            '지금까지 이어진 이야기의 마지막 문단:\n'
-            + previous + '\n'
-            '이어서 등장인물이 선택하고 행동하는 다음 사건을 한국어 소설 문단으로 서술하세요. '
-            '장소와 인물의 대화를 자연스럽게 연결하고, 사건으로 생긴 변화를 보여주세요.'
+            original_prompt[:1800] + '\n'
+            '이어지는 문단의 앞부분:\n' + previous.strip() + '\n'
+            '이어서 쓰는 장면에서 인물이 새로운 행동을 취하고 주변이 반응합니다.'
         )
         remaining = deadline - clock()
         if remaining <= 5:
@@ -351,6 +361,7 @@ def main(argv=None) -> int:
                 'invalid native output': 'EMPTY_CONTROL_OR_LENGTH',
                 'native console output mixed with draft': 'CONSOLE_OR_PROMPT_ECHO',
                 'native output lacks Korean novel prose': 'NO_HANGUL',
+                'native non-Korean script in draft': 'NON_KOREAN_SCRIPT',
             }.get(str(exc), 'OTHER')
             reason = ';REASON=' + category
         print('LOCAL_MODEL_GENERATION_FAILED;STAGE=' + stage

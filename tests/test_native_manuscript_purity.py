@@ -63,7 +63,8 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             '그는 증거를 발견했다. ', original_prompt='조사자와 사서의 수수께끼',
             target_chars=5000, invoke=invoke, deadline=999, clock=lambda: 0)
         self.assertTrue(prompts)
-        self.assertIn('이어서 등장인물이 선택하고 행동하는', prompts[0])
+        self.assertIn('이어서 쓰는 장면에서 인물이', prompts[0])
+        self.assertNotIn('이어서 등장인물이 선택하고 행동하는 다음 사건', prompts[0])
         self.assertNotIn('이미 집필된 소설의 마지막 부분(반복하여 다시 쓰지 마세요):', prompts[0])
         self.assertNotIn('머리말·해설·작성 예정 보고·요약을 쓰지 마세요.', prompts[0])
 
@@ -80,6 +81,33 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                               '영어 문장', '목차·설명', '금지'):
             with self.subTest(contamination=contamination):
                 self.assertNotIn(contamination, system + prompt)
+
+    def test_reject_real_windows_qwen_mixed_script_and_prompt_echo(self):
+        # Fragments seen in the actual Windows Server 2022 GUI evidence.
+        contaminated = (
+            '그리스 대사신宙이라는 이름의 책을 열었다.',
+            '사서가 깜짝 놀라ながら 말했다.',
+            '조사는 신중하게 눈을眯ませ고 묻기 시작했다.',
+            '그가 문을 열었다. 이어서 등장인물이 선택하고 행동하는 다음 사건을 한국어 소설 문단으로 서술하세요.',
+            '그는 다음 장소로 향했다. 장소와 인물의 대화를 자연스럽게 연결하고, 사건으로 생긴 변화를 보여주세요.',
+        )
+        for text in contaminated:
+            with self.subTest(fragment=text), self.assertRaises(ValueError):
+                module.validate_clean_manuscript(text)
+
+    def test_new_continuation_uses_bounded_context_without_old_leak(self):
+        draft = '조사자가 기록을 확인했다. ' * 30
+        calls = []
+        def invoke(prompt, remaining):
+            calls.append((prompt, remaining))
+            return '그는 벽 뒤의 계단을 찾았다. ' * 30
+        module.continue_korean_scene(
+            draft, original_prompt='도서관에서 사건을 추적한다.',
+            target_chars=5000, invoke=invoke, deadline=999, clock=lambda: 0)
+        self.assertTrue(calls)
+        self.assertIn('이어지는 문단의 앞부분:', calls[0][0])
+        self.assertNotIn('지금까지 이어진 이야기의 마지막 문단:', calls[0][0])
+        self.assertNotIn('장소와 인물의 대화를 자연스럽게 연결하고', calls[0][0])
 
     def test_allow_only_clean_korean_story_from_transport_perspective(self):
         prose = '조사자는 책갈피에서 3월의 날짜가 지워진 흔적을 발견했다. 사서는 아무 말 없이 창문을 잠갔다.'
