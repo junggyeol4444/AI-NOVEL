@@ -277,6 +277,7 @@ jobs:
                     if($safeStatus -match 'native_timeout'){$report.gui_model_failure='native_timeout'}
                     elseif($safeStatus -match 'native_output_rejected'){$report.gui_model_failure='native_output_rejected'}
                     elseif($safeStatus -match 'native_inference_failure'){$report.gui_model_failure='native_inference_failure'}
+                    elseif($safeStatus -match 'native_process_crash'){$report.gui_model_failure='native_process_crash'}
                     elseif($safeStatus -match 'LocalModelError'){$report.gui_model_failure='LocalModelError'}
                     else{$report.gui_model_failure='UnknownError'}
                     throw 'real_native_model_failed_before_draft'
@@ -306,6 +307,7 @@ jobs:
                 $statusName=[string]$statusView.Current.Name
                 if($statusName -match 'native_timeout'){$report.gui_model_failure='native_timeout'}
                 elseif($statusName -match 'native_inference_failure'){$report.gui_model_failure='native_inference_failure'}
+                elseif($statusName -match 'native_process_crash'){$report.gui_model_failure='native_process_crash'}
                 elseif($statusName -match 'native_output_rejected'){$report.gui_model_failure='native_output_rejected'}
                 elseif($statusName -match 'LocalModelError'){$report.gui_model_failure='LocalModelError'}
                 elseif($statusName -match '작품/회차/장면이 변경'){$report.gui_model_failure='stale_editor'}

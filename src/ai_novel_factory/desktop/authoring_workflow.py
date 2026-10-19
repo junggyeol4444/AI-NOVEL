@@ -6,6 +6,7 @@ from .authoring_controls import AuthoringControls
 from .authoring_session import AuthoringSession
 from .draft_worker import DraftWorker
 from ai_novel_factory.korean_draft_quality import screen_korean_draft
+from ai_novel_factory.local_models import effective_scene_target
 
 _ASYNC_STARTED = object()
 
@@ -216,14 +217,15 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.session.accept_generation(self._draft_request, result, self._draft_identity)
             self._sync_episode()
             draft = result.draft
-            target_text = self._text('characters_per_episode').strip()
+            # The saved author setting, not an unsaved input edit, is the
+            # actual full-episode quota. Match the native explicit goal parser.
+            target_text = self.session.rule('characters_per_episode').strip()
             episode_target = int(target_text) if target_text.isdecimal() else 5000
-            # The model receives the per-scene allocation, not a full-chapter
-            # target repeated once per scene. This is only a SCENE format gate;
-            # a chapter of 5000 characters is never auto-approved from it.
-            target = (self._draft_request.target_chars
-                      if self._draft_request.target_chars is not None
-                      else episode_target)
+            target = effective_scene_target(
+                self._draft_request.scene_goal, self._draft_request.target_chars)
+            if target is None:
+                target = episode_target
+            # A scene pass never certifies the entire episode.
             screening = screen_korean_draft(draft, target_chars=target)
             stats = (f'총 {screening.total_chars}자 / 한글 {screening.hangul_syllables}자 / '
                      f'영문 {screening.latin_letters}자 / '
@@ -251,10 +253,13 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
     def _on_generation_failed(self, category):
         safe_category = category if category in (
             'native_timeout', 'native_inference_failure',
-            'native_output_rejected', 'LocalModelError') else 'UnknownError'
+            'native_process_crash', 'native_output_rejected',
+            'LocalModelError') else 'UnknownError'
         self.status.setAccessibleName('로컬 AI 생성 실패 ' + safe_category)
         if safe_category == 'native_output_rejected':
             self.status.setText('소설 외 콘솔 출력·입력 재출력 또는 비한국어 출력 감지: 원고 저장을 차단했습니다.')
+        elif safe_category == 'native_process_crash':
+            self.status.setText('Windows 로컬 모델 실행기가 비정상 종료되었습니다. 초고 저장 없음.')
         else:
             self.status.setText('로컬 AI 생성 실패 (' + safe_category + '): 초고 저장 없음.')
 

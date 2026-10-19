@@ -63,6 +63,20 @@ def _clean(value: object, *, label: str, required: bool = True, maximum: int = M
     return value
 
 
+def effective_scene_target(goal: str, allocated_chars: int | None) -> int | None:
+    """Mirror the native Windows bridge's explicit per-scene character override.
+
+    Display the actual requested target, not just the default chapter split.
+    This never changes author settings or quality thresholds.
+    """
+    if type(goal) is not str or (allocated_chars is not None and (
+            type(allocated_chars) is not int
+            or not 1 <= allocated_chars <= 1_000_000)):
+        raise LocalModelError('invalid scene target length')
+    match = re.search(r'(?<!\d)(\d{4,5})\s*자', goal)
+    return int(match.group(1)) if match else allocated_chars
+
+
 def validate_request(request: SceneDraftRequest) -> None:
     if not isinstance(request, SceneDraftRequest):
         raise LocalModelError('invalid scene request')
@@ -148,8 +162,10 @@ class LocalExecutableProvider:
                                        text=True, encoding='utf-8', errors='replace',
                                        timeout=self._timeout, check=False, env=environment,
                                        shell=False)
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            raise LocalModelError('local provider execution failed or timed out') from None
+        except subprocess.TimeoutExpired:
+            raise LocalModelError('native_timeout') from None
+        except OSError:
+            raise LocalModelError('local provider execution failed') from None
         if completed.returncode != 0:
             # Public compiled bridge emits a machine-readable failure category;
             # never expose stderr or user prompts from arbitrary executables.
@@ -160,6 +176,9 @@ class LocalExecutableProvider:
                 if match.group(1) == 'native_inference':
                     if match.group(2) == 'TimeoutExpired':
                         raise LocalModelError('native_timeout')
+                    # Observed Windows 0xC0000374 (heap corruption).
+                    if 'LLAMA_NATIVE_EXIT=3221226356' in completed.stderr[:300]:
+                        raise LocalModelError('native_process_crash')
                     raise LocalModelError('native_inference_failure')
                 if match.group(1) == 'text_validation':
                     raise LocalModelError('native_output_rejected')

@@ -97,6 +97,25 @@ sys.exit(1)
         with self.assertRaisesRegex(LocalModelError, 'native_output_rejected'):
             provider.generate(self.request)
 
+    def test_real_windows_native_heap_corruption_has_safe_category(self):
+        worker = self._worker('''import sys
+sys.stderr.write("LLAMA_NATIVE_EXIT=3221226356\\n")
+sys.stderr.write("LOCAL_MODEL_GENERATION_FAILED;STAGE=native_inference;TYPE=ValueError\\n")
+sys.exit(1)
+''')
+        with self.assertRaisesRegex(LocalModelError, 'native_process_crash'):
+            worker.generate(self.request)
+
+    def test_explicit_scene_length_matches_windows_bridge(self):
+        from ai_novel_factory.local_models import effective_scene_target
+        self.assertEqual(effective_scene_target('이 장면 6000자 작성', 2500), 6000)
+        self.assertEqual(effective_scene_target('서가에서 단서를 찾는다', 2500), 2500)
+        self.assertIsNone(effective_scene_target('단서를 찾는다', None))
+        for bad in (True, '2500', -1, 0):
+            with self.subTest(bad=bad), self.assertRaises(LocalModelError):
+                effective_scene_target('단서', bad)
+
+
     def test_native_exit_has_separate_safe_category(self):
         provider = self._worker('''import sys
 sys.stderr.write("LOCAL_MODEL_GENERATION_FAILED;STAGE=native_inference;TYPE=ValueError\\n")
@@ -157,7 +176,7 @@ print(json.dumps({"protocol":p["protocol"],"draft":"로컬 작업자 테스트 �
     def test_process_rejects_timeout(self):
         worker = self._worker('import time; time.sleep(1)')
         worker._timeout = 0.1
-        with self.assertRaises(LocalModelError):
+        with self.assertRaisesRegex(LocalModelError, 'native_timeout'):
             draft_scene(self.request, worker)
 
     def test_process_rejects_huge_response(self):

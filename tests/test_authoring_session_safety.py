@@ -55,6 +55,25 @@ class AuthoringCreationSafetyTests(TestCase):
         self.assertLess(two.target_chars, int(
             self.session.rule('characters_per_episode')))
 
+    def test_saved_episode_and_manual_scene_override_remain_distinct(self):
+        from ai_novel_factory.local_models import effective_scene_target
+        self.session.create_project(
+            str(self.path), '가상 소설', '작가', '가상 도서관',
+            extra_rules={'characters_per_episode': '5000'})
+        self.session.create_episode(1, '낡은 편지를 발견한다')
+        self.session.add_scene('문이 닫힌다')
+        self.session.add_scene('숨겨진 기록을 찾는다')
+        import sys
+        request, _, _ = self.session.prepare_generation(
+            sys.executable, ('--gguf', 'public-test.gguf'), True,
+            '이 장면은 6000자로 집필', '증거가 사라진다',
+            '서가', ('사서',))
+        self.assertEqual(request.target_chars, 2500)
+        self.assertEqual(
+            effective_scene_target(request.scene_goal, request.target_chars), 6000)
+        self.assertEqual(self.session.rule('characters_per_episode'), '5000')
+
+
     def test_new_file_is_private_and_can_be_reopened(self):
         pid = self.create()
         self.assertTrue(self.path.is_file())
