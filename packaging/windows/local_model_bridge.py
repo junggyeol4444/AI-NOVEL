@@ -61,6 +61,9 @@ def validate_clean_manuscript(raw: str) -> str:
         '이어서 새로운 사건·인물 행동·대사를 한국어 소설 본문으로만 직접 집필하세요.',
         '지금까지 쓴 문장은 다시 쓰지 마세요.',
         '머리말·해설·작성 예정 보고·요약을 쓰지 마세요.',
+        # Exact labels exposed by compiled Windows Qwen GUI prose evidence.
+        # This rejects leaked scaffolding; it does not certify literature.
+        '마크다운 제목:', '역할별 대사 목록:',
     )
     if any(fragment in lower for fragment in forbidden):
         raise ValueError('native console output mixed with draft')
@@ -126,13 +129,14 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
         if nonspace_count(draft) >= minimum or clock() >= deadline:
             break
         previous = draft[-650:]
+        # Request a concrete next passage using existing author-owned context.
+        # The older long negative list was copied into actual Qwen prose.
         continuation_prompt = (
             original_prompt[:2400] + '\n'
-            '이미 집필된 소설의 마지막 부분(반복하여 다시 쓰지 마세요):\n'
+            '지금까지 이어진 이야기의 마지막 문단:\n'
             + previous + '\n'
-            '이어서 새로운 사건·인물 행동·대사를 한국어 소설 본문으로만 '
-            '직접 집필하세요. 지금까지 쓴 문장은 다시 쓰지 마세요. '
-            '머리말·해설·작성 예정 보고·요약을 쓰지 마세요.'
+            '이어서 등장인물이 선택하고 행동하는 다음 사건을 한국어 소설 문단으로 서술하세요. '
+            '장소와 인물의 대화를 자연스럽게 연결하고, 사건으로 생긴 변화를 보여주세요.'
         )
         remaining = deadline - clock()
         if remaining <= 5:
@@ -247,8 +251,7 @@ def main(argv=None) -> int:
             '같은 문장을 반복해 분량을 채우지 마세요. '
             '행동과 감정과 대사, 인물 선택의 인과 관계를 구체적으로 보여주세요. '
             '소설 본문 외의 목차·설명·지시문 반복·메타 해설·출판은 하지 마세요. '
-            '마크다운 제목, 역할별 대사 목록, 작성 일시·위치 목록 대신 '
-            '인물의 행동과 장면이 이어지는 자연스러운 서술문을 쓰세요. '
+            '하나의 장면을 인물의 행동, 대화, 그 결과가 이어지는 서술문으로 완성하세요. '
             '장면 계획을 설명하거나 작성할 것을 약속하지 마세요. '
             '글자 수가 충분하다고 주장하거나 집필을 완료했다는 보고문을 쓰지 마세요. '
             '인물의 행동·대사·감각과 그 결과를 실제 이야기로 바로 서술하세요.')
