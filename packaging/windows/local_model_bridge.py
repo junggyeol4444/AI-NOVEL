@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import time
+import re
 
 
 MODEL_NAME = 'SmolLM2-135M-Instruct-Q4_K_M.gguf'
@@ -98,6 +100,54 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
     return [str(llama), *common, '--log-disable', '--no-show-timings',
             '--system-prompt', system_prompt, '--prompt', prompt,
             '--single-turn']
+
+
+def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int,
+                          invoke, deadline: float, clock=time.monotonic) -> str:
+    """Continue real native model prose if a requested scene ends prematurely.
+
+    No synthetic padding, translation, invented facts, prompt leaks or approvals.
+    Each returned continuation is actual model output and is checked separately.
+    The caller supplies the existing trusted native runner and a bounded deadline.
+    """
+    if not 1000 <= target_chars <= 10000:
+        return draft
+    minimum = (target_chars * 9 + 9) // 10
+    def nonspace_count(value):
+        return sum(not ch.isspace() for ch in value)
+    for _ in range(8):
+        if nonspace_count(draft) >= minimum or clock() >= deadline:
+            break
+        previous = draft[-650:]
+        continuation_prompt = (
+            original_prompt[:2400] + '\n'
+            '이미 집필된 소설의 마지막 부분(반복하여 다시 쓰지 마세요):\n'
+            + previous + '\n'
+            '이어서 새로운 사건·인물 행동·대사를 한국어 소설 본문으로만 '
+            '직접 집필하세요. 지금까지 쓴 문장은 다시 쓰지 마세요. '
+            '머리말·해설·작성 예정 보고·요약을 쓰지 마세요.'
+        )
+        remaining = deadline - clock()
+        if remaining <= 5:
+            break
+        next_raw = invoke(continuation_prompt, remaining)
+        new = validate_clean_manuscript(next_raw).strip()
+        # Do not silently fill short drafts by repeating previous generations.
+        if not new or new in draft or len(new) < 80:
+            break
+        overlap = 0
+        for n in range(min(180, len(new), len(draft)), 24, -1):
+            if draft.endswith(new[:n]):
+                overlap = n
+                break
+        addition = new[overlap:].strip()
+        if len(addition) < 80 or addition in draft:
+            break
+        draft += '\n\n' + addition
+        if len(draft) > 100_000:
+            raise ValueError('invalid native output')
+    return draft
+
 
 def main(argv=None) -> int:
     args = sys.argv[1:] if argv is None else argv
@@ -203,17 +253,34 @@ def main(argv=None) -> int:
         env = {k: os.environ[k] for k in
                ('SYSTEMROOT', 'WINDIR', 'PATH', 'TEMP', 'TMP') if k in os.environ}
         env['PATH'] = str(llama.parent) + os.pathsep + env.get('PATH', '')
+        deadline = time.monotonic() + native_timeout
+        def invoke_native(scene_prompt: str, timeout: float) -> str:
+            live_command = build_native_command(
+                llama, model, system_prompt, scene_prompt, prediction_budget)
+            proc = subprocess.run(live_command, cwd=llama.parent, env=env,
+                                  capture_output=True, text=True, encoding='utf-8',
+                                  errors='replace', timeout=max(1, timeout),
+                                  check=False)
+            if proc.returncode != 0:
+                # Numeric exit only; never reveal user text or native stderr.
+                print('LLAMA_NATIVE_EXIT=' + str(proc.returncode), file=sys.stderr)
+                raise ValueError('model process failed')
+            return proc.stdout
         stage = 'native_inference'
-        proc = subprocess.run(command, cwd=llama.parent, env=env,
-                              capture_output=True, text=True, encoding='utf-8',
-                              errors='replace', timeout=native_timeout, check=False)
-        if proc.returncode != 0:
-            # Only the numeric native process exit status is emitted. stderr
-            # can include user inputs or command-line prompts, so discard it.
-            print('LLAMA_NATIVE_EXIT=' + str(proc.returncode), file=sys.stderr)
-            raise ValueError('model process failed')
+        raw_draft = invoke_native(prompt, deadline - time.monotonic())
         stage = 'text_validation'
-        draft = validate_clean_manuscript(proc.stdout)
+        draft = validate_clean_manuscript(raw_draft)
+        # A Korean-capable user-selected Qwen model sometimes returns an early
+        # EOS after ~775 characters even when asked for ~5000. Continue only
+        # actual model prose under the existing single 400-second deadline.
+        # Never pretend that a short/incoherent scene meets the quality gate.
+        target_match = re.search(r'(?<!\d)(\d{4,5})\s*자', goal)
+        if (not is_bundled_qa_model and model.name.lower().startswith('qwen2.5-')
+                and target_match is not None):
+            target = int(target_match.group(1))
+            draft = continue_korean_scene(
+                draft, original_prompt=prompt, target_chars=target,
+                invoke=invoke_native, deadline=deadline)
         response = {'protocol': MODEL_PROTO, 'draft': draft}
         stage = 'json_output'
         # Windows frozen console executables may use a legacy code page even
