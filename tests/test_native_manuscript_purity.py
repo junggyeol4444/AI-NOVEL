@@ -454,7 +454,7 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             model = root / 'qwen2.5-test.gguf'
             for path in (cli, completion, model):
                 path.write_bytes(b'fixture')
-            diag_path = SOURCE.parents[1] / 'scripts/ci_native_llama_diagnostic.py'
+            diag_path = SOURCE.parents[2] / 'scripts/ci_native_llama_diagnostic.py'
             probe_spec = importlib.util.spec_from_file_location(
                 'anf_ci_heap_probe', diag_path)
             diagnostic = importlib.util.module_from_spec(probe_spec)
