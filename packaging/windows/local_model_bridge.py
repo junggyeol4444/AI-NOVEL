@@ -130,7 +130,12 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
         remaining = deadline - clock()
         if remaining <= 5:
             break
-        next_raw = invoke(continuation_prompt, remaining)
+        try:
+            next_raw = invoke(continuation_prompt, remaining)
+        except subprocess.TimeoutExpired:
+            # Keep only native prose validated before the timeout; never
+            # mark its length or literary quality as approved.
+            break
         new = validate_clean_manuscript(next_raw).strip()
         # Do not silently fill short drafts by repeating previous generations.
         if not new or new in draft or len(new) < 80:
@@ -247,6 +252,12 @@ def main(argv=None) -> int:
         # selected multilingual GGUF weights need a separate bounded CPU budget.
         is_bundled_qa_model = model.name == MODEL_NAME
         prediction_budget = '384' if is_bundled_qa_model else '3072'
+        # Windows native probe: Qwen 48 tokens took 3.88s on x64 and
+        # >30s on ARM. A 3072-token single call can exhaust the entire
+        # 400-second budget before continuation or a GUI status update.
+        # Keep the requested 5000-character quality gate unchanged.
+        if model.name.lower().startswith('qwen2.5-'):
+            prediction_budget = '512'
         native_timeout = 110 if is_bundled_qa_model else 400
         command = build_native_command(
             llama, model, system_prompt, prompt, prediction_budget)

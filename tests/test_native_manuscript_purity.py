@@ -1,5 +1,6 @@
 """Synthetic transport regression: rejecting llama-cli banners is not literary approval."""
 import importlib.util
+import subprocess
 from pathlib import Path
 import unittest
 
@@ -169,6 +170,18 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             original, original_prompt='한국어 소설',
             target_chars=5000, invoke=lambda _p, _s: '이후 사건을 쓰기',
             deadline=1, clock=lambda: 2), original)
+
+    def test_timeout_after_valid_native_draft_keeps_unapproved_partial(self):
+        initial = '여행자는 기록을 펼쳤다. ' * 30
+        def native_timeout(_prompt, _remaining):
+            raise subprocess.TimeoutExpired(cmd='llama-completion.exe', timeout=2)
+        actual = module.continue_korean_scene(
+            initial, original_prompt='한국어 소설을 5000자 집필하세요.',
+            target_chars=5000, invoke=native_timeout,
+            deadline=999, clock=lambda: 0)
+        self.assertEqual(actual, initial)
+        self.assertLess(len(''.join(actual.split())), 4500)
+
 
 
 if __name__ == '__main__':
