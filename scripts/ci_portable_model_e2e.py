@@ -25,11 +25,11 @@ def main(argv):
         'request': {
             'project_id': 'synthetic-qa-project',
             'episode_number': 1, 'scene_number': 1,
-            'novel_bible': 'Entirely invented test village and original protagonist.',
-            'scene_goal': 'Write a brief ORIGINAL scene in an imaginary lantern village.',
-            'scene_conflict': 'A storm prevents the traveler from reaching the inn.',
-            'scene_location': 'Invented lantern village',
-            'characters': ['Original Traveler']}}
+            'novel_bible': '허구의 등불 마을과 독창적인 주인공만 등장하며 참고작을 복제하지 않는 가상 소설이다.',
+            'scene_goal': '허구의 등불 마을에서 주인공이 여관을 찾아가는 독창적인 한국어 소설 장면을 작성한다.',
+            'scene_conflict': '갑작스러운 폭풍으로 여관으로 가는 길이 막힌다.',
+            'scene_location': '허구의 등불 마을',
+            'characters': ['가상의 여행자']}}
     env = {k: os.environ[k] for k in ('PATH','SYSTEMROOT','WINDIR','TEMP','TMP')
            if k in os.environ}
     env['HF_HUB_OFFLINE'] = '1'
