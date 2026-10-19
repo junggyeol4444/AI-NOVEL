@@ -90,6 +90,11 @@ def main(argv):
         text=True, encoding='utf-8', errors='replace',
         cwd=folder, env=env, timeout=145)
     if alternate.returncode:
+        # The bridge emits only fixed, sanitized error categories (no prose).
+        # Record this exact failure separately from the earlier default call.
+        print('Explicit local GGUF bridge exit:', alternate.returncode,
+              'Native status:', alternate.stderr.strip()[-300:],
+              'Output bytes:', len(alternate.stdout))
         raise AssertionError('explicit local GGUF model selection failed')
     selected_output = json.loads(alternate.stdout)
     if (selected_output.get('protocol') != 'anf-local-scene-v1'
