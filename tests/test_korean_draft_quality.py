@@ -48,7 +48,7 @@ class KoreanDraftScreenTests(unittest.TestCase):
         # The CI screenshot/source evidence contained these exact categories:
         # Chinese script '起床', headings '### 첫 장면', and '<사서>:' labels.
         # A format PASS must not be obtained by adding otherwise clean prose.
-        base = '\\n'.join(
+        base = '\n'.join(
             '탐사자가 단서를 읽었다. ' + ''.join(
                 chr(0xAC00 + (i * 61 + j) % 11172) for j in range(65)) +
             ' 사서는 문을 닫았다.' for i in range(90))
@@ -60,7 +60,7 @@ class KoreanDraftScreenTests(unittest.TestCase):
                               '**제목: 도서관**', '<사서>: 대답',
                               '---', '안녕하세요, 저는 AI입니다.'):
             with self.subTest(contamination=contamination):
-                polluted = screen_korean_draft(base + '\\n' + contamination)
+                polluted = screen_korean_draft(base + '\n' + contamination)
                 self.assertFalse(polluted.format_gate_pass)
                 self.assertTrue(polluted.han_script_chars or polluted.non_prose_markers)
 
