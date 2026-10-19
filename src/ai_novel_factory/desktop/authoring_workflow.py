@@ -217,7 +217,13 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self._sync_episode()
             draft = result.draft
             target_text = self._text('characters_per_episode').strip()
-            target = int(target_text) if target_text.isdecimal() else 5000
+            episode_target = int(target_text) if target_text.isdecimal() else 5000
+            # The model receives the per-scene allocation, not a full-chapter
+            # target repeated once per scene. This is only a SCENE format gate;
+            # a chapter of 5000 characters is never auto-approved from it.
+            target = (self._draft_request.target_chars
+                      if self._draft_request.target_chars is not None
+                      else episode_target)
             screening = screen_korean_draft(draft, target_chars=target)
             stats = (f'총 {screening.total_chars}자 / 한글 {screening.hangul_syllables}자 / '
                      f'영문 {screening.latin_letters}자 / '
@@ -228,13 +234,15 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             if not screening.format_gate_pass:
                 self.status.setAccessibleName('한국어 형식 검사 미달')
                 self.status.setText(
-                    f'한국어 형식 검사 미달: {stats}. 목표 {target}자. '
+                    f'한국어 장면 형식 검사 미달: {stats}. '
+                    f'장면 목표 {target}자 / 회차 목표 {episode_target}자. '
                     '검수·수정·재집필 필요, 자동 확정·출판 없음.')
             else:
                 self.status.setAccessibleName('한국어 형식 1차 검사 충족')
                 self.status.setText(
-                    f'한국어 형식 1차 검사 충족: {stats}. '
-                    '문학적 품질·독창성·참고작 유사성·연속성은 미검증입니다.')
+                    f'한국어 장면 형식 1차 검사 충족: {stats}. '
+                    f'장면 목표 {target}자 / 회차 목표 {episode_target}자. '
+                    '전체 회차 분량·문학적 품질·독창성·유사성·연속성은 미검증입니다.')
         except (ValueError, OSError):
             self.status.setText('작품/회차/장면이 변경되어 결과를 적용하지 않았습니다.')
         except Exception:

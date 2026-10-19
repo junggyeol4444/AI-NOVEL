@@ -347,8 +347,22 @@ public static class ANFWin32 {
   [ANFWin32]::SetWindowPos($hwnd, [IntPtr]::new(-1), 0, 0, 1000, 700, [uint32]0x0040) | Out-Null
   $foregroundRequestAccepted = [ANFWin32]::SetForegroundWindow($hwnd)
   Write-Host ("ForegroundRequestAccepted={0}" -f $foregroundRequestAccepted)
-  Start-Sleep -Seconds 2
+  Start-Sleep -Milliseconds 700
   $front = [ANFWin32]::GetForegroundWindow()
+  # Retry focus only on OUR OWN GUI, via normal Windows UIAutomation.
+  # Never close, click through, or terminate an unrelated OS/OOBE window.
+  # The strict foreground gate below remains unchanged if WWAHost wins.
+  for ($focusAttempt = 1; $focusAttempt -le 3 -and $front -ne $hwnd; $focusAttempt++) {
+    try {
+      $root.SetFocus()
+      Write-Host ("OwnGuiUIAFocusRequest={0}; Accepted=True" -f $focusAttempt)
+    } catch {
+      Write-Host ("OwnGuiUIAFocusRequest={0}; Accepted=False" -f $focusAttempt)
+    }
+    [void][ANFWin32]::SetForegroundWindow($hwnd)
+    Start-Sleep -Milliseconds 400
+    $front = [ANFWin32]::GetForegroundWindow()
+  }
   Write-Host ("QtForeground={0}; ForegroundHandle={1}" -f ($front -eq $hwnd), $front)
   if ($front -ne $hwnd -and $front -ne [IntPtr]::Zero) {
     # Diagnostics only: do not dismiss, kill, or bypass OS foreground UI.

@@ -51,6 +51,9 @@ class AuthoringCreationSafetyTests(TestCase):
         two = prepared()
         self.assertEqual(two.target_chars, 2500)
         self.assertEqual(_message(two)['request']['target_chars'], 2500)
+        # A per-scene partial does NOT satisfy the entire episode target.
+        self.assertLess(two.target_chars, int(
+            self.session.rule('characters_per_episode')))
 
     def test_new_file_is_private_and_can_be_reopened(self):
         pid = self.create()

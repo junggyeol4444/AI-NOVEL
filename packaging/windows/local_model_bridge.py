@@ -123,6 +123,38 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
             '--single-turn']
 
 
+def repeats_existing_passage(addition: str, manuscript: str) -> bool:
+    """Reject a long copied prefix even if later words or digits differ.
+
+    Only compares the model's actual content; no synthetic passage is added.
+    This is a conservative cross-generation repetition guard, not a literary
+    acceptance test, and leaves the author-owned manuscript unchanged.
+    """
+    current = re.sub(r'[^가-힣A-Za-z0-9]', '', addition).casefold()
+    earlier = re.sub(r'[^가-힣A-Za-z0-9]', '', manuscript).casefold()
+    return len(current) >= 90 and current[:90] in earlier
+
+
+def retry_bundled_korean_text(prompt: str, *, first_error: ValueError,
+                              invoke, remaining: float) -> str:
+    """One bounded real GGUF retry; never fabricate or translate a draft.
+
+    The tiny bundled 135M model sometimes exits or produces only non-Korean
+    text. A single shorter native inference is allowed when time remains.
+    Failure still propagates to the original GUI with no saved draft.
+    """
+    if (type(first_error) is not ValueError
+            or str(first_error) not in (
+                'native output lacks Korean novel prose', 'model process failed')
+            or remaining < 20):
+        raise first_error
+    retry_prompt = (
+        prompt + '\n'
+        '인물은 주변에 있는 사물을 보고 한국어로 말한다. '
+        '그 말을 들은 다른 인물이 실제로 움직인다.')
+    return invoke(retry_prompt, remaining, '160')
+
+
 def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int,
                           invoke, deadline: float, clock=time.monotonic) -> str:
     """Continue real native model prose if a requested scene ends prematurely.
@@ -179,6 +211,10 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
                 break
         addition = new[overlap:].strip()
         if len(addition) < 80 or addition in draft:
+            break
+        # Real Qwen continuations sometimes recite the same first paragraph
+        # with a changed final phrase. Do not count it toward manuscript length.
+        if repeats_existing_passage(addition, draft):
             break
         draft += '\n\n' + addition
         if len(draft) > 100_000:
@@ -316,9 +352,11 @@ def main(argv=None) -> int:
                ('SYSTEMROOT', 'WINDIR', 'PATH', 'TEMP', 'TMP') if k in os.environ}
         env['PATH'] = str(llama.parent) + os.pathsep + env.get('PATH', '')
         deadline = time.monotonic() + native_timeout
-        def invoke_native(scene_prompt: str, timeout: float) -> str:
+        def invoke_native(scene_prompt: str, timeout: float,
+                          budget_override: str | None = None) -> str:
             live_command = build_native_command(
-                llama, model, system_prompt, scene_prompt, prediction_budget)
+                llama, model, system_prompt, scene_prompt,
+                budget_override if budget_override is not None else prediction_budget)
             proc = subprocess.run(live_command, cwd=llama.parent, env=env,
                                   capture_output=True, text=True, encoding='utf-8',
                                   errors='replace', timeout=max(1, timeout),
@@ -329,9 +367,23 @@ def main(argv=None) -> int:
                 raise ValueError('model process failed')
             return proc.stdout
         stage = 'native_inference'
-        raw_draft = invoke_native(prompt, deadline - time.monotonic())
-        stage = 'text_validation'
-        draft = validate_clean_manuscript(raw_draft)
+        try:
+            raw_draft = invoke_native(prompt, deadline - time.monotonic())
+            stage = 'text_validation'
+            draft = validate_clean_manuscript(raw_draft)
+        except ValueError as initial_error:
+            # For the *same* bundled public GGUF only: retry one short actual
+            # native inference after a crash or output lacking Hangul.  Never
+            # substitute a different model, synthetic text, or user content.
+            if not is_bundled_qa_model:
+                raise
+            remaining = deadline - time.monotonic()
+            stage = 'native_inference'
+            raw_draft = retry_bundled_korean_text(
+                prompt, first_error=initial_error,
+                invoke=invoke_native, remaining=remaining)
+            stage = 'text_validation'
+            draft = validate_clean_manuscript(raw_draft)
         # A Korean-capable user-selected Qwen model sometimes returns an early
         # EOS after ~775 characters even when asked for ~5000. Continue only
         # actual model prose under the existing single 400-second deadline.

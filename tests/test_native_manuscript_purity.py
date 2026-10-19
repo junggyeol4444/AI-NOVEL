@@ -219,9 +219,12 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                 module.requested_scene_target('조사와 추적', {'target_chars': bad})
 
     def test_real_continuation_reaches_requested_chars_without_padding(self):
+        # Unique non-linguistic tokens exercise byte transport only, NEVER
+        # constitute a literary-quality approval or substitute model output.
         intro = '조사자가 기록을 살폈다. ' * 32
-        chunks = ['사서는 새로운 사건을 조사하고 결정했다. ' * 55 + '단서' + str(i)
-                  for i in range(8)]
+        chunks = [''.join(chr(0xAC00 + (i * 600 + j) % 11172)
+                          for j in range(550)) + ' 사서가 새로운 계단을 찾았다.'
+                  for i in range(9)]
         inputs = iter(chunks)
         seen = []
         def invoke(prompt, remaining):
@@ -235,6 +238,41 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertGreaterEqual(len(seen), 1)
         self.assertTrue(all('이어서' in prompt for prompt, _ in seen))
         self.assertNotIn('[모의 초고', result)
+
+    def test_changed_suffix_cannot_pad_repeated_continuation(self):
+        original = '주인공이 도서관을 살폈다.'
+        copied = '사서가 낡은 기록을 살펴보았다. ' * 18
+        seen = []
+        def invoke(_prompt, _remaining):
+            seen.append(True)
+            return copied if len(seen) == 1 else copied + ' 마지막에 숫자 2를 썼다.'
+        actual = module.continue_korean_scene(
+            original, original_prompt='도서관', target_chars=5000,
+            invoke=invoke, deadline=999, clock=lambda: 0)
+        self.assertEqual(len(seen), 2)
+        self.assertEqual(actual.count(copied), 1)
+
+    def test_bundled_retry_one_real_native_run_only(self):
+        calls = []
+        def invoke(prompt, remaining, budget):
+            calls.append((prompt, remaining, budget))
+            return '사서는 기록을 발견했고 동료에게 그 사실을 전했다.'
+        raw = module.retry_bundled_korean_text(
+            '작가 소유 설정: 도서관', first_error=ValueError(
+                'native output lacks Korean novel prose'),
+            invoke=invoke, remaining=60)
+        self.assertIn('사서는 기록', raw)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][2], '160')
+        self.assertIn('작가 소유 설정: 도서관', calls[0][0])
+        for reason, remaining in (('native output lacks Korean novel prose', 10),
+                                  ('native console output mixed with draft', 60)):
+            with self.subTest(reason=reason), self.assertRaises(ValueError):
+                module.retry_bundled_korean_text(
+                    '원래 설정', first_error=ValueError(reason),
+                    invoke=invoke, remaining=remaining)
+        self.assertEqual(len(calls), 1)
+
 
     def test_repeated_completion_does_not_fill_length(self):
         intro = '주인공이 사라진 기록을 살폈다. ' * 20
