@@ -1,7 +1,7 @@
 name: ANF Linux quick studio and data safety (VALIDATION ONLY)
 on:
   push:
-    branches: [validation/gui-authoring-e2e-20261014]
+    branches: [main]
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

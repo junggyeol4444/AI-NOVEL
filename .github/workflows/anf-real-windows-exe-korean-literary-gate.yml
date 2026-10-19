@@ -1,7 +1,7 @@
 name: ANF native Windows EXE Korean manuscript acceptance (VALIDATION ONLY)
 on:
   push:
-    branches: [validation/gui-authoring-e2e-20261014]
+    branches: [main]
     paths:
       - '.github/workflows/anf-real-windows-exe-korean-literary-gate.yml'
       - 'packaging/windows/local_model_bridge.py'
@@ -13,7 +13,7 @@ permissions:
   actions: read
 jobs:
   build-current-korean-model-bridge:
-    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-2022
     timeout-minutes: 15
     steps:
@@ -55,7 +55,7 @@ jobs:
           if-no-files-found: error
   real-windows-exe-external-gui-korean-5000:
     needs: build-current-korean-model-bridge
-    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    if: github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
       matrix:

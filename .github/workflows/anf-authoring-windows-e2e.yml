@@ -1,7 +1,7 @@
 name: ANF compiled Windows EXE full authoring journey (VALIDATION ONLY)
 on:
   push:
-    branches: [validation/gui-authoring-e2e-20261014]
+    branches: [main]
   workflow_dispatch:
 # Validation-only: a newer candidate supersedes a queued earlier candidate.
 # Do not change the pre-existing hourly/scheduled workflows.
@@ -12,7 +12,7 @@ permissions:
   contents: read
 jobs:
   compiled-windows-authoring:
-    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-2022
     timeout-minutes: 55
     env:
@@ -146,7 +146,7 @@ jobs:
             build/ci/portable-gui/restarted_report.json
 
   windows11-complete-offline-app:
-    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    if: github.ref == 'refs/heads/main'
     needs: compiled-windows-authoring
     runs-on: windows-11-arm
     timeout-minutes: 35

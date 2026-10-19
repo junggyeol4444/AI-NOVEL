@@ -1,7 +1,7 @@
 name: ANF Windows extended 250-episode stress and repeated offline GGUF (VALIDATION ONLY)
 on:
   push:
-    branches: [validation/gui-authoring-e2e-20261014]
+    branches: [main]
     paths:
       - 'src/**'
       - 'scripts/**'
@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   synthetic-windows-longform-and-reference:
-    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-2022
     timeout-minutes: 60
     env:
@@ -206,7 +206,7 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
   windows-compiled-gguf-five-repeats:
-    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-2022
     timeout-minutes: 45
     steps:

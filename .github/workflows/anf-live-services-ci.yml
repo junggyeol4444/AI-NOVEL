@@ -1,7 +1,7 @@
 name: ANF real local PostgreSQL pgvector Redis Celery (VALIDATION ONLY)
 on:
   push:
-    branches: [validation/gui-authoring-e2e-20261014]
+    branches: [main]
   workflow_dispatch:
 # Validation-only: a newer candidate supersedes a queued earlier candidate.
 # Do not change the pre-existing hourly/scheduled workflows.
@@ -12,7 +12,7 @@ permissions:
   contents: read
 jobs:
   genuine-local-database-vector-queue:
-    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 18
     services:

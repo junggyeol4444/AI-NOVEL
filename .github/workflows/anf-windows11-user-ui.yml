@@ -1,7 +1,7 @@
 name: ANF Windows 11 real desktop QA (VALIDATION ONLY)
 on:
   push:
-    branches: [validation/gui-authoring-e2e-20261014]
+    branches: [main]
   workflow_dispatch:
 # Validation-only: a newer candidate supersedes a queued earlier candidate.
 # Do not change the pre-existing hourly/scheduled workflows.
@@ -12,7 +12,7 @@ permissions:
   contents: read
 jobs:
   qa-exe-x64-build:
-    if: github.ref == 'refs/heads/validation/gui-authoring-e2e-20261014'
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
