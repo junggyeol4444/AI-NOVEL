@@ -87,6 +87,7 @@ def probe(cli: Path, model: Path) -> dict:
                           hangul=False, banner=False, echo=False, chars=0,
                           timeout=False)
         if completion['supported']:
+            help_text = ''
             try:
                 help_process = subprocess.run([str(completion_exe), '--help'],
                                               cwd=cli.parent, capture_output=True,
