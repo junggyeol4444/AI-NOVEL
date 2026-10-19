@@ -7,6 +7,7 @@ on:
       - 'scripts/**'
       - 'tests/**'
       - 'packaging/**'
+      - '.github/workflows/anf-win250-and-real-gguf-repeat-ci.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -222,6 +223,15 @@ jobs:
           name: ANF-Full-Offline-Portable-QA-Windows-x64-Not-Release
           path: build/ci/offline-reused
           github-token: ${{ github.token }}
+      - name: Build compiled model bridge from the checked-out commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python -m pip install -e ".[desktop,build]"
+          if ($LASTEXITCODE -ne 0) { throw 'Current source bridge dependencies failed' }
+          python -m PyInstaller --noconfirm --onefile --console --name ANF_Local_Model --distpath build/ci/gguf-current-bridge --workpath build/ci/gguf-current-bridge-work packaging/windows/local_model_bridge.py
+          if ($LASTEXITCODE -ne 0) { throw 'Current source bridge build failed' }
+          if (-not (Test-Path build/ci/gguf-current-bridge/ANF_Local_Model.exe)) { throw 'Current bridge not compiled' }
       - name: Run compiled GGUF inference offline five sequential times
         shell: pwsh
         env:
@@ -233,13 +243,22 @@ jobs:
           $bridge=Get-ChildItem build/ci/offline-reused -Filter ANF_Local_Model.exe -Recurse -File | Select-Object -First 1
           if (-not $bridge) { throw 'Compiled bridge missing in previous QA artifact' }
           $folder=$bridge.DirectoryName
+          # The downloaded archive supplies only PUBLIC QA GGUF/runtime.
+          # Never test its old model-bridge EXE in place of current source.
+          $current='build/ci/gguf-current-bridge/ANF_Local_Model.exe'
+          if (-not (Test-Path $current)) { throw 'Current commit bridge missing' }
+          Copy-Item -LiteralPath $current -Destination $bridge.FullName -Force
+          $currentHash=(Get-FileHash -LiteralPath $current -Algorithm SHA256).Hash.ToLowerInvariant()
+          $stagedHash=(Get-FileHash -LiteralPath $bridge.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($currentHash -ne $stagedHash) { throw 'Staged model bridge differs from checked-out build' }
+          Write-Host ('CURRENT_HEAD_BRIDGE_SHA256='+$currentHash)
           $results=@()
           1..5 | ForEach-Object {
             python scripts/ci_portable_model_e2e.py $folder
             if ($LASTEXITCODE -ne 0) { throw "Native GGUF run $_ FAILED" }
             $result=Get-Content build/ci/portable_model_e2e.json -Raw | ConvertFrom-Json
             if ($result.status -ne 'PASS' -or -not $result.actual_gguf_local_inference -or $result.draft_char_count -lt 1) { throw 'Real inference evidence missing' }
-            $results+=@{run=$_;status='PASS'; sha256=$result.draft_sha256;chars=$result.draft_char_count}
+            $results+=@{run=$_;status='PASS'; head=$env:GITHUB_SHA; bridge_sha256=$currentHash; sha256=$result.draft_sha256;chars=$result.draft_char_count}
           }
           New-Item build/ci/gguf-five -ItemType Directory -Force | Out-Null
           $results | ConvertTo-Json -Depth 4 | Out-File build/ci/gguf-five/metadata.json -Encoding utf8
