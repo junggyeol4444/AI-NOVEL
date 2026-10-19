@@ -185,7 +185,7 @@ def requested_scene_target(goal: str, request: dict) -> int | None:
     stored = request.get('target_chars')
     if stored is not None and (type(stored) is not int or not 1 <= stored <= 1_000_000):
         raise ValueError('invalid scene target length')
-    match = re.search(r'(?<!\\d)(\\d{4,5})\\s*자', goal)
+    match = re.search(r'(?<!\d)(\d{4,5})\s*자', goal)
     return int(match.group(1)) if match else stored
 
 
