@@ -253,6 +253,49 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         # Validation trims surrounding whitespace from native responses.
         self.assertEqual(actual.count(copied.strip()), 1)
 
+    def test_qwen_script_failure_retries_same_native_once(self):
+        # This is a transport-only unit test, not real Qwen quality approval.
+        calls = []
+        def invoke(prompt, seconds, budget):
+            calls.append((prompt, seconds, budget))
+            return '조사자는 창문 밖의 흔적을 확인하고 동료에게 알렸다.'
+        raw = module.retry_qwen_korean_text(
+            '작가가 정한 가상의 도서관 장면',
+            first_error=ValueError('native non-Korean script in draft'),
+            invoke=invoke, remaining=50)
+        self.assertEqual(module.validate_clean_manuscript(raw), raw)
+        self.assertEqual(len(calls), 1)
+        self.assertIn('작가가 정한 가상의 도서관 장면', calls[0][0])
+        self.assertEqual(calls[0][2], '160')
+        self.assertEqual(calls[0][1], 50)
+
+    def test_qwen_retry_never_bypasses_validation_or_time_budget(self):
+        calls = []
+        def invoke(prompt, seconds, budget):
+            calls.append((prompt, seconds, budget))
+            return '사서가 기록을 열었다. 異'
+        for error, remaining in (
+            ('native non-Korean script in draft', 20),
+            ('native console output mixed with draft', 60),
+            ('model process failed', 60),
+        ):
+            with self.subTest(error=error, remaining=remaining):
+                with self.assertRaises(ValueError):
+                    module.retry_qwen_korean_text(
+                        '작가가 정한 장면', first_error=ValueError(error),
+                        invoke=invoke, remaining=remaining)
+        self.assertEqual(calls, [])
+        raw = module.retry_qwen_korean_text(
+            '작가가 정한 장면',
+            first_error=ValueError('native output lacks Korean novel prose'),
+            invoke=invoke, remaining=60)
+        with self.assertRaisesRegex(ValueError, 'non-Korean script'):
+            module.validate_clean_manuscript(raw)
+        self.assertEqual(len(calls), 1)
+        source = SOURCE.read_text(encoding='utf-8')
+        self.assertIn("raise initial_error from None", source)
+        self.assertIn("and remaining >= 25", source)
+
     def test_bundled_mixed_script_gets_one_strict_native_retry(self):
         # Windows real GGUF returned 'NON_KOREAN_SCRIPT' on first attempt.
         # Exactly one real native retry is allowed, and invalid retry still

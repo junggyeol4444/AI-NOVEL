@@ -156,6 +156,26 @@ def retry_bundled_korean_text(prompt: str, *, first_error: ValueError,
     return invoke(retry_prompt, remaining, '160')
 
 
+def retry_qwen_korean_text(prompt: str, *, first_error: ValueError,
+                           invoke, remaining: float) -> str:
+    """Retry only an invalid first Qwen script once with the SAME local GGUF.
+
+    Never change model weights, acceptance rules, user prose or output text.
+    A second rejected draft must not be saved as a successful manuscript.
+    """
+    if (type(first_error) is not ValueError
+            or str(first_error) not in (
+                'native output lacks Korean novel prose',
+                'native non-Korean script in draft')
+            or remaining < 25):
+        raise first_error
+    retry_prompt = (
+        prompt + '\n'
+        '첫 문장부터 한국어 소설 본문을 이어 씁니다. '
+        '등장인물이 목표를 향해 행동하고 그 결과가 주변에 나타납니다.')
+    return invoke(retry_prompt, remaining, '160')
+
+
 def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int,
                           invoke, deadline: float, clock=time.monotonic) -> str:
     """Continue real native model prose if a requested scene ends prematurely.
@@ -373,18 +393,34 @@ def main(argv=None) -> int:
             stage = 'text_validation'
             draft = validate_clean_manuscript(raw_draft)
         except ValueError as initial_error:
-            # For the *same* bundled public GGUF only: retry one short actual
-            # native inference after a crash or output lacking Hangul.  Never
-            # substitute a different model, synthetic text, or user content.
-            if not is_bundled_qa_model:
-                raise
             remaining = deadline - time.monotonic()
-            stage = 'native_inference'
-            raw_draft = retry_bundled_korean_text(
-                prompt, first_error=initial_error,
-                invoke=invoke_native, remaining=remaining)
-            stage = 'text_validation'
-            draft = validate_clean_manuscript(raw_draft)
+            if is_bundled_qa_model:
+                # Preserve the existing bundled public GGUF retry path.
+                stage = 'native_inference'
+                raw_draft = retry_bundled_korean_text(
+                    prompt, first_error=initial_error,
+                    invoke=invoke_native, remaining=remaining)
+                stage = 'text_validation'
+                draft = validate_clean_manuscript(raw_draft)
+            elif (model.name.lower().startswith('qwen2.5-')
+                  and str(initial_error) in (
+                      'native output lacks Korean novel prose',
+                      'native non-Korean script in draft')
+                  and remaining >= 25):
+                # The actual Windows Qwen GUI failed this exact script gate.
+                # Retry the SAME local model once; never translate, pad or
+                # substitute a model, and keep the original rejection reason.
+                stage = 'native_inference'
+                raw_draft = retry_qwen_korean_text(
+                    prompt, first_error=initial_error,
+                    invoke=invoke_native, remaining=remaining)
+                stage = 'text_validation'
+                try:
+                    draft = validate_clean_manuscript(raw_draft)
+                except ValueError:
+                    raise initial_error from None
+            else:
+                raise
         # A Korean-capable user-selected Qwen model sometimes returns an early
         # EOS after ~775 characters even when asked for ~5000. Continue only
         # actual model prose under the existing single 400-second deadline.
