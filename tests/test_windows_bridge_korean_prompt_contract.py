@@ -20,7 +20,8 @@ class KoreanNativeBridgeSourceContract(unittest.TestCase):
         self.assertIn("'--repeat-penalty', '1.16'", source)
         self.assertIn("'--log-disable', '--no-show-timings'", source)
         self.assertNotIn("'--simple-io',", source)
-        self.assertIn('validate_clean_manuscript(proc.stdout)', source)
+        self.assertIn('draft = validate_clean_manuscript(raw_draft)', source)
+        self.assertIn('new = validate_clean_manuscript(next_raw)', source)
 
     def test_output_budget_no_longer_384(self):
         source = SOURCE.read_text(encoding='utf-8')
