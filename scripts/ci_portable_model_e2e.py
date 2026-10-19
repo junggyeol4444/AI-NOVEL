@@ -46,12 +46,22 @@ def main(argv):
         # Never print its stdout/stderr because they may include model prose.
         native = folder / 'runtime' / 'llama-cli.exe'
         known_model = str(model)
+        # Unlike llama-cli, the bundled bridge actually calls
+        # llama-completion.exe. Probe that same executable and flag family
+        # with original, disposable Korean text; do not print model prose.
+        completion = native.with_name('llama-completion.exe')
         candidates = [
-            ('minimal', [str(native), '--model', known_model,
-                         '--prompt', 'Once upon a time', '--predict', '8']),
-            ('single_turn', [str(native), '--model', known_model,
-                             '--prompt', 'Once upon a time', '--predict', '8',
-                             '--single-turn', '--no-display-prompt']),
+            ('minimal_cli_baseline', [str(native), '--model', known_model,
+                                      '--prompt', 'Once upon a time', '--predict', '8']),
+            ('completion_korean_native_path', [
+                str(completion), '--model', known_model, '--predict', '128',
+                '--ctx-size', '4096', '--threads', '1', '--threads-batch', '1',
+                '--repeat-penalty', '1.16', '--repeat-last-n', '256',
+                '--temp', '0.8', '--top-p', '0.92', '--no-display-prompt',
+                '--log-verbosity', '0',
+                '--system-prompt', '한국어로만 허구의 소설 첫 문장을 집필하세요.',
+                '--prompt', '허구의 등불 마을에서 여행자가 폭풍을 만났다. 첫 문장부터 소설 본문만 작성하세요.',
+                '--single-turn']),
         ]
         for label, cmd in candidates:
             try:
@@ -64,10 +74,15 @@ def main(argv):
                             'error loading model', 'could not load',
                             'model load', 'failed to initialize', 'failed to open',
                             'gguf', 'error:', 'unknown option') if tag in err]
+                # Counts only; neither prompts nor generated prose in logs.
                 print('Synthetic native diagnostic:', label,
                       'exit', probe.returncode,
                       'stderr_categories', sorted(set(classes)),
-                      'stdout_bytes', len(probe.stdout),
+                      'stdout_bytes', len(probe.stdout.encode('utf-8')),
+                      'stdout_hangul', sum('가' <= ch <= '힣' for ch in probe.stdout),
+                      'stdout_latin', sum(('A' <= ch <= 'Z') or ('a' <= ch <= 'z')
+                                          for ch in probe.stdout),
+                      'stdout_replacement', probe.stdout.count('\ufffd'),
                       'stderr_bytes', len(probe.stderr))
             except subprocess.TimeoutExpired:
                 print('Synthetic native diagnostic:', label, 'TIMEOUT')
