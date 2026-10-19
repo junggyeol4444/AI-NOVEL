@@ -157,6 +157,40 @@ def probe(cli: Path, model: Path) -> dict:
                 completion['timeout'] = True
             except (OSError, ValueError):
                 completion['error'] = 'native_completion_probe_error'
+        # Windows Server 2022 returned 0xC0000374 from the pinned native
+        # runner even for a 48-token synthetic prompt. Isolate mmap/threads
+        # with the SAME executable and GGUF before touching production flags.
+        # These are diagnostic runs only; never accept nonzero exits.
+        crash_isolation = {'kind': 'ci_only_heap_crash_isolation',
+                           'triggered': completion.get('exit') == 3221226356,
+                           'variants': []}
+        if (crash_isolation['triggered'] and completion.get('supported')
+                and '--no-mmap' in help_text):
+            for threads in ('1', '4'):
+                candidate = command.copy()
+                candidate[candidate.index('--threads') + 1] = threads
+                candidate[candidate.index('--threads-batch') + 1] = threads
+                candidate.extend(['--no-mmap'])
+                result = {'threads': int(threads), 'no_mmap': True,
+                          'exit': None, 'hangul': False, 'chars': 0,
+                          'timeout': False}
+                started = time.monotonic()
+                try:
+                    trial = subprocess.run(
+                        candidate, cwd=cli.parent, capture_output=True,
+                        timeout=90, check=False)
+                    safe_output = trial.stdout.decode('utf-8', 'replace')
+                    result['exit'] = trial.returncode
+                    result['hangul'] = any('가' <= c <= '힣' for c in safe_output)
+                    result['chars'] = len(safe_output)
+                except subprocess.TimeoutExpired:
+                    result['timeout'] = True
+                except (OSError, ValueError):
+                    result['error'] = 'native_heap_probe_error'
+                finally:
+                    result['elapsed_s'] = round(time.monotonic() - started, 2)
+                crash_isolation['variants'].append(result)
+        report['heap_crash_isolation'] = crash_isolation
         # Compare the existing single-thread native runtime to a four-thread
         # invocation before changing the product. Report only timings, exit
         # status and output shape, never generated text or author material.
