@@ -115,7 +115,7 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
     minimum = (target_chars * 9 + 9) // 10
     def nonspace_count(value):
         return sum(not ch.isspace() for ch in value)
-    for _ in range(8):
+    for _ in range(24):
         if nonspace_count(draft) >= minimum or clock() >= deadline:
             break
         previous = draft[-650:]
@@ -136,7 +136,14 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
             # Keep only native prose validated before the timeout; never
             # mark its length or literary quality as approved.
             break
-        new = validate_clean_manuscript(next_raw).strip()
+        try:
+            new = validate_clean_manuscript(next_raw).strip()
+        except ValueError:
+            # A later invalid/English/native-failed completion must never
+            # destroy the initial, already validated Korean draft. Preserve
+            # it as an unapproved partial draft and let the unchanged GUI
+            # length/language/literary gates reject an inadequate result.
+            break
         # Do not silently fill short drafts by repeating previous generations.
         if not new or new in draft or len(new) < 80:
             break

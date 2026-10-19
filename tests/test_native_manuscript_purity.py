@@ -158,11 +158,24 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertEqual(result, intro)
 
     def test_continuation_does_not_bypass_native_korean_rejection(self):
-        with self.assertRaisesRegex(ValueError, 'Korean'):
-            module.continue_korean_scene(
-                '사서가 기록을 읽었다.', original_prompt='한국어 소설',
-                target_chars=5000, invoke=lambda _p, _s: 'Only English text',
-                deadline=999, clock=lambda: 0)
+        original = '사서가 기록을 읽었다.'
+        actual = module.continue_korean_scene(
+            original, original_prompt='한국어 소설',
+            target_chars=5000, invoke=lambda _p, _s: 'Only English text',
+            deadline=999, clock=lambda: 0)
+        # A rejected continuation must not be added or fabricated, while
+        # the existing valid partial stays available for explicit review.
+        self.assertEqual(actual, original)
+
+    def test_native_failure_in_continuation_preserves_partial_without_padding(self):
+        original = '조사자는 가상의 섬에서 기록을 발견했다.'
+        def error(_prompt, _remaining):
+            raise ValueError('model process failed')
+        actual = module.continue_korean_scene(
+            original, original_prompt='한국어 소설',
+            target_chars=5000, invoke=error, deadline=999, clock=lambda: 0)
+        self.assertEqual(actual, original)
+
 
     def test_elapsed_deadline_returns_unapproved_short_draft_unchanged(self):
         original = '사서가 기록을 읽었다.'
