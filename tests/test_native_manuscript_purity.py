@@ -442,5 +442,51 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertEqual(actual, original)
         self.assertEqual(len(calls), 2)
 
+
+    def test_windows_heap_crash_isolation_probes_same_binary_without_acceptance(self):
+        # Pure fake subprocess results: checks diagnostics only, never novel QA.
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            cli = root / 'llama-cli.exe'
+            completion = root / 'llama-completion.exe'
+            model = root / 'qwen2.5-test.gguf'
+            for path in (cli, completion, model):
+                path.write_bytes(b'fixture')
+            diag_path = SOURCE.parents[1] / 'scripts/ci_native_llama_diagnostic.py'
+            probe_spec = importlib.util.spec_from_file_location(
+                'anf_ci_heap_probe', diag_path)
+            diagnostic = importlib.util.module_from_spec(probe_spec)
+            probe_spec.loader.exec_module(diagnostic)
+            commands = []
+            def fake_run(command, **_kwargs):
+                commands.append(tuple(command))
+                if '--help' in command:
+                    switches = (
+                        '--single-turn --system-prompt --no-display-prompt '
+                        '--log-disable --no-show-timings --repeat-penalty '
+                        '--no-mmap --prompt --predict --ctx-size --threads '
+                        '--threads-batch --log-verbosity'
+                    ).encode('ascii')
+                    return subprocess.CompletedProcess(command, 0, switches, b'')
+                if '--no-mmap' in command:
+                    return subprocess.CompletedProcess(
+                        command, 0, '사서가 기록을 발견했다.'.encode('utf-8'), b'')
+                if Path(command[0]).name == 'llama-completion.exe':
+                    return subprocess.CompletedProcess(
+                        command, 3221226356, b'', b'')
+                return subprocess.CompletedProcess(command, 0, b'', b'')
+            with patch.object(diagnostic.subprocess, 'run', side_effect=fake_run):
+                report = diagnostic.probe(cli, model)
+            isolated = report['heap_crash_isolation']
+            self.assertTrue(isolated['triggered'])
+            self.assertEqual([v['threads'] for v in isolated['variants']], [1, 4])
+            self.assertTrue(all(v['no_mmap'] and v['exit'] == 0
+                                for v in isolated['variants']))
+            self.assertEqual(sum('--no-mmap' in cmd for cmd in commands), 2)
+            self.assertEqual(report['noninteractive_completion']['exit'], 3221226356)
+            self.assertEqual(report['kind'], 'diagnostic_not_literary_acceptance')
+
 if __name__ == '__main__':
     unittest.main()
