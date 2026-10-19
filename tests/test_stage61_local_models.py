@@ -97,6 +97,27 @@ sys.exit(1)
         with self.assertRaisesRegex(LocalModelError, 'native_output_rejected'):
             provider.generate(self.request)
 
+    def test_native_reject_reasons_are_specific_and_keep_author_text_private(self):
+        cases = (
+            ('NO_HANGUL', 'native_no_hangul'),
+            ('NON_KOREAN_SCRIPT', 'native_non_korean_script'),
+            ('CONSOLE_OR_PROMPT_ECHO', 'native_prompt_echo'),
+            ('INVALID_TYPE', 'native_output_rejected'),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                worker = self._worker(
+                    'import sys\n'
+                    'sys.stderr.write("private manuscript should never be echoed\\n")\n'
+                    'sys.stderr.write("LOCAL_MODEL_GENERATION_FAILED;'
+                    'STAGE=text_validation;TYPE=ValueError;REASON='
+                    + reason + '\\n")\n'
+                    'sys.exit(1)\n')
+                with self.assertRaises(LocalModelError) as ctx:
+                    worker.generate(self.request)
+                self.assertEqual(str(ctx.exception), expected)
+                self.assertNotIn('private manuscript', str(ctx.exception))
+
     def test_real_windows_native_heap_corruption_has_safe_category(self):
         worker = self._worker('''import sys
 sys.stderr.write("LLAMA_NATIVE_EXIT=3221226356\\n")

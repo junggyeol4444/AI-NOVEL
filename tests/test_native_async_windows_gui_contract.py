@@ -15,6 +15,13 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertNotIn('self.session.generate(', GUI)
         self.assertIn('worker.start()', GUI)
 
+    def test_actual_windows_quality_failure_is_not_misreported_as_sqlite_failure(self):
+        source = (ROOT / '.github/workflows/anf-real-windows-exe-korean-literary-gate.yml').read_text(encoding='utf-8')
+        self.assertIn("$report.sqlite_readonly_reopened=$true", source)
+        self.assertIn("$report.current_stage='validate_korean_5000_no_english_padding'\n", source)
+        self.assertIn('native_non_korean_script', source)
+        self.assertIn('native_no_hangul', source)
+
     def test_live_gui_does_not_close_during_inference(self):
         self.assertIn('authoring.is_generating()', MAIN)
         self.assertIn('accept_generation(', GUI)

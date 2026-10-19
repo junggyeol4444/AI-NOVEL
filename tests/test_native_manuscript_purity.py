@@ -253,6 +253,28 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         # Validation trims surrounding whitespace from native responses.
         self.assertEqual(actual.count(copied.strip()), 1)
 
+    def test_bundled_mixed_script_gets_one_strict_native_retry(self):
+        # Windows real GGUF returned 'NON_KOREAN_SCRIPT' on first attempt.
+        # Exactly one real native retry is allowed, and invalid retry still
+        # raises, rather than automatically translating the draft.
+        calls = []
+        def native(prompt, timeout, budget):
+            calls.append((prompt, timeout, budget))
+            return '사서가 뒤편의 문을 발견했다.'
+        observed = module.retry_bundled_korean_text(
+            '서가에서 탐사한다', first_error=ValueError(
+                'native non-Korean script in draft'),
+            invoke=native, remaining=45)
+        self.assertIn('사서가', observed)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][2], '160')
+        with self.assertRaisesRegex(ValueError, 'native non-Korean script'):
+            module.retry_bundled_korean_text(
+                '서가에서 탐사한다', first_error=ValueError(
+                    'native non-Korean script in draft'),
+                invoke=native, remaining=10)
+        self.assertEqual(len(calls), 1)
+
     def test_bundled_retry_one_real_native_run_only(self):
         calls = []
         def invoke(prompt, remaining, budget):

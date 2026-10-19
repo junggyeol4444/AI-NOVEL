@@ -276,6 +276,9 @@ jobs:
                   if($safeStatus -match '^로컬 AI 생성 실패'){
                     if($safeStatus -match 'native_timeout'){$report.gui_model_failure='native_timeout'}
                     elseif($safeStatus -match 'native_output_rejected'){$report.gui_model_failure='native_output_rejected'}
+                    elseif($safeStatus -match 'native_no_hangul'){$report.gui_model_failure='native_no_hangul'}
+                    elseif($safeStatus -match 'native_non_korean_script'){$report.gui_model_failure='native_non_korean_script'}
+                    elseif($safeStatus -match 'native_prompt_echo'){$report.gui_model_failure='native_prompt_echo'}
                     elseif($safeStatus -match 'native_inference_failure'){$report.gui_model_failure='native_inference_failure'}
                     elseif($safeStatus -match 'native_process_crash'){$report.gui_model_failure='native_process_crash'}
                     elseif($safeStatus -match 'LocalModelError'){$report.gui_model_failure='LocalModelError'}
@@ -309,6 +312,9 @@ jobs:
                 elseif($statusName -match 'native_inference_failure'){$report.gui_model_failure='native_inference_failure'}
                 elseif($statusName -match 'native_process_crash'){$report.gui_model_failure='native_process_crash'}
                 elseif($statusName -match 'native_output_rejected'){$report.gui_model_failure='native_output_rejected'}
+                elseif($statusName -match 'native_no_hangul'){$report.gui_model_failure='native_no_hangul'}
+                elseif($statusName -match 'native_non_korean_script'){$report.gui_model_failure='native_non_korean_script'}
+                elseif($statusName -match 'native_prompt_echo'){$report.gui_model_failure='native_prompt_echo'}
                 elseif($statusName -match 'LocalModelError'){$report.gui_model_failure='LocalModelError'}
                 elseif($statusName -match '작품/회차/장면이 변경'){$report.gui_model_failure='stale_editor'}
                 else{$report.gui_model_failure='no_sanitized_category'}
@@ -349,6 +355,10 @@ jobs:
             if($LASTEXITCODE -ne 0){throw 'actual_compiled_gui_sqlite_draft_mismatch'}
             $report.sqlite_readonly_reopened=$true
             $report.saved_via_gui=$true
+            # The save/reopen succeeded. If Korean quality fails next,
+            # identify the true failed stage instead of falsely reporting
+            # SQLite persistence failure in Windows 11 ARM evidence.
+            $report.current_stage='validate_korean_5000_no_english_padding'
             $report.korean_5000= if($hangul -ge 4500 -and $nonspace.Length -ge 4500 -and $report.hangul_share -ge 0.78 -and $latin -le 0.05*$nonspace.Length -and $report.repeated_sentence_share -le 0.12 -and $parts.Count -ge 10 -and $report.native_foreground_matches_gui -and $report.gui_quality_status -eq 'FORMAT_CHECK_ONLY'){'PASS'}else{'FAIL'}
             $report.status=$report.korean_5000
             if($report.korean_5000 -ne 'PASS'){throw 'actual_windows_gui_korean_5000_quality_gate_failed'}

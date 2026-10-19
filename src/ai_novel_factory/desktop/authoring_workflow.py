@@ -254,10 +254,23 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         safe_category = category if category in (
             'native_timeout', 'native_inference_failure',
             'native_process_crash', 'native_output_rejected',
-            'LocalModelError') else 'UnknownError'
+            'native_no_hangul', 'native_non_korean_script',
+            'native_prompt_echo', 'LocalModelError') else 'UnknownError'
         self.status.setAccessibleName('로컬 AI 생성 실패 ' + safe_category)
         if safe_category == 'native_output_rejected':
-            self.status.setText('소설 외 콘솔 출력·입력 재출력 또는 비한국어 출력 감지: 원고 저장을 차단했습니다.')
+            self.status.setText('모델 출력 형식 검사 실패: 원고 저장을 차단했습니다.')
+        elif safe_category == 'native_no_hangul':
+            self.status.setText(
+                '선택된 로컬 모델에서 한국어 소설이 생성되지 않았습니다. '
+                '한국어 작성이 가능한 GGUF 모델을 직접 선택하세요. 초고 저장 없음.')
+        elif safe_category == 'native_non_korean_script':
+            self.status.setText(
+                '모델 원고에 중국어·일본어 문자가 혼입됐습니다. '
+                '원고를 수정·번역해 저장하지 않고 차단했습니다.')
+        elif safe_category == 'native_prompt_echo':
+            self.status.setText(
+                '모델이 원고 대신 실행 지시나 콘솔 문구를 반복했습니다. '
+                '정상 원고로 저장하지 않았습니다.')
         elif safe_category == 'native_process_crash':
             self.status.setText('Windows 로컬 모델 실행기가 비정상 종료되었습니다. 초고 저장 없음.')
         else:

@@ -145,7 +145,8 @@ def retry_bundled_korean_text(prompt: str, *, first_error: ValueError,
     """
     if (type(first_error) is not ValueError
             or str(first_error) not in (
-                'native output lacks Korean novel prose', 'model process failed')
+                'native output lacks Korean novel prose',
+                'native non-Korean script in draft', 'model process failed')
             or remaining < 20):
         raise first_error
     retry_prompt = (

@@ -181,6 +181,18 @@ class LocalExecutableProvider:
                         raise LocalModelError('native_process_crash')
                     raise LocalModelError('native_inference_failure')
                 if match.group(1) == 'text_validation':
+                    # The compiled bridge emits fixed, non-author-derived
+                    # categories; distinguish a missing Hangul draft from
+                    # Chinese script or echoed instructions without printing
+                    # stdout, stderr, paths, prompts or manuscript contents.
+                    reason = re.search(r';REASON=([A-Z_]+)', completed.stderr[:300])
+                    safe_reason = reason.group(1) if reason else ''
+                    if safe_reason == 'NO_HANGUL':
+                        raise LocalModelError('native_no_hangul')
+                    if safe_reason == 'NON_KOREAN_SCRIPT':
+                        raise LocalModelError('native_non_korean_script')
+                    if safe_reason == 'CONSOLE_OR_PROMPT_ECHO':
+                        raise LocalModelError('native_prompt_echo')
                     raise LocalModelError('native_output_rejected')
             raise LocalModelError('local provider rejected')
         if len(completed.stdout) > MAX_DRAFT_CHARS + 5000:
