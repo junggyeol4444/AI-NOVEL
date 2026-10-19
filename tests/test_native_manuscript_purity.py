@@ -47,6 +47,26 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             with self.subTest(echo=echo), self.assertRaises(ValueError):
                 module.validate_clean_manuscript('기록관은 서랍을 열었다. ' + echo)
 
+    def test_reject_observed_windows_meta_headings(self):
+        # These markers appeared literally inside the compiled Qwen GUI draft.
+        # Guard actual prose integrity, not synthetic literary approval.
+        for heading in ('**마크다운 제목:**', '### 역할별 대사 목록:'):
+            with self.subTest(heading=heading), self.assertRaises(ValueError):
+                module.validate_clean_manuscript('서가는 고요했다.\\n' + heading)
+
+    def test_continuation_requests_story_without_echo_prone_meta_labels(self):
+        prompts = []
+        def invoke(prompt, _remaining):
+            prompts.append(prompt)
+            return '조사자는 사서에게 묻고 낡은 문을 열었다. ' * 10
+        module.continue_korean_scene(
+            '그는 증거를 발견했다. ', original_prompt='조사자와 사서의 수수께끼',
+            target_chars=5000, invoke=invoke, deadline=999, clock=lambda: 0)
+        self.assertTrue(prompts)
+        self.assertIn('이어서 등장인물이 선택하고 행동하는', prompts[0])
+        self.assertNotIn('이미 집필된 소설의 마지막 부분(반복하여 다시 쓰지 마세요):', prompts[0])
+        self.assertNotIn('머리말·해설·작성 예정 보고·요약을 쓰지 마세요.', prompts[0])
+
     def test_allow_only_clean_korean_story_from_transport_perspective(self):
         prose = '조사자는 책갈피에서 3월의 날짜가 지워진 흔적을 발견했다. 사서는 아무 말 없이 창문을 잠갔다.'
         self.assertEqual(module.validate_clean_manuscript(prose), prose)
