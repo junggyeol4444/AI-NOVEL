@@ -132,9 +132,13 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
             break
         try:
             next_raw = invoke(continuation_prompt, remaining)
-        except subprocess.TimeoutExpired:
-            # Keep only native prose validated before the timeout; never
-            # mark its length or literary quality as approved.
+        except (subprocess.TimeoutExpired, ValueError) as exc:
+            # A later native exit/timeout must not discard a validated
+            # partial Korean draft. All literary and length gates remain
+            # responsible for rejecting an incomplete manuscript.
+            # Other programming errors are not hidden.
+            if isinstance(exc, ValueError) and str(exc) != 'model process failed':
+                raise
             break
         try:
             new = validate_clean_manuscript(next_raw).strip()
