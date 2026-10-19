@@ -130,5 +130,46 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                     '작가', '장면', '384')
 
 
+    def test_real_continuation_reaches_requested_chars_without_padding(self):
+        intro = '조사자가 기록을 살폈다. ' * 32
+        chunks = ['사서는 새로운 사건을 조사하고 결정했다. ' * 55 + '단서' + str(i)
+                  for i in range(8)]
+        inputs = iter(chunks)
+        seen = []
+        def invoke(prompt, remaining):
+            seen.append((prompt, remaining))
+            return next(inputs)
+        result = module.continue_korean_scene(
+            intro, original_prompt='한국어 소설을 5000자 작성',
+            target_chars=5000, invoke=invoke,
+            deadline=999, clock=lambda: 0)
+        self.assertGreaterEqual(len(''.join(result.split())), 4500)
+        self.assertGreaterEqual(len(seen), 1)
+        self.assertTrue(all('이어서' in prompt for prompt, _ in seen))
+        self.assertNotIn('[모의 초고', result)
+
+    def test_repeated_completion_does_not_fill_length(self):
+        intro = '주인공이 사라진 기록을 살폈다. ' * 20
+        result = module.continue_korean_scene(
+            intro, original_prompt='한국어 소설',
+            target_chars=5000, invoke=lambda _p, _s: intro,
+            deadline=999, clock=lambda: 0)
+        self.assertEqual(result, intro)
+
+    def test_continuation_does_not_bypass_native_korean_rejection(self):
+        with self.assertRaisesRegex(ValueError, 'Korean'):
+            module.continue_korean_scene(
+                '사서가 기록을 읽었다.', original_prompt='한국어 소설',
+                target_chars=5000, invoke=lambda _p, _s: 'Only English text',
+                deadline=999, clock=lambda: 0)
+
+    def test_elapsed_deadline_returns_unapproved_short_draft_unchanged(self):
+        original = '사서가 기록을 읽었다.'
+        self.assertEqual(module.continue_korean_scene(
+            original, original_prompt='한국어 소설',
+            target_chars=5000, invoke=lambda _p, _s: '이후 사건을 쓰기',
+            deadline=1, clock=lambda: 2), original)
+
+
 if __name__ == '__main__':
     unittest.main()
