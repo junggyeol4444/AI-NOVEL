@@ -164,6 +164,21 @@ jobs:
             }
             return $matches[0]
           }
+          function UiStatus {
+            # Qt QLabel status changes accessibility name on model failure.
+            $found=Ui 'authoringStatus' '로컬 AI 집필 중'
+            if($null -ne $found){return $found}
+            $cond=[System.Windows.Automation.PropertyCondition]::new(
+              [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+              [System.Windows.Automation.ControlType]::Text)
+            foreach($item in $script:window.FindAll([System.Windows.Automation.TreeScope]::Descendants,$cond)){
+              $name=[string]$item.Current.Name
+              if($name -match '^로컬 AI 생성 실패 (native_timeout|native_inference_failure|native_process_crash|native_output_rejected|native_no_hangul|native_non_korean_script|native_prompt_echo|LocalModelError|UnknownError)$'){
+                return $item
+              }
+            }
+            return $null
+          }
           function SetField([string]$id,[string]$name,[string]$value) {
             $script:last_ui_control=$id
             $control=Ui $id $name
@@ -270,7 +285,7 @@ jobs:
               # An actual GUI failure must end this test promptly, not
               # masquerade as an eight-minute empty manuscript timeout.
               if($i % 5 -eq 0){
-                $liveStatus=Ui 'authoringStatus' '로컬 AI 집필 중'
+                $liveStatus=UiStatus
                 if($null -ne $liveStatus){
                   $safeStatus=[string]$liveStatus.Current.Name
                   if($safeStatus -match '^로컬 AI 생성 실패'){
@@ -305,7 +320,7 @@ jobs:
               $draft=([System.Windows.Automation.TextPattern]$tp).DocumentRange.GetText(-1)
             }
             if(-not $draft){
-              $statusView=Ui 'authoringStatus' '로컬 전용'
+              $statusView=UiStatus
               if($null -ne $statusView){
                 $statusName=[string]$statusView.Current.Name
                 if($statusName -match 'native_timeout'){$report.gui_model_failure='native_timeout'}
