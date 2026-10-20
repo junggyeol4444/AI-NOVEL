@@ -165,12 +165,43 @@ class BatchWiringSourceContract(unittest.TestCase):
     def test_cross_episode_reuse_is_recorded_as_scope_only_no_auto_approval(self):
         batch = BATCH.read_text(encoding='utf-8')
         self.assertIn('cross = screen_cross_episode_reuse(', batch)
-        self.assertIn('for p in range(1, n)', batch)
+        self.assertIn('_cross_episode_sources(existing, n)', batch)
+        self.assertIn('first_checked = max(1, episode - 250)', batch)
+        self.assertIn('older_prior_unexamined={older_unexamined}', batch)
         self.assertIn('missing_prior_episodes={missing_prior}', batch)
         self.assertNotIn('range(max(1, n - 3), n)', batch)
         self.assertIn("'cross_episode_sentence_reuse',", batch)
         self.assertIn('scope_only=true;literary_approved=false', batch)
         self.assertIn('requires_review = True', batch)
+
+    def test_1000_episode_window_never_claims_older_750_chapters_checked(self):
+        from types import SimpleNamespace
+        from ai_novel_factory.auto_novel_run import (
+            _cross_episode_sources, AutoNovelRunError)
+        from ai_novel_factory.episode_crosscheck import screen_cross_episode_reuse
+        # These are synthetic records for scope/limits ONLY, not model prose.
+        existing = {
+            n: SimpleNamespace(draft=f'가상의 기록 보존을 위한 {n}화 독립 사건이다.')
+            for n in range(1, 1000)
+        }
+        previous, missing, older = _cross_episode_sources(existing, 1000)
+        self.assertEqual(len(previous), 250)
+        self.assertEqual(missing, 0)
+        self.assertEqual(older, 749)
+        self.assertEqual(previous[0], existing[750].draft)
+        self.assertEqual(previous[-1], existing[999].draft)
+        screen = screen_cross_episode_reuse(
+            '조사자는 새로 들어온 문서의 내용을 살폈다.', previous)
+        self.assertEqual(screen.prior_episodes_examined, 250)
+        self.assertFalse(screen.literary_approved)
+        del existing[800]
+        previous, missing, older = _cross_episode_sources(existing, 1000)
+        self.assertEqual(len(previous), 249)
+        self.assertEqual(missing, 1)
+        self.assertEqual(older, 749)
+        for bad in (0, 1001, True):
+            with self.subTest(bad=bad), self.assertRaises(AutoNovelRunError):
+                _cross_episode_sources(existing, bad)
 
     def test_real_episode_budget_is_allocated_without_dropping_characters(self):
         from ai_novel_factory.auto_novel_run import (

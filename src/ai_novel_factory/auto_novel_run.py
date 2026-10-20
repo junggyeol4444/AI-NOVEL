@@ -106,6 +106,27 @@ def _scene_char_targets(episode_target: int, scene_count: int) -> tuple[int, ...
                  for index in range(scene_count))
 
 
+def _cross_episode_sources(existing: dict[int, object], episode: int
+                           ) -> tuple[tuple[str, ...], int, int]:
+    """Bound the checked window to 250 SAVED prior drafts, without approval.
+
+    For episodes 252..1000 the older history is explicitly unexamined.
+    Missing/empty chapters inside the window are also not silently cleared.
+    This is evidence selection only: it never changes an author's chapters.
+    """
+    if type(episode) is not int or not 1 <= episode <= 1000:
+        raise AutoNovelRunError('비교할 회차 번호가 올바르지 않습니다.')
+    first_checked = max(1, episode - 250)
+    prior_drafts = tuple(
+        existing[p].draft for p in range(first_checked, episode)
+        if p in existing and existing[p].draft.strip())
+    missing_prior = sum(
+        p not in existing or not existing[p].draft.strip()
+        for p in range(first_checked, episode))
+    older_unexamined = first_checked - 1
+    return prior_drafts, missing_prior, older_unexamined
+
+
 def run_auto_novel(
     database_path: str | Path, project_id: str, provider: LocalExecutableProvider, *,
     through_episode: int, target_chars: int, scenes_per_episode: int = 2,
@@ -321,12 +342,8 @@ def run_auto_novel(
             # 250-chapter scope; do not silently certify only the last three.
             # Missing/empty earlier chapters remain explicit unexamined gaps.
             # This screen is exact-sentence-only, never literary certification.
-            prior_drafts = tuple(
-                existing[p].draft for p in range(1, n)
-                if p in existing and existing[p].draft.strip())
-            missing_prior = sum(
-                p not in existing or not existing[p].draft.strip()
-                for p in range(1, n))
+            prior_drafts, missing_prior, older_unexamined = (
+                _cross_episode_sources(existing, n))
             cross = screen_cross_episode_reuse(full_draft, prior_drafts)
             checks = [
                 ('length', 'PASS' if enough else 'WARN',
@@ -341,9 +358,11 @@ def run_auto_novel(
                  f'non_prose_markers={screen.non_prose_markers}'),
                 ('cross_episode_sentence_reuse',
                  'WARN' if cross.exact_sentence_reuses or missing_prior
+                           or older_unexamined
                  else 'PASS' if cross.prior_episodes_examined else 'NOT_RUN',
                  f'prior_episodes_examined={cross.prior_episodes_examined};'
                  f'missing_prior_episodes={missing_prior};'
+                 f'older_prior_unexamined={older_unexamined};'
                  f'exact_sentences={cross.exact_sentence_reuses};'
                  f'affected_chapters={cross.affected_prior_episodes};'
                  'scope_only=true;literary_approved=false'),

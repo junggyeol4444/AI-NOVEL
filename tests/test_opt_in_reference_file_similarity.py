@@ -108,6 +108,27 @@ class OptInReferenceFileSafetyTests(unittest.TestCase):
         self.assertEqual(original_bytes,
                          tuple(Path(p).read_bytes() for p in sources))
 
+    def test_100th_reference_is_not_silently_skipped(self):
+        selected = []
+        for number in range(100):
+            path = self.root / f'selected-{number:03d}.txt'
+            content = (self.original if number == 99 else
+                       f'가상의 동쪽 마을에서 {number}번째 상인은 별자리를 확인했다. ' * 6)
+            path.write_text(content, encoding='utf-8')
+            selected.append(str(path))
+        original_bytes = tuple(Path(p).read_bytes() for p in selected)
+        compared = compare_explicit_reference_files(
+            self.pid, 1, self.original, tuple(selected))
+        self.assertEqual(compared.checked_files, 100)
+        self.assertEqual(len(compared.report.reference_ids), 100)
+        self.assertTrue(any(item.reference_number == 100
+                            for item in compared.report.evidence))
+        self.assertIn(compared.report.status, ('blocked', 'review'))
+        self.assertFalse(compared.report.publication_approved)
+        self.assertFalse(compared.corpus_coverage_certified)
+        self.assertEqual(original_bytes,
+                         tuple(Path(p).read_bytes() for p in selected))
+
     def test_epub_parser_gets_full_transient_korean_text(self):
         from ai_novel_factory.epub3 import create_epub, Chapter
         from ai_novel_factory.publication_metadata import MetadataDraft

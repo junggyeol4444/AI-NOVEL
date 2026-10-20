@@ -49,7 +49,7 @@ class CrossEpisodeBoundedTests(unittest.TestCase):
 
     def test_overlong_or_invalid_inputs_rejected_without_processing(self):
         current = '사서는 오래된 기록을 확인한 뒤 동료를 찾았다.'
-        for previous in (('a' * 100001,), tuple('a' for _ in range(4)), (None,)):
+        for previous in (('a' * 100001,), tuple('a' for _ in range(251)), (None,)):
             with self.subTest(previous=type(previous)):
                 with self.assertRaises(ValueError):
                     screen_cross_episode_reuse(current, previous)
