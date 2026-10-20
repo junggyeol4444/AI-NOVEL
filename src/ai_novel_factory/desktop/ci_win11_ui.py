@@ -186,6 +186,15 @@ def run(output_dir: str) -> int:
         check('cover_existing_file_not_overwritten_by_second_click',
               (cover_dir / 'cover.jpg').read_bytes() == bytes_before
               and '실패' in cover.status.text())
+        # A separate, deliberate GUI opt-in is required before embedding the
+        # local JPG inside an offline EPUB3; no publication permission changes.
+        publication.include_cover.setChecked(True)
+        QTest.mouseClick(publication.export_button, Qt.MouseButton.LeftButton)
+        from ai_novel_factory.epub3 import verify_epub
+        check('compiled_gui_epub_embeds_only_opted_in_cover',
+              (cover_dir / 'book.epub').is_file()
+              and verify_epub(cover_dir / 'book.epub',
+                              expected_chapters=1, expect_cover=True).valid)
         check('publication_upload_disabled', not hasattr(window, 'publish_button'))
         report['whole_windows11_qt_journey'] = 'PASS'
     except BaseException as exc:

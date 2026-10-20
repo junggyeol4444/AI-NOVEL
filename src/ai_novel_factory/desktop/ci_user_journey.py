@@ -276,12 +276,14 @@ def run(args):
               (private_path / 'cover.jpg').is_file()
               and (private_path / 'thumbnail.jpg').is_file()
               and '로컬 저장 완료' in publication.cover_panel.status.text())
+        publication.include_cover.setChecked(True)
         QTest.mouseClick(publication.export_button, Qt.MouseButton.LeftButton)
         check('publication_sidebar_private_export',
               '로컬 파일 생성 완료' in publication.status.text()
               and (private_path / 'draft.txt').is_file()
               and (private_path / 'book.epub').is_file()
-              and verify_epub(private_path / 'book.epub', expected_chapters=1).valid)
+              and verify_epub(private_path / 'book.epub',
+                              expected_chapters=1, expect_cover=True).valid)
 
         # Audit while the main window is actually visible, not after closing it.
         from PySide6.QtWidgets import QLabel

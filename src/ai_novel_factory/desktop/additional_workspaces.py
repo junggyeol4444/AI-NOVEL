@@ -220,6 +220,11 @@ class PublicationWorkspace(QWidget):
         self.cover_panel = CoverDraftWidget(self.session, self.directory.text, self)
         self.cover_panel.setObjectName('publicationCoverDraft')
         root.addWidget(self.cover_panel)
+        self.include_cover = QCheckBox(
+            '이 로컬 폴더의 cover.jpg를 이번 EPUB3에 포함합니다 (직접 승인, 비공개)')
+        self.include_cover.setObjectName('publicationIncludeGeneratedCover')
+        self.include_cover.setChecked(False)
+        root.addWidget(self.include_cover)
         self.price = QLineEdit('0')
         self.price.setObjectName('publicationLocalMetadataPrice')
         root.addWidget(QLabel('가격 메타데이터 (KRW, 명시적 입력)'))
@@ -329,13 +334,26 @@ class PublicationWorkspace(QWidget):
         if path:
             self.directory.setText(path)
 
+    def _cover_source(self):
+        if not self.include_cover.isChecked():
+            return None
+        # Explicit opt-in only; never silently include another user's image.
+        parent = Path(self.directory.text())
+        if not parent.is_absolute() or parent.is_symlink() or not parent.is_dir():
+            raise ValueError('기존 로컬 폴더만 지원합니다.')
+        source = parent / 'cover.jpg'
+        if source.is_symlink() or not source.is_file():
+            raise ValueError('선택된 로컬 폴더에 표지 파일이 없습니다.')
+        return source
+
     def _export_final(self):
         s = self.session()
         if s is None or s.project_id is None:
             self.status.setText('먼저 작품과 직접 검수한 최종 원고를 저장하세요.')
             return
         try:
-            txt, epub = s.export_final(self.directory.text(), self.price.text())
+            txt, epub = s.export_final(self.directory.text(), self.price.text(),
+                                       cover_path=self._cover_source())
             self.status.setText(
                 '검수 최종본 로컬 출력 완료: ' + txt.name + ', ' + epub.name
                 + ' (reviewed_final 폴더, 게시·업로드 없음)')
@@ -349,7 +367,8 @@ class PublicationWorkspace(QWidget):
             self.status.setText('작품 메뉴에서 먼저 소설을 생성하거나 열어 주세요.')
             return
         try:
-            txt, epub = s.export(self.directory.text(), self.price.text())
+            txt, epub = s.export(self.directory.text(), self.price.text(),
+                                 cover_path=self._cover_source())
             self.status.setText('로컬 파일 생성 완료: ' + txt.name + ', ' + epub.name +
                                 ' (게시·업로드하지 않았음)')
         except (ValueError, OSError):

@@ -279,7 +279,7 @@ class AuthoringSession:
         db.update_episode(pid, ep.episode,
                           expected_revision=ep.revision, final_text=text)
 
-    def export_final(self, directory, price):
+    def export_final(self, directory, price, *, cover_path=None):
         """Export reviewed final episodes only, privately and exclusively."""
         db, pid = self.required()
         parent = Path(directory)
@@ -298,7 +298,7 @@ class AuthoringSession:
                              '소설', ('사용자검수본', '비공개'), price)
         txt = folder / 'final.txt'
         try:
-            epub = create_epub(meta, chapters, folder)
+            epub = create_epub(meta, chapters, folder, cover_path=cover_path)
             with os.fdopen(os.open(txt, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600),
                            'w', encoding='utf-8') as out:
                 out.write('\n\n'.join(f'# {c.title}\n\n{c.text}' for c in chapters) + '\n')
@@ -313,7 +313,7 @@ class AuthoringSession:
             raise
         return txt, epub.path
 
-    def export(self, directory, price):
+    def export(self, directory, price, *, cover_path=None):
         db, pid = self.required()
         output = Path(directory)
         if not output.is_absolute() or output.is_symlink() or not output.is_dir():
@@ -329,7 +329,7 @@ class AuthoringSession:
         epub = output / 'book.epub'
         if txt.exists() or txt.is_symlink() or epub.exists() or epub.is_symlink():
             raise AuthoringError('내보내기 파일이 이미 존재합니다.')
-        result = create_epub(meta, chapters, output)
+        result = create_epub(meta, chapters, output, cover_path=cover_path)
         try:
             with os.fdopen(os.open(txt, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600),
                            'w', encoding='utf-8') as f:
