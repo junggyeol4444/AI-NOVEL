@@ -584,5 +584,40 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         good = '조사자가 물었다. "어디로 가야 합니까?"'
         self.assertEqual(module.validate_clean_manuscript(good), good)
 
+
+    def test_qwen_invalid_twice_can_recover_with_bounded_fresh_inference(self):
+        # Transport regression: no artificial Korean prose or acceptance.
+        initial = '사서가 오래된 문을 조사했다. ' * 15
+        recovered = '조사자는 계단 아래에서 열쇠를 발견하고 문 안으로 들어갔다. ' * 9
+        calls = []
+        def native(_prompt, _remaining, _prediction_budget=None):
+            calls.append(True)
+            if len(calls) <= 2:
+                return '조사자는 뒤뜰에서 이상한 그림을 발견했다. 異'
+            return recovered
+        def retry(prompt, error, remaining):
+            return module.retry_qwen_korean_text(
+                prompt, first_error=error, invoke=native, remaining=remaining)
+        actual = module.continue_korean_scene(
+            initial, original_prompt='도서관 수수께끼를 조사한다.',
+            target_chars=5000, invoke=native, deadline=100,
+            clock=lambda: 0, retry_invalid=retry, short_retry_limit=1)
+        self.assertGreaterEqual(len(calls), 3)
+        self.assertLessEqual(len(calls), 5)
+        self.assertIn(recovered.strip(), actual)
+        self.assertNotIn('異', actual)
+        self.assertLess(len(''.join(actual.split())), 4500)
+
+    def test_actual_arm_chapter_headings_are_not_korean_prose(self):
+        # Actual ARM QA artifact 12232291994 included Chapter 1/2 labels.
+        for scaffold in ('# Chapter 1', 'Chapter 2', '## chapter 42'):
+            with self.subTest(scaffold=scaffold), self.assertRaisesRegex(
+                    ValueError, 'mixed with draft'):
+                module.validate_clean_manuscript(
+                    '그녀가 도서관의 문을 열었다.\n' +
+                    scaffold + '\n그는 책상으로 다가갔다.')
+        genuine = '그녀가 도서관의 문을 열고 비밀 기록을 찾았다.'
+        self.assertEqual(module.validate_clean_manuscript(genuine), genuine)
+
 if __name__ == '__main__':
     unittest.main()
