@@ -71,7 +71,7 @@ class OptInReferenceFileSafetyTests(unittest.TestCase):
         valid = self.root / 'valid.txt'
         invalid = self.root / 'broken.txt'
         valid.write_text(self.original, encoding='utf-8')
-        invalid.write_bytes(b'bad\\x00private')
+        invalid.write_bytes(b'bad' + bytes([0]) + b'private')
         before = {p.name:p.read_bytes() for p in (valid,invalid)}
         with self.assertRaises(OptInSimilarityError):
             compare_explicit_reference_files(
