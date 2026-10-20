@@ -40,6 +40,8 @@ jobs:
         run: python -m unittest discover -s tests -p test_draft_backup_safety.py -v
       - name: Reference catalog read-only coverage and Qt fail-closed regression
         run: python -m unittest discover -s tests -p test_reference_coverage.py -v
+      - name: Opt-in transient TXT-MD-EPUB similarity and real Qt file-picker click
+        run: python -m unittest discover -s tests -p test_opt_in_reference_file_similarity.py -v
       - name: Synthetic EPUB import, spine ordering and security regressions
         run: python -m unittest discover -s tests -p test_epub_reference_pipeline.py -v
       - name: Read-only SQLite and verified local EPUB reader with real Qt controls

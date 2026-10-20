@@ -252,6 +252,33 @@ def run(args):
         check('similarity_sidebar_real_engine',
               similarity.status.toPlainText().startswith('로컬 비교 결과: ')
               and '참고작 전수 검사' in similarity.status.toPlainText())
+        # Actual packaged PySide6 button + existing bounded file parser and
+        # reference similarity engine. Only the file dialog response is
+        # injected to select a disposable synthetic file with no user data.
+        # This is NOT copyright approval or full reference corpus coverage.
+        local_reference = output / 'opted-in-synthetic-reference.txt'
+        local_reference.write_text(draft, encoding='utf-8')
+        from unittest.mock import patch
+        with patch(
+                'ai_novel_factory.desktop.additional_workspaces.'
+                'QFileDialog.getOpenFileNames',
+                return_value=([str(local_reference)], '')):
+            QTest.mouseClick(similarity.file_compare_button,
+                             Qt.MouseButton.LeftButton)
+        local_comparison = similarity.status.toPlainText()
+        check('compiled_gui_opted_in_reference_file_real_comparison',
+              '참고파일 1개 비교' in local_comparison
+              and 'NOT_RUN' in local_comparison
+              and str(local_reference) not in local_comparison
+              and draft not in local_comparison)
+        with patch(
+                'ai_novel_factory.desktop.additional_workspaces.'
+                'QFileDialog.getOpenFileNames',
+                return_value=([], '')):
+            QTest.mouseClick(similarity.file_compare_button,
+                             Qt.MouseButton.LeftButton)
+        check('reference_dialog_cancel_preserves_existing_report',
+              similarity.status.toPlainText() == local_comparison)
 
         publication = extra_menu('publication')
         private_path = output / 'private_publication_preview'
