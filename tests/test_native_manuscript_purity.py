@@ -170,8 +170,10 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         # never real Qwen literary quality or generated 5000-char prose.
         original = '사서는 조사자의 질문에 답하고 서랍을 닫았다. ' * 14
         short = '사서가 또 그 사실을 말하였다.'
-        new_action = ('조사자는 봉인된 서류를 확인한 다음 빈 기록의 날짜를 비교했고 '
-                      '사서는 다른 문을 향해 걸었다. ' * 7)
+        new_action = ''.join(
+            f'조사자는 {number}번 서류를 펼쳐 사건 발생 날짜와 보관 번호를 비교했다. '
+            f'사서는 {number}번 출입 목록에 새로운 근거를 기록했다. '
+            for number in range(1, 8))
         seen = []
         def invoke(prompt, _remaining):
             seen.append(prompt)
