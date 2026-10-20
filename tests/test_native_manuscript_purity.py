@@ -509,5 +509,40 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertEqual(actual.count(valid.strip()), 1)
         self.assertLess(len(''.join(actual.split())), 4500)
 
+
+    def test_long_author_bible_does_not_hide_scene_goal_or_characters(self):
+        # Structural prompt regression; does not approve any generated novel.
+        huge_canon = '가상의 오래된 도서관 기록. ' * 700
+        goal = '사서가 숨겨진 서고의 출입 기록을 찾아야 한다'
+        conflict = '보관실의 문이 잠겼다'
+        place = '도서관 보관실'
+        characters = ['사서', '조사자']
+        _, prompt = module.build_story_prompts(
+            huge_canon, goal, conflict, place, '', characters)
+        self.assertTrue(prompt.startswith('이번 장면의 목표:\n' + goal))
+        self.assertLess(prompt.index(goal), prompt.index('작품 설정:'))
+        self.assertLess(prompt.index('충돌과 장애물:'), 1800)
+        self.assertLess(prompt.index('사서, 조사자'), 1800)
+        self.assertIn(huge_canon[:12000], prompt)
+        continuation = module.build_continuation_context(
+            huge_canon, goal, conflict, place, '', characters)
+        self.assertIn(goal, continuation)
+        self.assertIn(conflict, continuation)
+        self.assertIn(place, continuation)
+        self.assertIn('사서, 조사자', continuation)
+        self.assertLess(len(continuation), 2800)
+        self.assertNotIn('<|im_start|>', continuation)
+
+    def test_repetition_guard_detects_long_sentence_not_only_copied_prefix(self):
+        sentence = '조사자는 낡은 열쇠를 발견하고 사서에게 비밀 통로의 존재를 알렸다.'
+        paragraph = sentence + ' 그는 계단 아래로 내려가 기록을 다시 살폈다.'
+        self.assertTrue(module.repeats_existing_passage(
+            '새로운 증거를 찾기 시작했다. ' + sentence, paragraph))
+        self.assertTrue(module.repeats_existing_passage(
+            sentence + ' ' + sentence, '처음 보는 열쇠가 있었다.'))
+        self.assertFalse(module.repeats_existing_passage(
+            '조사자는 창가의 물자루를 조사했고 기록 담당자가 대답했다.',
+            '처음 보는 열쇠가 있었다.'))
+
 if __name__ == '__main__':
     unittest.main()
