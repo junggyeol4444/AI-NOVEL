@@ -564,5 +564,25 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'mixed with draft'):
             module.validate_clean_manuscript(contaminated)
 
+
+    def test_actual_arm_fused_foreign_tokens_are_rejected(self):
+        # Actual Windows11 ARM artifact 12230384722, not simulated literary QA.
+        observed = ('묘mer', '드ừng', '난ık')
+        for corruption in observed:
+            with self.subTest(corruption=corruption):
+                with self.assertRaisesRegex(ValueError, 'non-Korean script'):
+                    module.validate_clean_manuscript(
+                        '조사자가 도서관에서 ' + corruption + '라는 기록을 발견했다.')
+        # Separately spaced foreign names are not silently modified.
+        acceptable = '조사자는 José라는 사람을 만났다.'
+        self.assertEqual(module.validate_clean_manuscript(acceptable), acceptable)
+
+    def test_actual_arm_transcript_labels_rejected_without_hiding_story(self):
+        raw = '조사자가 도서관에 섰다.\n조사자: "어디로 가야 합니까?"'
+        with self.assertRaisesRegex(ValueError, 'mixed with draft'):
+            module.validate_clean_manuscript(raw)
+        good = '조사자가 물었다. "어디로 가야 합니까?"'
+        self.assertEqual(module.validate_clean_manuscript(good), good)
+
 if __name__ == '__main__':
     unittest.main()
