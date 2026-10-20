@@ -193,7 +193,10 @@ class AuthoringSession:
             raise AuthoringError('회차와 장면 플롯을 먼저 저장하세요.')
         # The explicit --gguf choice may be a larger Korean-capable CPU model.
         # Keep the original short limit for the tiny bundled smoke model.
-        limit = 450 if arguments[:1] == ('--gguf',) else 120
+        user_gguf = arguments[:1] == ('--gguf',)
+        packaged_bridge = (isinstance(executable, (str, Path))
+                           and Path(executable).name.casefold() == 'anf_local_model.exe')
+        limit = 1500 if user_gguf and packaged_bridge else (450 if user_gguf else 120)
         provider = LocalExecutableProvider(executable, arguments=arguments,
                                            timeout_seconds=limit, explicitly_allowed=True)
         metadata = {r.key: r.value for r in self.store.list_rules(self.project_id)}

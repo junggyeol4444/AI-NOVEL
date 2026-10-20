@@ -146,7 +146,16 @@ class LocalExecutableProvider:
             raise LocalModelError('an existing executable absolute path is required')
         if type(arguments) is not tuple or any(type(v) is not str or '\x00' in v for v in arguments):
             raise LocalModelError('invalid executable arguments')
-        if type(timeout_seconds) not in (float, int) or isinstance(timeout_seconds, bool) or not 0 < timeout_seconds <= 480:
+        # The existing short timeout still protects arbitrary approved
+        # executables. Only the bundled portable bridge with an explicitly
+        # selected GGUF may run the longer CPU Qwen inference needed for a
+        # genuine 5000-character scene; this is NOT an acceptance relaxation.
+        long_cpu_gguf = (path.name.casefold() == 'anf_local_model.exe'
+                         and arguments[:1] == ('--gguf',))
+        ceiling = 1550 if long_cpu_gguf else 480
+        if (type(timeout_seconds) not in (float, int)
+                or isinstance(timeout_seconds, bool)
+                or not 0 < timeout_seconds <= ceiling):
             raise LocalModelError('invalid local process timeout')
         self._command = (str(path), *arguments)
         self._timeout = float(timeout_seconds)

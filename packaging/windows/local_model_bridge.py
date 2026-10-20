@@ -478,7 +478,12 @@ def main(argv=None) -> int:
         # Keep the requested 5000-character quality gate unchanged.
         if model.name.lower().startswith('qwen2.5-'):
             prediction_budget = '512'
-        native_timeout = 110 if is_bundled_qa_model else 400
+        # The original 400s bridge / 450s GUI / 480s QA poll prematurely
+        # ended real 5000-character Qwen inference on slower Windows CPUs.
+        # Increase all three together ONLY for explicitly selected Qwen GGUF.
+        # Keep bundled 135M and other model paths at their previous limits.
+        native_timeout = (1400 if model.name.lower().startswith('qwen2.5-')
+                          else 110 if is_bundled_qa_model else 400)
         command = build_native_command(
             llama, model, system_prompt, prompt, prediction_budget)
         env = {k: os.environ[k] for k in

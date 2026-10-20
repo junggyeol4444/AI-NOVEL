@@ -279,7 +279,10 @@ jobs:
             $report.current_stage='click_actual_gui_generate_local_gguf'
             Press 'generateSceneWithLocalModel' '로컬 AI 초고 생성'
             $editor=$null
-            for($i=0;$i -lt 1200;$i++){
+            # Native Qwen CPU has a 1400-second bridge budget; the GUI
+            # adapter allows 1500s. Wait long enough for a genuine result.
+            # Fail on model error immediately, never grant a false PASS.
+            for($i=0;$i -lt 3900;$i++){
               Start-Sleep -Milliseconds 400
               $editor=Ui 'authoring_draft' '검토 가능한 초고'
               # An actual GUI failure must end this test promptly, not
