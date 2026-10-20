@@ -387,6 +387,42 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertEqual(calls[0][2], '320')
         self.assertEqual(calls[0][1], 50)
 
+    def test_actual_windows_prompt_echo_second_retry_uses_distinct_story_framing(self):
+        author = ('가상 기록관의 문서 규칙과 조사자와 사서의 말투',
+                  '손상된 기록을 실제로 열어 확인한다',
+                  '사서가 원래 날짜를 기억하지 못한다',
+                  '저녁의 문서 보관실', '사서가 문을 닫았다',
+                  ['사서', '조사자'])
+        _, normal = module.build_story_prompts(*author)
+        _, alternate = module.build_story_prompts(*author, prose_retry=True)
+        self.assertNotEqual(normal, alternate)
+        self.assertIn(author[1], normal)
+        self.assertIn(author[1], alternate)
+        self.assertIn(author[0], alternate)
+        self.assertIn('사서, 조사자', alternate)
+        # The observed ARM screenplay literal is absent from retry framing.
+        self.assertNotIn('이번 장면의 목표:', alternate)
+        self.assertNotIn('### 장면', alternate)
+        self.assertNotIn('**조사자:**', alternate)
+        attempts = []
+        def native(prompt, seconds, tokens):
+            attempts.append((prompt, seconds, tokens))
+            return '### 장면 1\n**(날짜: 2019년 8월 1일)**'
+        rejected = ValueError('native console output mixed with draft')
+        first = module.retry_qwen_korean_text(
+            normal, first_error=rejected, invoke=native,
+            remaining=100, attempt=0)
+        second = module.retry_qwen_korean_text(
+            alternate, first_error=rejected, invoke=native,
+            remaining=90, attempt=1)
+        self.assertNotEqual(attempts[0][0], attempts[1][0])
+        self.assertEqual([a[2] for a in attempts], ['320', '512'])
+        for text in (first, second):
+            with self.assertRaisesRegex(ValueError, 'mixed with draft'):
+                module.validate_clean_manuscript(text)
+        # These test doubles are transport fixtures, NOT genuine model QA.
+        self.assertEqual(len(attempts), 2)
+
     def test_qwen_retry_never_bypasses_validation_or_time_budget(self):
         calls = []
         def invoke(prompt, seconds, budget):

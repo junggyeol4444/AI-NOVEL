@@ -13,6 +13,9 @@ class KoreanNativeBridgeSourceContract(unittest.TestCase):
     def test_korean_native_not_translation(self):
         source = SOURCE.read_text(encoding='utf-8')
         self.assertIn('def build_story_prompts(', source)
+        self.assertIn('prose_retry: bool = False', source)
+        self.assertIn('prose_retry=True', source)
+        self.assertIn('attempt=initial_retry', source)
         self.assertIn('한국어 서술과 자연스러운 대화로 하나의 장면을 전개합니다', source)
         self.assertIn('인물의 선택, 행동, 대화', source)
         self.assertIn('system_prompt, prompt = build_story_prompts(', source)

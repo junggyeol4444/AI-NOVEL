@@ -275,7 +275,7 @@ def retry_bundled_korean_text(prompt: str, *, first_error: ValueError,
 
 
 def retry_qwen_korean_text(prompt: str, *, first_error: ValueError,
-                           invoke, remaining: float) -> str:
+                           invoke, remaining: float, attempt: int = 0) -> str:
     """Retry only an invalid first Qwen script once with the SAME local GGUF.
 
     Never change model weights, acceptance rules, user prose or output text.
@@ -288,16 +288,30 @@ def retry_qwen_korean_text(prompt: str, *, first_error: ValueError,
                 'native console output mixed with draft')
             or remaining < 25):
         raise first_error
-    retry_prompt = (
-        prompt + '\n'
-        '첫 문장부터 한국어 소설 본문을 이어 씁니다. '
-        '등장인물이 목표를 향해 행동하고 그 결과가 주변에 나타납니다. '
-        '목록·시나리오 형식이 아닌 실제 소설 문단만 계속 작성합니다.')
-    # The former 160-token Qwen retry consumed native startup just to
-    # produce another too-short fragment. Spend up to 320 real model tokens,
-    # with identical GGUF, strict validation and existing total deadline.
-    # The bundled 135M retry stays at 160 tokens.
-    return invoke(retry_prompt, remaining, '320')
+    # Observed Windows2022 and Windows11 ARM run 39383226885:
+    # BOTH attempts repeated the same bridge-authored meta instruction.
+    # Do not spend two expensive Qwen startups on identical input prompts.
+    # Independent candidate #2 uses a different narrative-only framing of
+    # the SAME author facts supplied by build_story_prompts(prose_retry=True).
+    # No changing GGUF weights, original prompt in SQLite, or quality gate.
+    if type(attempt) is not int or not 0 <= attempt <= 1:
+        raise first_error
+    if attempt == 0:
+        retry_prompt = (
+            prompt + '\n'
+            '첫 문장부터 한국어 소설 본문을 이어 씁니다. '
+            '등장인물이 목표를 향해 행동하고 그 결과가 주변에 나타납니다. '
+            '목록·시나리오 형식이 아닌 실제 소설 문단만 계속 작성합니다.')
+    else:
+        retry_prompt = (
+            prompt + '\n'
+            '인물의 표정과 몸짓 다음에 사건이 전개되는 자연스러운 소설 문단을 '
+            '집필합니다. 대사는 따옴표로 표현하고, 사건의 원인과 결과를 '
+            '서술 문장으로 이어갑니다.')
+    # Only real model tokens: no translation, synthetic padding, fallback
+    # model, source rewriting or literary approval on either attempt.
+    return invoke(retry_prompt, remaining,
+                  '320' if attempt == 0 else '512')
 
 
 def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int,
@@ -417,7 +431,8 @@ def requested_scene_target(goal: str, request: dict) -> int | None:
 
 
 def build_story_prompts(canon: str, goal: str, conflict: str, place: str,
-                        style_bible: str, characters: list[str]) -> tuple[str, str]:
+                        style_bible: str, characters: list[str], *,
+                        prose_retry: bool = False) -> tuple[str, str]:
     """Use concise, story-first Korean instructions for the same author facts.
 
     English planning labels and repeated prohibitions leaked literally into
@@ -436,6 +451,20 @@ def build_story_prompts(canon: str, goal: str, conflict: str, place: str,
     # long author bible could hide the current action and conflict from the
     # model. Keep the same source fields/limits and the author's actual facts,
     # but place the active scene constraints ahead of the longer background.
+    if prose_retry:
+        # A Qwen recovery prompt with the exact SAME bounded author facts,
+        # but without script-shaped scene headings that actually echoed into
+        # the failed Windows2022/ARM model prose. Prompt-only transformation:
+        # no project, Novel Bible, user source or database modification.
+        scene = (
+            '소설 본문을 실제 인물의 움직임으로 시작합니다.\n'
+            + goal[:2000] + '\n' + conflict[:1000] + '\n'
+            + place[:1000] + '\n'
+            + ', '.join(characters[:20]) + '\n'
+            + style_bible[:5000] + '\n'
+            + canon[:12000] + '\n'
+            + '인물이 눈앞의 상황에 행동으로 대응하는 소설 문단을 씁니다.')
+        return system, scene
     scene = (
         '이번 장면의 목표:\n' + goal[:2000] + '\n'
         '충돌과 장애물:\n' + conflict[:1000] + '\n'
@@ -617,9 +646,18 @@ def main(argv=None) -> int:
                     if remaining < 25:
                         raise initial_error from None
                     stage = 'native_inference'
+                    # First: normal bounded retry. Second: truly different
+                    # prose-first prompt compiled from the same author facts.
+                    # Both strict validation and 1400s deadline stay intact.
+                    retry_prompt = prompt
+                    if initial_retry == 1:
+                        _, retry_prompt = build_story_prompts(
+                            canon, goal, conflict, place, style_bible,
+                            characters, prose_retry=True)
                     raw_draft = retry_qwen_korean_text(
-                        prompt, first_error=initial_error,
-                        invoke=invoke_native, remaining=remaining)
+                        retry_prompt, first_error=initial_error,
+                        invoke=invoke_native, remaining=remaining,
+                        attempt=initial_retry)
                     stage = 'text_validation'
                     try:
                         draft = validate_clean_manuscript(raw_draft)
