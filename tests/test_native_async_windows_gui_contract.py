@@ -49,5 +49,13 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertIn('$statusView=UiStatus', source)
 
 
+
+    def test_save_button_requires_real_pending_draft_after_async_worker(self):
+        # Source contract only; real Windows GUI status remains a separate gate.
+        self.assertIn("self.buttons['save_draft'].setEnabled(False)", GUI)
+        self.assertIn("self.session.pending_draft is not None", GUI)
+        self.assertNotIn("self.buttons['save_draft'].setEnabled(True)", GUI)
+        self.assertIn('이전 미저장 초고는 그대로 유지됩니다.', GUI)
+
 if __name__ == '__main__':
     unittest.main()
