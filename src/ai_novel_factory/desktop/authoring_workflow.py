@@ -49,6 +49,8 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.status.setText('작업 실패: 상세 오류는 비공개입니다.')
 
     def _create(self):
+        if self.auto_panel.is_running():
+            raise ValueError('로컬 AI 다회차 집필 중에는 다른 작품을 생성할 수 없습니다.')
         extra = {key: self._text(key).strip() for key in
                  ('genre', 'subject', 'target_episodes',
                   'characters_per_episode', 'mood')}
@@ -128,6 +130,8 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self._set('export_dir', path)
 
     def _open(self):
+        if self.auto_panel.is_running():
+            raise ValueError('로컬 AI 다회차 집필 중에는 작품을 변경할 수 없습니다.')
         self.session.open_project(self._text('db'))
         db, pid = self.session.required()
         # Older valid Novel Bible databases may not carry the optional
@@ -299,6 +303,11 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             worker.deleteLater()
 
     def closeEvent(self, event):
+        if self.auto_panel.is_running():
+            self.auto_panel.request_stop()
+            self.status.setText('로컬 AI 다회차 집필 중입니다. 현재 호출 완료 후 종료하세요.')
+            event.ignore()
+            return
         if self.is_generating():
             self.status.setText('로컬 AI 작업 중입니다. 작업 완료 후 종료하세요.')
             event.ignore()

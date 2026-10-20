@@ -129,7 +129,10 @@ class AutoBatchPanel(QGroupBox):
             arguments = tuple(shlex.split(self.authoring._text('arguments')))
             provider = LocalExecutableProvider(
                 executable, arguments=arguments,
-                timeout_seconds=(450 if arguments[:1] == ('--gguf',) else 120),
+                timeout_seconds=(
+                    1500 if (Path(executable).name.casefold() == 'anf_local_model.exe'
+                             and arguments[:1] == ('--gguf',))
+                    else 450 if arguments[:1] == ('--gguf',) else 120),
                 explicitly_allowed=True)
         except (ValueError, OSError) as exc:
             self.status.setText(str(exc)[:160])
@@ -158,7 +161,10 @@ class AutoBatchPanel(QGroupBox):
         # Keep existing form edits untouched, but show the newly generated
         # saved episodes in the selector immediately. Preserve selection.
         session = self.authoring.session
-        if session.store is not None and session.project_id is not None:
+        if (session.store is not None and session.project_id is not None
+                and self.worker is not None
+                and str(session.path) == str(self.worker.database_path)
+                and str(session.project_id) == self.worker.project_id):
             selector = self.authoring.episodes
             selected = selector.currentData()
             selector.blockSignals(True)

@@ -21,6 +21,7 @@ from .story_arcs import plan_story_arcs, validate_arc_coverage
 from .episode_planner import plan_episodes, validate_episode_plans
 from .scene_planner import plan_scenes, validate_scene_plans
 from .repetition_checker import check_repetition
+from .korean_draft_quality import screen_korean_draft
 
 
 class AutoNovelRunError(ValueError):
@@ -143,7 +144,16 @@ def run_auto_novel(
 
         for n in range(1, through_episode + 1):
             if n in existing:
+                # Never overwrite user-owned episodes or earlier batch data.
+                # A legacy interrupted write may have left plot-only records:
+                # make them visible as requiring review instead of treating
+                # the chapter as a completed long-form generation.
                 skipped.append(n)
+                if (not existing[n].draft.strip()
+                        or not db.list_scenes(project_id, n)
+                        or not db.list_checks(project_id, n)):
+                    review.append(n)
+                    emit(n, '기존 미완료 회차: 사용자 검토 필요, 덮어쓰기 없음')
                 continue
             if should_stop is not None and should_stop():
                 stopped = True
@@ -207,34 +217,40 @@ def run_auto_novel(
             # Scope-limited tests cannot establish comprehensive quality or
             # clearance against registered reference novels.
             requires_review = True
-            # Never clobber an episode created by another session while model ran.
+            # Screen actual, unaltered model prose separately from the old
+            # length/repetition checks; this is NOT literary certification.
+            screen = screen_korean_draft(full_draft, target_chars=target_chars)
+            checks = [
+                ('length', 'PASS' if enough else 'WARN',
+                 f'actual_chars={len(full_draft)};target_chars={target_chars}'),
+                ('repetition', 'PASS' if repetition.passed_checked_scope else 'WARN',
+                 f'finding_count={len(repetition.findings)};'
+                 f'unexamined_count={len(repetition.unexamined)}'),
+                ('korean_format', 'PASS' if screen.format_gate_pass else 'WARN',
+                 f'hangul={screen.hangul_syllables};nonspace={screen.nonspace_chars};'
+                 f'foreign={screen.han_script_chars};'
+                 f'repeated_sentence_share={screen.repeated_sentence_share};'
+                 f'non_prose_markers={screen.non_prose_markers}'),
+            ]
+            checks.extend((category, 'NOT_RUN',
+                           '전체 증거가 없어 자동 승인하지 않음')
+                          for category in ('reference_similarity', 'continuity',
+                                           'logic', 'timeline', 'foreshadowing',
+                                           'reader_simulation'))
+            # Existing staged writes could strand an empty chapter when the
+            # app stopped between create_episode and add_check. One SQLite
+            # transaction now inserts the draft, scenes and all QC records.
+            # The database uniqueness constraint protects concurrent editors.
             with EpisodeStore(database_path) as safe:
-                if any(e.episode == n for e in safe.list_episodes(project_id)):
-                    raise AutoNovelRunError('다른 창에서 같은 회차가 생성되었습니다. 덮어쓰지 않습니다.')
-                saved = safe.create_episode(project_id, n, plot=outline)
-                for index, slot in enumerate(slots, 1):
-                    safe.add_scene(project_id, n, slot.scene_number,
-                                   f'{outline[:600]}\n장면 목표: {n}화 {index}장면',
-                                   expected_revision=safe.get_episode(project_id, n).revision)
-                summary = ('미확정 AI 플롯 요약: ' + outline[:1600])
-                safe.update_episode(project_id, n,
-                                    expected_revision=safe.get_episode(project_id, n).revision,
-                                    draft=full_draft, summary=summary)
-                current = safe.get_episode(project_id, n)
-                safe.add_check(project_id, n, 'length',
-                               'PASS' if enough else 'WARN',
-                               f'actual_chars={len(full_draft)};target_chars={target_chars}',
-                               expected_revision=current.revision)
-                safe.add_check(project_id, n, 'repetition',
-                               'PASS' if repetition.passed_checked_scope else 'WARN',
-                               f'finding_count={len(repetition.findings)};'
-                               f'unexamined_count={len(repetition.unexamined)}',
-                               expected_revision=current.revision)
-                for category in ('reference_similarity', 'continuity', 'logic',
-                                 'timeline', 'foreshadowing', 'reader_simulation'):
-                    safe.add_check(project_id, n, category, 'NOT_RUN',
-                                   '전체 증거가 없어 자동 승인하지 않음',
-                                   expected_revision=current.revision)
+                current = safe.create_unapproved_batch_episode(
+                    project_id, n, plot=outline,
+                    draft=full_draft,
+                    summary='미확정 AI 플롯 요약: ' + outline[:1600],
+                    scenes=tuple(
+                        (slot.scene_number,
+                         f'{outline[:600]}\n장면 목표: {n}화 {index}장면')
+                        for index, slot in enumerate(slots, 1)),
+                    checks=tuple(checks))
             created.append(n)
             existing[n] = current
             if requires_review:

@@ -274,6 +274,83 @@ class EpisodeStore(NovelBibleStore):
             raise EpisodeError("해당 회차가 이미 존재하거나 저장할 수 없습니다.") from None
         return self.get_episode(project_id, episode)
 
+    def create_unapproved_batch_episode(
+            self, project_id: str, episode: int, *,
+            plot: str, draft: str, summary: str,
+            scenes: tuple[tuple[int, str], ...],
+            checks: tuple[tuple[str, str, str], ...]) -> Episode:
+        """Atomically persist one unapproved AI batch draft and its QC records.
+
+        An interrupted process must not leave an empty half-created chapter
+        that a later batch silently skips. This insert-only operation never
+        updates any existing chapter, final manuscript, rule or publication.
+        """
+        project_id, episode = _id(project_id), _number(episode, maximum=MAX_EPISODES)
+        plot = _content(plot, limit=MAX_FIELD_BYTES["plot"])
+        draft = _content(draft, limit=MAX_FIELD_BYTES["draft"])
+        summary = _content(summary, limit=MAX_FIELD_BYTES["summary"])
+        if not draft.strip() or not isinstance(scenes, tuple) or not 1 <= len(scenes) <= MAX_SCENES:
+            raise EpisodeError("자동 초고 또는 장면 입력이 올바르지 않습니다.")
+        if not isinstance(checks, tuple) or not 1 <= len(checks) <= MAX_CHECKS:
+            raise EpisodeError("자동 초고 검사 기록이 올바르지 않습니다.")
+        if sum(map(lambda x: len(x.encode("utf-8")), (plot, draft, summary))) > MAX_EPISODE_BYTES:
+            raise EpisodeError("회차 전체 원고 크기 제한을 초과했습니다.")
+        validated_scenes = []
+        positions = set()
+        for record in scenes:
+            if not isinstance(record, tuple) or len(record) != 2:
+                raise EpisodeError("장면 기록 형식이 올바르지 않습니다.")
+            position = _number(record[0], maximum=MAX_SCENES)
+            if position in positions:
+                raise EpisodeError("장면 위치가 중복되었습니다.")
+            positions.add(position)
+            validated_scenes.append((position, _content(record[1], limit=80_000)))
+        validated_checks = []
+        for record in checks:
+            if not isinstance(record, tuple) or len(record) != 3:
+                raise EpisodeError("검사 기록 형식이 올바르지 않습니다.")
+            try:
+                category = _key(record[0])
+            except NovelBibleError:
+                raise EpisodeError("검사 분류 코드가 올바르지 않습니다.") from None
+            if type(record[1]) is not str or record[1] not in CHECK_OUTCOMES:
+                raise EpisodeError("검사 결과 상태가 올바르지 않습니다.")
+            validated_checks.append((category, record[1],
+                                     _content(record[2], limit=8192)))
+        revision = 2 + len(validated_scenes)
+        stamp = _now()
+        try:
+            with self._db:
+                self._db.execute("BEGIN IMMEDIATE")
+                self.get_project(project_id)
+                existing_count = self._db.execute(
+                    "SELECT COUNT(*) FROM bible_episodes WHERE project_id=?",
+                    (project_id,)).fetchone()[0]
+                if existing_count >= MAX_EPISODES:
+                    raise EpisodeError("작품별 회차 개수 제한을 초과했습니다.")
+                # An INSERT failure (including concurrent creation) rolls
+                # back scenes, checks and project revision in this transaction.
+                self._db.execute("""INSERT INTO bible_episodes
+                    (project_id, episode, plot, draft, summary,
+                     revision, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (project_id, episode, plot, draft, summary, revision, stamp, stamp))
+                self._db.executemany("""INSERT INTO bible_episode_scenes
+                    (project_id, episode, scene_id, position, text, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    ((project_id, episode, uuid4().hex, pos, body, stamp, stamp)
+                     for pos, body in validated_scenes))
+                self._db.executemany("""INSERT INTO bible_episode_checks
+                    (project_id, episode, check_id, category, outcome, note,
+                     content_revision, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    ((project_id, episode, uuid4().hex, category, outcome, note,
+                      revision, stamp) for category, outcome, note in validated_checks))
+                self._bump_project(project_id)
+        except sqlite3.IntegrityError:
+            raise EpisodeError("기존 회차 또는 저장 충돌로 초고를 저장하지 않았습니다.") from None
+        return self.get_episode(project_id, episode)
+
     def update_episode(self, project_id: str, episode: int, *, expected_revision: int,
                        plot: str | None = None, draft: str | None = None,
                        final_text: str | None = None, summary: str | None = None) -> Episode:
