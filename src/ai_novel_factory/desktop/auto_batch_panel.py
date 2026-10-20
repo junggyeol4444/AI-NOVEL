@@ -138,8 +138,13 @@ class AutoBatchPanel(QGroupBox):
                              and arguments[:1] == ('--gguf',))
                     else 450 if arguments[:1] == ('--gguf',) else 120),
                 explicitly_allowed=True)
-        except (ValueError, OSError) as exc:
+        except LocalModelError as exc:
+            # Our own sanitized setup diagnostics are safe for the GUI.
             self.status.setText(str(exc)[:160])
+            return
+        except (ValueError, OSError):
+            # Raw exceptions can contain user-owned paths or launch options.
+            self.status.setText('로컬 실행 파일 또는 인수 설정을 확인하세요.')
             return
         self.worker = AutoBatchWorker(
             str(session.path), str(session.project_id), provider,
