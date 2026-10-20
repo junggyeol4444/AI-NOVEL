@@ -148,6 +148,14 @@ class PrivateNovelReader(QWidget):
     def _return_to_project(self):
         self._epub_chapters = None
         self.version.setEnabled(True)
+        # The chapter number from an EPUB is NOT a selection in the current
+        # project's SQLite. Clear only the reader selector (not manuscript or
+        # DB) so refresh follows the author's original selected episode.
+        self.episodes.blockSignals(True)
+        try:
+            self.episodes.clear()
+        finally:
+            self.episodes.blockSignals(False)
         self.refresh()
 
     def refresh(self):
