@@ -139,7 +139,9 @@ class LocalExecutableProvider:
                  timeout_seconds: float = 15.0, explicitly_allowed: bool = False):
         if explicitly_allowed is not True:
             raise LocalModelError('explicit local executable approval required')
-        if type(executable) not in (str, Path):
+        # pathlib.Path is a factory: actual instances are WindowsPath or
+        # PosixPath. Accept these declared Path types, not only type(Path).
+        if not isinstance(executable, (str, Path)):
             raise LocalModelError('invalid local executable path')
         path = Path(executable)
         if not path.is_absolute() or not path.is_file() or not os.access(path, os.X_OK):
