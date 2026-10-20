@@ -282,17 +282,25 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
     minimum = (target_chars * 9 + 9) // 10
     def nonspace_count(value):
         return sum(not ch.isspace() for ch in value)
-    for _ in range(24):
+    # The observed real Windows Qwen draft had 35% repeated sentences and
+    # stopped at 740 characters. Vary story-first *instructions*, not source
+    # facts, after an unsuccessful generation. All candidate text must still
+    # come from the same native model and pass the original strict checks.
+    instructions = (
+        '이어서 쓰는 장면에서 인물이 새로운 행동을 취하고 주변이 반응합니다.',
+        '이어서 쓰는 장면에서 인물의 선택이 실제 결과를 낳습니다. '
+        '앞에서 했던 질문이나 대답을 다시 쓰지 않고 다음 사건으로 나아갑니다.',
+        '이어서 쓰는 장면에서 새로 드러난 장애물에 대응하는 행동과 '
+        '그 행동 때문에 달라진 주변 상황을 소설 문단으로 계속 씁니다.',
+    )
+    for attempt in range(24):
         if nonspace_count(draft) >= minimum or clock() >= deadline:
             break
         previous = draft[-320:]
-        # The former long continuation instructions appeared verbatim inside
-        # real Windows 2022 prose, creating repetitious meta narration.
-        # Preserve original author-owned facts, but minimize prompt scaffolding.
         continuation_prompt = (
             original_prompt[:1800] + '\n'
             '이어지는 문단의 앞부분:\n' + previous.strip() + '\n'
-            '이어서 쓰는 장면에서 인물이 새로운 행동을 취하고 주변이 반응합니다.'
+            + instructions[attempt % len(instructions)]
         )
         remaining = deadline - clock()
         if remaining <= 5:
@@ -597,7 +605,7 @@ def main(argv=None) -> int:
                     retry_qwen_korean_text(
                         continuation_prompt, first_error=first_error,
                         invoke=invoke_native, remaining=seconds),
-                short_retry_limit=2)
+                short_retry_limit=6)
         response = {'protocol': MODEL_PROTO, 'draft': draft}
         stage = 'json_output'
         # Windows frozen console executables may use a legacy code page even

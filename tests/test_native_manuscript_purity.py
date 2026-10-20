@@ -165,6 +165,28 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                              scene_prompt)
             self.assertNotIn('<|im_start|>', ' '.join(command))
 
+    def test_short_or_repeated_qwen_continuations_get_distinct_next_event_prompts(self):
+        # Synthetic transport proves only bounded model re-invocation,
+        # never real Qwen literary quality or generated 5000-char prose.
+        original = '사서는 조사자의 질문에 답하고 서랍을 닫았다. ' * 14
+        short = '사서가 또 그 사실을 말하였다.'
+        new_action = ('조사자는 봉인된 서류를 확인한 다음 빈 기록의 날짜를 비교했고 '
+                      '사서는 다른 문을 향해 걸었다. ' * 7)
+        seen = []
+        def invoke(prompt, _remaining):
+            seen.append(prompt)
+            return short if len(seen) <= 2 else new_action
+        result = module.continue_korean_scene(
+            original, original_prompt='저장된 한국어 도서관 설정',
+            target_chars=5000, invoke=invoke,
+            deadline=100, clock=lambda: 0, short_retry_limit=3)
+        self.assertGreaterEqual(len(seen), 3)
+        self.assertNotIn(short, result)
+        self.assertIn(new_action.strip(), result)
+        self.assertIn('질문이나 대답을 다시 쓰지 않고', seen[1])
+        self.assertIn('장애물에 대응하는 행동', seen[2])
+        self.assertTrue(all('이어서 쓰는 장면' in item for item in seen))
+
     def test_qwen_sampling_profile_preserves_old_bundled_runtime(self):
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
