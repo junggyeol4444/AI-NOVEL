@@ -295,15 +295,39 @@ def build_story_prompts(canon: str, goal: str, conflict: str, place: str,
         '인물의 선택, 행동, 대화, 주변 변화가 시간 순서대로 이어집니다. '
         '각 문단에는 이전 문단에서 일어난 사건의 결과와 새로운 진전이 있습니다. '
         '한국어 서술과 자연스러운 대화로 하나의 장면을 전개합니다.')
+    # Windows Qwen has a fixed 4096-token context. The former prompt put
+    # up to 17,000 characters of canon/style BEFORE the scene goal, so a
+    # long author bible could hide the current action and conflict from the
+    # model. Keep the same source fields/limits and the author's actual facts,
+    # but place the active scene constraints ahead of the longer background.
     scene = (
-        '작품 설정:\n' + canon[:12000] + '\n'
-        '회차와 장면의 사건:\n' + style_bible[:5000] + '\n'
         '이번 장면의 목표:\n' + goal[:2000] + '\n'
         '충돌과 장애물:\n' + conflict[:1000] + '\n'
         '배경 장소:\n' + place[:1000] + '\n'
         '등장인물:\n' + ', '.join(characters[:20]) + '\n'
-        '첫 문장부터 인물의 행동을 한국어 소설 문단으로 이어 쓰세요.')
+        '첫 문장부터 인물의 행동을 한국어 소설 문단으로 이어 쓰세요.\n'
+        '작품 설정:\n' + canon[:12000] + '\n'
+        '회차와 장면의 사건:\n' + style_bible[:5000])
     return system, scene
+
+
+def build_continuation_context(canon: str, goal: str, conflict: str,
+                               place: str, style_bible: str,
+                               characters: list[str]) -> str:
+    """Use only author-provided facts, prioritizing the active scene.
+
+    The previous continuation passed original_prompt[:1800], which frequently
+    contained only the start of a long novel bible. The current goal, conflict
+    and characters were lost before each subsequent inference. The complete
+    author bible remains untouched in the saved project and initial request.
+    """
+    return (
+        '이번 장면의 목표:\n' + goal[:550] + '\n'
+        '충돌과 장애물:\n' + conflict[:350] + '\n'
+        '배경 장소:\n' + place[:250] + '\n'
+        '등장인물:\n' + ', '.join(characters[:20])[:260] + '\n'
+        '회차와 장면의 사건:\n' + style_bible[:400] + '\n'
+        '작품 설정:\n' + canon[:650])
 
 
 def main(argv=None) -> int:
@@ -455,7 +479,9 @@ def main(argv=None) -> int:
         if (not is_bundled_qa_model and model.name.lower().startswith('qwen2.5-')
                 and target is not None):
             draft = continue_korean_scene(
-                draft, original_prompt=prompt, target_chars=target,
+                draft, original_prompt=build_continuation_context(
+                    canon, goal, conflict, place, style_bible, characters),
+                target_chars=target,
                 invoke=invoke_native, deadline=deadline,
                 retry_invalid=lambda continuation_prompt, first_error, seconds:
                     retry_qwen_korean_text(
