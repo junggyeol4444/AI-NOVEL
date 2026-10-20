@@ -81,6 +81,11 @@ def validate_clean_manuscript(raw: str) -> str:
     # Fail closed rather than persisting this observed meta narration.
     if re.search(r'다음 장면은.{0,120}가정하겠습니다\s*:', text):
         raise ValueError('native console output mixed with draft')
+    # Actual ARM Qwen artifact 12232291994 included a non-literary
+    # English chapter outline ("# Chapter 1", "Chapter 2"). Reject the
+    # model's scaffolding rather than counting it as Korean novel prose.
+    if re.search(r'(?im)^\s*(?:#{1,6}\s*)?chapter\s+[0-9]+\s*$', text):
+        raise ValueError('native console output mixed with draft')
     if not any('가' <= ch <= '힣' for ch in text):
         raise ValueError('native output lacks Korean novel prose')
     # Actual Windows 2022 output leaked CJK; Windows 11 ARM output also
@@ -285,6 +290,13 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
                     deadline - clock())
                 new = validate_clean_manuscript(retry_raw).strip()
             except (ValueError, subprocess.TimeoutExpired):
+                # A fresh Qwen invocation may fail its strict script gate
+                # twice while there is still time for useful actual prose.
+                # Spend the existing bounded short-retry allowance on one
+                # *new* native inference. Never append rejected content.
+                if short_retry_limit > 0 and deadline - clock() >= 25:
+                    short_retry_limit -= 1
+                    continue
                 # Preserve only previously validated, unapproved prose.
                 break
         # Do not silently fill short drafts by repeating previous generations.
