@@ -102,6 +102,17 @@ def run(args):
         QTest.mouseClick(ui.buttons['save_draft'], Qt.MouseButton.LeftButton)
         with EpisodeStore(db_path) as db:
             check('generated_draft_saved', db.get_episode(pid, 1).draft == draft)
+        # Actual packaged Qt reader must show ONLY the saved SQLite prose,
+        # not the in-memory pending model preview. No publishing or writes.
+        window.novel_tabs.setCurrentIndex(2)
+        app.processEvents()
+        reader = window.reader
+        check('native_gui_private_reader_saved_draft',
+              reader.body.isReadOnly()
+              and reader.body.toPlainText() == draft
+              and '미승인 초고' in reader.status.text())
+        window.novel_tabs.setCurrentIndex(1)
+        app.processEvents()
         ui._set('final_text', draft + '\n[사용자 검수 완료: 합성 테스트 원고]')
         QTest.mouseClick(ui.buttons['save_final'], Qt.MouseButton.LeftButton)
         with EpisodeStore(db_path) as db:
@@ -115,6 +126,16 @@ def run(args):
                   db.get_episode(pid, 1).final_text.endswith('합성 테스트 원고]')
                   and not ui.final_reviewed.isChecked()
                   and not ui.final_quality_ack.isChecked())
+        window.novel_tabs.setCurrentIndex(2)
+        app.processEvents()
+        check('native_gui_reader_separates_manual_final_from_draft',
+              reader.body.toPlainText().endswith('합성 테스트 원고]')
+              and '사용자 검수 최종본' in reader.status.text())
+        reader.version.setCurrentIndex(reader.version.findData('draft'))
+        check('reader_draft_not_overwritten_by_final_view',
+              reader.body.toPlainText() == draft)
+        window.novel_tabs.setCurrentIndex(1)
+        app.processEvents()
         ui._set('export_dir', str(output))
         ui._set('price', '0')
         QTest.mouseClick(ui.buttons['export'], Qt.MouseButton.LeftButton)

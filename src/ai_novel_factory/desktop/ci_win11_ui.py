@@ -115,6 +115,24 @@ def run(output_dir: str) -> int:
         with ManuscriptVersionStore(session.path) as versions:
             check('studio_append_only_manuscript_version_created',
                   len(versions.list_versions(session.project_id, 1)) == 1)
+        # Exercise the actual persisted SQLite draft through the new
+        # read-only Qt reader inside the compiled Windows GUI. This is
+        # a stored synthetic test manuscript, NOT AI literary acceptance.
+        window.novel_tabs.setCurrentIndex(2)
+        app.processEvents()
+        reader = window.reader
+        check('private_reader_saved_sqlite_exact_draft',
+              reader.body.isReadOnly()
+              and reader.body.toPlainText() == '창작 원고 — 기존 작품을 복사하지 않은 합성 테스트'
+              and '미승인 초고' in reader.status.text())
+        old_size = reader.body.font().pointSize()
+        reader.font_size.setValue(19)
+        check('private_reader_user_font_size_is_view_only',
+              reader.body.font().pointSize() == 19
+              and old_size != reader.body.font().pointSize())
+        reader.font_size.setValue(16)
+        window.novel_tabs.setCurrentIndex(0)
+        app.processEvents()
         snapshot = output / 'studio_real_writer_qt.png'
         check('studio_visible_writer_screenshot_captured_offscreen',
               window.grab().save(str(snapshot), 'PNG') and snapshot.stat().st_size > 1024)

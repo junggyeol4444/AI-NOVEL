@@ -17,6 +17,7 @@ from .reference_picker import ReferencePickerWidget
 from .reference_profile_browser import ReferenceProfileBrowser
 from .plot_editor import PlotEditorWidget
 from .authoring_workflow import AuthoringWorkflowWidget
+from .private_reader import PrivateNovelReader
 from .canon_workspace import CanonWorkspace, STORES
 from .additional_workspaces import PatternWorkspace, SimilarityWorkspace, PublicationWorkspace
 from .task_monitor_widget import TaskMonitorWidget
@@ -78,6 +79,8 @@ class MainWindow(QMainWindow):
                     lambda: self.novel_tabs.setCurrentIndex(1), page)
                 self.novel_tabs.addTab(self.studio, '작품 홈 · 집필실')
                 self.novel_tabs.addTab(self.authoring, '기존 기능 · 상세 작업')
+                self.reader = PrivateNovelReader(lambda: self.authoring.session, page)
+                self.novel_tabs.addTab(self.reader, '원고 읽기 · 로컬')
                 self.novel_tabs.currentChanged.connect(self._on_novel_tab_changed)
                 layout.addWidget(self.novel_tabs)
                 # The detailed existing tools remain available without replacing
@@ -147,6 +150,7 @@ class MainWindow(QMainWindow):
         for label, target, name in (
             ('작품 홈', 'home', 'primaryHomeButton'),
             ('원고 집필', 'writing', 'primaryWritingButton'),
+            ('저장 원고 읽기', 'reader', 'primaryReaderButton'),
             ('참고작 분석', 'references', 'primaryReferenceButton'),
             ('검수 현황', 'similarity', 'primaryQualityButton'),
             ('내보내기', 'publication', 'primaryExportButton'),
@@ -256,10 +260,13 @@ class MainWindow(QMainWindow):
         self.advanced_nav_button.setAccessibleName('세부 도구 보기')
 
     def _open_primary(self, target: str) -> None:
-        if target in ('home', 'writing'):
+        if target in ('home', 'writing', 'reader'):
             self._go_to_key('novels')
             if self.pages.currentIndex() != 0:
                 return  # the unsaved-editor navigation guard was rejected
+            if target == 'reader':
+                self.novel_tabs.setCurrentIndex(2)
+                return
             self.novel_tabs.setCurrentIndex(0)
             if self.novel_tabs.currentIndex() != 0:
                 return
@@ -271,12 +278,17 @@ class MainWindow(QMainWindow):
             self._go_to_key(target)
 
     def _on_novel_tab_changed(self, index: int) -> None:
-        if index == 1 and not self.studio.confirm_discard():
+        # Switching to either advanced controls or the private reader must
+        # never discard uncommitted text from the main writing editor.
+        if index != 0 and not self.studio.confirm_discard():
             self.novel_tabs.blockSignals(True)
             self.novel_tabs.setCurrentIndex(0)
             self.novel_tabs.blockSignals(False)
-        elif index == 0:
+            return
+        if index == 0:
             self.studio.refresh()
+        elif index == 2:
+            self.reader.refresh()
 
     def _go_to_key(self, key: str) -> None:
         for index, section in enumerate(SECTIONS):
