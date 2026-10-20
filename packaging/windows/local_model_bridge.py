@@ -183,7 +183,8 @@ def retry_qwen_korean_text(prompt: str, *, first_error: ValueError,
 
 def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int,
                           invoke, deadline: float, clock=time.monotonic,
-                          retry_invalid=None) -> str:
+                          retry_invalid=None,
+                          short_retry_limit=0) -> str:
     """Continue real native model prose if a requested scene ends prematurely.
 
     No synthetic padding, translation, invented facts, prompt leaks or approvals.
@@ -238,6 +239,11 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
                 break
         # Do not silently fill short drafts by repeating previous generations.
         if not new or new in draft or len(new) < 80:
+            # Some actual Qwen generations end after one short phrase.
+            # Try a bounded fresh inference without adding that fragment.
+            if short_retry_limit > 0:
+                short_retry_limit -= 1
+                continue
             break
         overlap = 0
         for n in range(min(180, len(new), len(draft)), 24, -1):
@@ -246,10 +252,16 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
                 break
         addition = new[overlap:].strip()
         if len(addition) < 80 or addition in draft:
+            if short_retry_limit > 0:
+                short_retry_limit -= 1
+                continue
             break
         # Real Qwen continuations sometimes recite the same first paragraph
         # with a changed final phrase. Do not count it toward manuscript length.
         if repeats_existing_passage(addition, draft):
+            if short_retry_limit > 0:
+                short_retry_limit -= 1
+                continue
             break
         draft += '\n\n' + addition
         if len(draft) > 100_000:
@@ -448,7 +460,8 @@ def main(argv=None) -> int:
                 retry_invalid=lambda continuation_prompt, first_error, seconds:
                     retry_qwen_korean_text(
                         continuation_prompt, first_error=first_error,
-                        invoke=invoke_native, remaining=seconds))
+                        invoke=invoke_native, remaining=seconds),
+                short_retry_limit=2)
         response = {'protocol': MODEL_PROTO, 'draft': draft}
         stage = 'json_output'
         # Windows frozen console executables may use a legacy code page even
