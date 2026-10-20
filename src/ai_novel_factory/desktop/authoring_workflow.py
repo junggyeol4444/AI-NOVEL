@@ -18,6 +18,8 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         self._draft_request = None
         self._draft_identity = None
         self.build_controls()
+        # An empty workspace has no pending AI draft to save.
+        self.buttons['save_draft'].setEnabled(False)
         # The optional portable QA bundle includes both the console IPC bridge
         # and real GGUF weights. Detect only sibling files: never download
         # models or run unknown processes just by opening the GUI.
@@ -154,6 +156,8 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         self.episodes.blockSignals(False)
         self._sync_episode()
         self.auto_panel.refresh_defaults()
+        self.buttons['save_draft'].setEnabled(
+            self.session.pending_draft is not None and not self.is_generating())
 
     def _sync_episode(self):
         db, pid = self.session.required()
@@ -185,6 +189,7 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         if sid:
             self.session.scene_id = sid
             self.session.pending_draft = None
+            self.buttons['save_draft'].setEnabled(False)
             self._sync_scene()
 
     def is_generating(self):
@@ -275,10 +280,18 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.status.setText('Windows 로컬 모델 실행기가 비정상 종료되었습니다. 초고 저장 없음.')
         else:
             self.status.setText('로컬 AI 생성 실패 (' + safe_category + '): 초고 저장 없음.')
+        if self.session.pending_draft is not None:
+            # A previously generated unsaved preview remains author-owned;
+            # do not silently delete it on a failed *new* generation.
+            self.status.setText(
+                self.status.text() + ' 이전 미저장 초고는 그대로 유지됩니다.')
 
     def _on_generation_finished(self):
         self.buttons['generate'].setEnabled(True)
-        self.buttons['save_draft'].setEnabled(True)
+        # A failed native inference must not present an empty/old preview as
+        # a fresh result ready to be persisted.
+        self.buttons['save_draft'].setEnabled(
+            self.session.pending_draft is not None)
         self._draft_request = self._draft_identity = None
         worker = self._draft_worker
         self._draft_worker = None
