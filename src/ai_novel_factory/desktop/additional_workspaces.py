@@ -28,6 +28,9 @@ from ai_novel_factory.reference_similarity_checker import (
 )
 from .reference_profile_browser import default_local_catalog_path
 from .reference_coverage import read_reference_coverage
+from ai_novel_factory.references.opt_in_file_similarity import (
+    compare_explicit_reference_files, OptInSimilarityError,
+)
 from .cover_draft_widget import CoverDraftWidget
 
 
@@ -127,6 +130,11 @@ class SimilarityWorkspace(QWidget):
         self.status.setReadOnly(True)
         root.addWidget(self.status)
         self.compare_button.clicked.connect(self._compare)
+        self.file_compare_button = QPushButton(
+            '참고소설 파일 직접 선택 → 현재 저장 초고와 임시 비교 (원문 저장 없음)')
+        self.file_compare_button.setObjectName('similarityExplicitFileComparison')
+        root.insertWidget(root.indexOf(self.status), self.file_compare_button)
+        self.file_compare_button.clicked.connect(self._compare_files)
 
     def _read_coverage(self):
         # Only metadata counts. Do not initialize the catalog or read novels.
@@ -144,6 +152,41 @@ class SimilarityWorkspace(QWidget):
                 self.episodes.addItem(f'{episode.episode}화', episode.episode)
         self.status.setPlainText(
             f'저장된 원고 {self.episodes.count()}개. 비교 참고작 범위는 사용자가 직접 제공한 텍스트로 한정됩니다.')
+
+    def _compare_files(self):
+        session = self.session()
+        number = self.episodes.currentData()
+        if (session is None or session.store is None
+                or session.project_id is None or number is None):
+            self.status.setPlainText('비교할 저장 초고 회차를 먼저 선택하세요.')
+            return
+        # This dialog is opened only by a user click. No automatic reading
+        # of the user's prior references or private filesystem traversal.
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, '이번 검사에 사용할 참고소설 선택', '',
+            '참고소설 (*.txt *.md *.markdown *.epub *.docx *.pdf)')
+        if not paths:
+            return  # cancel preserves the prior report and all files
+        try:
+            draft = session.store.get_episode(session.project_id, number).draft
+            result = compare_explicit_reference_files(
+                session.project_id, number, draft, tuple(paths))
+        except (OptInSimilarityError, ValueError, OSError):
+            self.status.setPlainText(
+                '참고소설 전체 파일 비교 미완료 · 파일 형식/원문 크기/문서 상태를 '
+                '확인하세요. 어떤 파일도 비교 통과로 승인하지 않았습니다.')
+            return
+        report = result.report
+        # No filenames, raw manuscripts, excerpts, tokens, paths or hashes.
+        self.status.setPlainText(
+            f'명시적으로 선택한 참고파일 {result.checked_files}개 비교 · '
+            f'범위 내 결과: {report.status}\n'
+            f'문장 매치 {report.sentence_matches} / '
+            f'장면 매치 {report.scene_matches} / '
+            f'구조 매치 {report.structure_matches}\n'
+            f'미검사 사유 {len(report.unexamined)}개 · '
+            '선택 파일 이외의 참고작 전수 비교 NOT_RUN. '
+            '파일 원문 저장·출판/저작권 승인 없음.')
 
     def _compare(self):
         s = self.session()
