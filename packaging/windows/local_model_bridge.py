@@ -70,6 +70,9 @@ def validate_clean_manuscript(raw: str) -> str:
         '이어서 등장인물이 선택하고 행동하는 다음 사건을 한국어 소설 문단으로 서술하세요.',
         '장소와 인물의 대화를 자연스럽게 연결하고, 사건으로 생긴 변화를 보여주세요.',
         '이어서 등장인물이 선택하고 행동하는 다음 사건으로 장면이 이어집니다.',
+        # Actual Windows2022 Qwen draft artifact 12230304211 closed with
+        # an explanation of its instruction instead of the story's events.
+        '그런 의미에서는 바로 그것이 이번 회차의 목표였습니다:',
     )
     if any(fragment in lower for fragment in forbidden):
         raise ValueError('native console output mixed with draft')
@@ -156,6 +159,24 @@ def repeats_existing_passage(addition: str, manuscript: str) -> bool:
         if unit in earlier_units or unit in seen:
             return True
         seen.add(unit)
+
+    # Windows2022 artifact 12230304211 repeated the same quoted question
+    # and reply three times, separated by slightly different narration.
+    # A repeated meaningful dialogue line should not escape the prose
+    # guard solely because it is shorter than a 90-character paragraph.
+    def dialogue_lines(value: str) -> list[str]:
+        quotes = re.findall(r'["“]([^"”\r\n]{18,240})["”]', value)
+        return [re.sub(r'[^가-힣A-Za-z0-9]', '', part).casefold()
+                for part in quotes]
+
+    old_quotes = set(dialogue_lines(manuscript))
+    seen_quotes = set()
+    for quote in dialogue_lines(addition):
+        if len(quote) < 18:
+            continue
+        if quote in old_quotes or quote in seen_quotes:
+            return True
+        seen_quotes.add(quote)
     return False
 
 
