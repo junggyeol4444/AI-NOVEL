@@ -169,6 +169,44 @@ class BatchWiringSourceContract(unittest.TestCase):
         self.assertIn('scope_only=true;literary_approved=false', batch)
         self.assertIn('requires_review = True', batch)
 
+    def test_real_episode_budget_is_allocated_without_dropping_characters(self):
+        from ai_novel_factory.auto_novel_run import (
+            _scene_char_targets, AutoNovelRunError)
+        for total, count, expected in (
+            (5000, 3, (1667, 1667, 1666)),
+            (5000, 20, (250,) * 20),
+            (5000, 1, (5000,)),
+            (101, 2, (51, 50)),
+            (250, 5, (50,) * 5),
+        ):
+            with self.subTest(total=total, count=count):
+                actual = _scene_char_targets(total, count)
+                self.assertEqual(actual, expected)
+                self.assertEqual(sum(actual), total)
+                self.assertTrue(all(x >= 50 for x in actual))
+        for total, count in ((50, 3), (999, 20), (100, 0),
+                             (5000, 21), (5000, True)):
+            with self.subTest(invalid=(total, count)):
+                with self.assertRaises(AutoNovelRunError):
+                    _scene_char_targets(total, count)
+
+    def test_real_model_length_qc_counts_nonspace_only(self):
+        batch = BATCH.read_text(encoding='utf-8')
+        self.assertIn('enough = screen.nonspace_chars >= target_chars', batch)
+        self.assertNotIn('enough = len(full_draft.strip()) >= target_chars', batch)
+        self.assertIn('per_scene = scene_targets[scene_index]', batch)
+        # Stored temporary SQLite episode checks preserve the actual status
+        # without author-editing, literary approval or model emulation.
+        episode = self.db.create_unapproved_batch_episode(
+            self.pid, 1, plot='임시', draft='한글 글자 띄어쓰기',
+            summary='미확정', scenes=((1, '한글 글자 띄어쓰기'),),
+            checks=(('length', 'WARN', 'actual_nonspace=8;target_chars=5000'),))
+        self.assertEqual(episode.final_text, '')
+        with EpisodeStore(self.path) as independent:
+            record = independent.list_checks(self.pid, 1)[0]
+            self.assertEqual(record.outcome, 'WARN')
+            self.assertIn('target_chars=5000', record.note)
+
     def test_run_uses_atomic_insert_and_explicit_real_korean_screening(self):
         batch = BATCH.read_text(encoding='utf-8')
         self.assertIn('safe.create_unapproved_batch_episode(', batch)
@@ -184,6 +222,7 @@ class BatchWiringSourceContract(unittest.TestCase):
         self.assertIn("Path(executable).name.casefold() == 'anf_local_model.exe'", gui)
         self.assertIn("timeout_seconds=(", gui)
         self.assertIn('self.auto_panel.request_stop()', workflow)
+        self.assertIn('self.target_chars.value() < 50 * self.scenes.value()', gui)
         self.assertIn("if self.auto_panel.is_running():", workflow)
         self.assertIn('str(session.project_id) == self.worker.project_id', gui)
 

@@ -124,6 +124,11 @@ class AutoBatchPanel(QGroupBox):
         if session.project_id is None or session.path is None:
             self.status.setText('작품 메뉴에서 먼저 작품을 생성하거나 열어 주세요.')
             return
+        if self.target_chars.value() < 50 * self.scenes.value():
+            self.status.setText(
+                '회차 목표 분량이 장면 수에 비해 작습니다. '
+                '장면마다 최소 50자 이상으로 설정하세요.')
+            return
         if not self.consent.isChecked():
             self.status.setText('실제 로컬 AI 연속 실행에 대한 이번 회차 승인이 필요합니다.')
             return

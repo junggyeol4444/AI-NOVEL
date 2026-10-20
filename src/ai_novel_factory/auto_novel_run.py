@@ -89,6 +89,23 @@ def _continuity_context(canon: str, existing: dict[int, object],
     )[:20000]
 
 
+def _scene_char_targets(episode_target: int, scene_count: int) -> tuple[int, ...]:
+    """Distribute the REAL requested characters without losing the remainder.
+
+    A native scene target below 50 is unsupported; reject the configuration
+    instead of silently overshooting the manuscript length by up to 20x.
+    The targets are instructions for the same actual GGUF, not model output.
+    """
+    if (type(episode_target) is not int or type(scene_count) is not int
+            or not 1 <= scene_count <= 20
+            or not 50 <= episode_target <= 50000
+            or episode_target < 50 * scene_count):
+        raise AutoNovelRunError('장면마다 최소 50자 이상이 되도록 회차 분량·장면 수를 설정하세요.')
+    base, remainder = divmod(episode_target, scene_count)
+    return tuple(base + (index < remainder)
+                 for index in range(scene_count))
+
+
 def run_auto_novel(
     database_path: str | Path, project_id: str, provider: LocalExecutableProvider, *,
     through_episode: int, target_chars: int, scenes_per_episode: int = 2,
@@ -108,6 +125,7 @@ def run_auto_novel(
             or type(target_chars) is not int or not 50 <= target_chars <= 50000
             or type(scenes_per_episode) is not int or not 1 <= scenes_per_episode <= 20):
         raise AutoNovelRunError('회차·글자 수·장면 수가 허용 범위 밖입니다.')
+    scene_targets = _scene_char_targets(target_chars, scenes_per_episode)
     if progress is not None and not callable(progress):
         raise AutoNovelRunError('진행 알림 형식이 올바르지 않습니다.')
     if should_stop is not None and not callable(should_stop):
@@ -232,8 +250,8 @@ def run_auto_novel(
                     f'{mood} 분위기의 갈등과 연속성 유지',
                     f'작품 세계관 ({genre})')
                 drafts = []
-                per_scene = max(50, target_chars // scenes_per_episode)
-                for slot in slots:
+                for scene_index, slot in enumerate(slots):
+                    per_scene = scene_targets[scene_index]
                     emit(n, f'장면 {slot.scene_number}/{scenes_per_episode} 로컬 AI 집필')
                     scene_goal = (
                         f'{n}화 {slot.scene_number}/{scenes_per_episode}장면. '
@@ -286,7 +304,9 @@ def run_auto_novel(
                 break
             full_draft = '\n\n'.join(drafts)
             repetition = check_repetition(project_id, n, full_draft)
-            enough = len(full_draft.strip()) >= target_chars
+            # Empty spaces and formatting do not count toward the agreed
+            # manuscript quota. Use the original model text unchanged.
+            # Full literary screening remains independent and stricter.
             # No source novel's raw passages are stored. The reference-similarity
             # gate cannot claim PASS without full, reloaded source coverage.
             # Continuity/logic/reader checks likewise need fresh evidence.
@@ -296,6 +316,7 @@ def run_auto_novel(
             # Screen actual, unaltered model prose separately from the old
             # length/repetition checks; this is NOT literary certification.
             screen = screen_korean_draft(full_draft, target_chars=target_chars)
+            enough = screen.nonspace_chars >= target_chars
             # Inspect three actual SAVED preceding episode drafts. No raw
             # cross-episode matches go into stored QC notes or network logs.
             # Review is still mandatory even when this local scope is clear.
