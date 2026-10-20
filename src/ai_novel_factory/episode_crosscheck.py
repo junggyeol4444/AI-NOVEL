@@ -12,6 +12,8 @@ import re
 _SPLIT = re.compile(r'(?<=[.!?。])\s+|\r?\n+')
 _CLEAN = re.compile(r'[^가-힣0-9]+')
 _MAX_CHARS = 100_000
+_MAX_PRIOR_EPISODES = 250
+_MAX_TOTAL_PRIOR_CHARS = _MAX_PRIOR_EPISODES * _MAX_CHARS
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,9 +40,11 @@ def screen_cross_episode_reuse(
 ) -> EpisodeReuseScreen:
     if (type(draft) is not str or not 1 <= len(draft) <= _MAX_CHARS
             or type(prior_drafts) is not tuple
-            or len(prior_drafts) > 3
+            or len(prior_drafts) > _MAX_PRIOR_EPISODES
             or any(type(t) is not str or len(t) > _MAX_CHARS
-                   for t in prior_drafts)):
+                   for t in prior_drafts)
+            or sum(len(t) for t in prior_drafts if type(t) is str)
+            > _MAX_TOTAL_PRIOR_CHARS):
         raise ValueError('invalid bounded cross-episode evidence')
     current = _sentences(draft)
     already: set[str] = set()

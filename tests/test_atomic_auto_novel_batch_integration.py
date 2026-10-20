@@ -165,6 +165,9 @@ class BatchWiringSourceContract(unittest.TestCase):
     def test_cross_episode_reuse_is_recorded_as_scope_only_no_auto_approval(self):
         batch = BATCH.read_text(encoding='utf-8')
         self.assertIn('cross = screen_cross_episode_reuse(', batch)
+        self.assertIn('for p in range(1, n)', batch)
+        self.assertIn('missing_prior_episodes={missing_prior}', batch)
+        self.assertNotIn('range(max(1, n - 3), n)', batch)
         self.assertIn("'cross_episode_sentence_reuse',", batch)
         self.assertIn('scope_only=true;literary_approved=false', batch)
         self.assertIn('requires_review = True', batch)

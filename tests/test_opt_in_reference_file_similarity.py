@@ -85,6 +85,29 @@ class OptInReferenceFileSafetyTests(unittest.TestCase):
             with self.subTest(paths=paths),self.assertRaises(OptInSimilarityError):
                 compare_explicit_reference_files(self.pid,1,self.original,paths)
 
+    def test_21st_explicit_reference_is_checked_and_evidence_index_is_global(self):
+        sources = []
+        for number in range(21):
+            path = self.root / f'author-selected-{number:02d}.txt'
+            content = (
+                self.original if number == 20 else
+                f'가상의 먼 항구에서 {number}번째 상인은 지도와 별을 확인했다. ' * 7)
+            path.write_text(content, encoding='utf-8')
+            sources.append(str(path))
+        original_bytes = tuple(Path(p).read_bytes() for p in sources)
+        result = compare_explicit_reference_files(
+            self.pid, 1, self.original, tuple(sources))
+        self.assertEqual(result.checked_files, 21)
+        self.assertEqual(len(result.report.reference_ids), 21)
+        self.assertIn(result.report.status, ('blocked', 'review'))
+        self.assertTrue(result.report.unexamined)
+        self.assertFalse(result.report.manuscript_approved)
+        self.assertFalse(result.corpus_coverage_certified)
+        self.assertTrue(any(e.reference_number == 21
+                            for e in result.report.evidence))
+        self.assertEqual(original_bytes,
+                         tuple(Path(p).read_bytes() for p in sources))
+
     def test_epub_parser_gets_full_transient_korean_text(self):
         from ai_novel_factory.epub3 import create_epub, Chapter
         from ai_novel_factory.publication_metadata import MetadataDraft

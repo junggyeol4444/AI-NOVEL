@@ -33,6 +33,20 @@ class CrossEpisodeBoundedTests(unittest.TestCase):
         self.assertEqual(report.prior_episodes_examined, 0)
         self.assertFalse(report.literary_approved)
 
+    def test_detects_old_chapter_match_outside_previous_three(self):
+        repeated = '조사자는 사서와 함께 사라진 장부를 찾아 지하 보관실로 내려갔다.'
+        earlier = tuple(
+            repeated if index == 0 else
+            f'사서는 {index}번째 기록의 사건 날짜를 다시 확인했다.'
+            for index in range(250))
+        result = screen_cross_episode_reuse(repeated, earlier)
+        self.assertEqual(result.prior_episodes_examined, 250)
+        self.assertEqual(result.affected_prior_episodes, 1)
+        self.assertEqual(result.exact_sentence_reuses, 1)
+        self.assertFalse(result.literary_approved)
+        with self.assertRaises(ValueError):
+            screen_cross_episode_reuse(repeated, earlier + (repeated,))
+
     def test_overlong_or_invalid_inputs_rejected_without_processing(self):
         current = '사서는 오래된 기록을 확인한 뒤 동료를 찾았다.'
         for previous in (('a' * 100001,), tuple('a' for _ in range(4)), (None,)):

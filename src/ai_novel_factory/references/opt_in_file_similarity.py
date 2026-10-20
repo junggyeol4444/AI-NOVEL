@@ -8,7 +8,7 @@ UNEXAMINED. Never truncate a selected work to fabricate a 'clear' verdict.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
@@ -45,14 +45,15 @@ def compare_explicit_reference_files(
 ) -> OptInComparison:
     """Compare all chosen document text in memory; no silent partial coverage.
 
-    Max 20 source works / 1m raw chars / 500k normalized units are the
-    *existing* similarity engine bounds, not new approval thresholds. If
-    exceeded, fail closed and require a different explicit workflow.
+    Compare up to 100 explicitly selected works in groups of <=20. Keep the
+    existing 1m raw chars / 500k normalized units / 32 MiB total bounds.
+    A group cannot silently be skipped; any group failure aborts the entire
+    comparison, and no group can authorize publication or literary approval.
     """
-    if (type(paths) is not tuple or not 1 <= len(paths) <= 20
+    if (type(paths) is not tuple or not 1 <= len(paths) <= 100
             or any(type(name) is not str or not name for name in paths)
             or len(set(paths)) != len(paths)):
-        raise OptInSimilarityError('참고소설은 중복 없이 1~20개 직접 선택해야 합니다.')
+        raise OptInSimilarityError('참고소설은 중복 없이 1~100개 직접 선택해야 합니다.')
     refs = []
     total_raw_chars = 0
     total_units = 0
@@ -86,12 +87,49 @@ def compare_explicit_reference_files(
         refs.append(ReferenceMaterial(
             reference_id=uuid4().hex, source_sha256=sha256(raw).hexdigest(),
             text=parsed.text))
-    # No catalog identity/source certification; missing scene and abstract
-    # structure coverage are explicit unexamined reasons on the report.
+    # The similarity engine is deliberately limited to 20 references per
+    # invocation. Compare ALL selected works in disjoint groups; a match in
+    # the 21st/100th source must be visible. Never lower similarity thresholds.
     try:
-        report = check_reference_similarity(
-            project_id, episode, saved_draft, references=tuple(refs))
+        reports = tuple(check_reference_similarity(
+            project_id, episode, saved_draft, references=tuple(refs[i:i + 20]))
+            for i in range(0, len(refs), 20))
     except (ReferenceSimilarityError, ValueError):
         raise OptInSimilarityError(
             '선택한 원문 범위를 비교할 수 없습니다. 결과는 미검증으로 유지합니다.') from None
+    if len(reports) == 1:
+        return OptInComparison(len(refs), reports[0])
+
+    # Preserve original report type and all reference indexes; offsets are
+    # numeric only. The comparison never persists source text or identities.
+    severity = {'clear': 0, 'inconclusive': 1, 'review': 2, 'blocked': 3}
+    status = max((r.status for r in reports), key=severity.__getitem__)
+    direct = max((r.direct_status for r in reports), key=severity.__getitem__)
+    paragraph = max((r.paragraph_status for r in reports),
+                    key=severity.__getitem__)
+    unexamined = set().union(*(r.unexamined for r in reports))
+    evidence = []
+    for group_no, result in enumerate(reports):
+        for item in result.evidence:
+            if len(evidence) >= 40:
+                unexamined.add('evidence_limit_exceeded')
+                break
+            evidence.append(replace(
+                item, reference_number=group_no * 20 + item.reference_number))
+    # Multiple independently bounded groups are not a full-corpus semantic
+    # check. This marker ensures no accidental 'clear' or approval.
+    unexamined.add('multi_group_scope_only')
+    if status == 'clear':
+        status = 'inconclusive'
+    report = ReferenceSimilarityReport(
+        reports[0].project_id, reports[0].episode_number,
+        reports[0].draft_sha256,
+        tuple(item for r in reports for item in r.reference_ids),
+        tuple(item for r in reports for item in r.reference_text_sha256),
+        status, direct, paragraph,
+        sum(r.sentence_matches for r in reports),
+        sum(r.scene_matches for r in reports),
+        sum(r.structure_matches for r in reports),
+        tuple(evidence), tuple(sorted(unexamined)), False,
+    )
     return OptInComparison(len(refs), report)

@@ -317,12 +317,16 @@ def run_auto_novel(
             # length/repetition checks; this is NOT literary certification.
             screen = screen_korean_draft(full_draft, target_chars=target_chars)
             enough = screen.nonspace_chars >= target_chars
-            # Inspect three actual SAVED preceding episode drafts. No raw
-            # cross-episode matches go into stored QC notes or network logs.
-            # Review is still mandatory even when this local scope is clear.
+            # Examine ALL actual saved earlier drafts, up to the planned
+            # 250-chapter scope; do not silently certify only the last three.
+            # Missing/empty earlier chapters remain explicit unexamined gaps.
+            # This screen is exact-sentence-only, never literary certification.
             prior_drafts = tuple(
-                existing[p].draft for p in range(max(1, n - 3), n)
+                existing[p].draft for p in range(1, n)
                 if p in existing and existing[p].draft.strip())
+            missing_prior = sum(
+                p not in existing or not existing[p].draft.strip()
+                for p in range(1, n))
             cross = screen_cross_episode_reuse(full_draft, prior_drafts)
             checks = [
                 ('length', 'PASS' if enough else 'WARN',
@@ -336,9 +340,10 @@ def run_auto_novel(
                  f'repeated_sentence_share={screen.repeated_sentence_share};'
                  f'non_prose_markers={screen.non_prose_markers}'),
                 ('cross_episode_sentence_reuse',
-                 'WARN' if cross.exact_sentence_reuses
+                 'WARN' if cross.exact_sentence_reuses or missing_prior
                  else 'PASS' if cross.prior_episodes_examined else 'NOT_RUN',
                  f'prior_episodes_examined={cross.prior_episodes_examined};'
+                 f'missing_prior_episodes={missing_prior};'
                  f'exact_sentences={cross.exact_sentence_reuses};'
                  f'affected_chapters={cross.affected_prior_episodes};'
                  'scope_only=true;literary_approved=false'),
