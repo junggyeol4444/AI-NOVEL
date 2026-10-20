@@ -145,7 +145,7 @@ def repeats_existing_passage(addition: str, manuscript: str) -> bool:
     # generated paragraph escaped the old prefix-only repetition check.
     # Detect exact meaningful sentences, never edit or auto-fill the prose.
     def substantial_sentences(value: str) -> list[str]:
-        segments = re.split(r'(?<=[.!?。！？])\\s+|[\\r\\n]+', value)
+        segments = re.split(r'(?<=[.!?。！？])\s+|[\r\n]+', value)
         cleaned = [re.sub(r'[^가-힣A-Za-z0-9]', '', part).casefold()
                    for part in segments]
         return [part for part in cleaned if len(part) >= 36]
