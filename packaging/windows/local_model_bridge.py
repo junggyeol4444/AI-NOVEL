@@ -137,7 +137,26 @@ def repeats_existing_passage(addition: str, manuscript: str) -> bool:
     """
     current = re.sub(r'[^가-힣A-Za-z0-9]', '', addition).casefold()
     earlier = re.sub(r'[^가-힣A-Za-z0-9]', '', manuscript).casefold()
-    return len(current) >= 90 and current[:90] in earlier
+    if len(current) >= 90 and current[:90] in earlier:
+        return True
+
+    # The actual Windows2022 Qwen QA generated 55 sentence units with
+    # repeated_sentence_share=16.36%. A copied sentence later in a newly
+    # generated paragraph escaped the old prefix-only repetition check.
+    # Detect exact meaningful sentences, never edit or auto-fill the prose.
+    def substantial_sentences(value: str) -> list[str]:
+        segments = re.split(r'(?<=[.!?。！？])\\s+|[\\r\\n]+', value)
+        cleaned = [re.sub(r'[^가-힣A-Za-z0-9]', '', part).casefold()
+                   for part in segments]
+        return [part for part in cleaned if len(part) >= 36]
+
+    earlier_units = set(substantial_sentences(manuscript))
+    seen = set()
+    for unit in substantial_sentences(addition):
+        if unit in earlier_units or unit in seen:
+            return True
+        seen.add(unit)
+    return False
 
 
 def retry_bundled_korean_text(prompt: str, *, first_error: ValueError,
