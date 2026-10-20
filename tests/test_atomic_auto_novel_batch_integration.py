@@ -100,8 +100,6 @@ class AtomicBatchEpisodeRegression(unittest.TestCase):
                                 for e in independent.list_episodes(self.pid)))
             self.assertEqual(len(independent.list_checks(self.pid, 250)), 3)
 
-
-class BatchWiringSourceContract(unittest.TestCase):
     def test_recent_true_saved_chapter_context_survives_long_novel_bible(self):
         from ai_novel_factory.auto_novel_run import _continuity_context
         # Only disposable authoring DB and synthetic contents; no AI was run.
@@ -125,8 +123,7 @@ class BatchWiringSourceContract(unittest.TestCase):
         self.assertIn('50화 기록', ctx)
         self.assertIn('날짜가 뒤바뀌었다', ctx)
         self.assertIn('사용자가 저장한 Novel Bible', ctx)
-        self.assertTrue(ctx.endswith(long_bible[:len(ctx)-ctx.index('사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\\n')-len('사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\\n')]))
-        from ai_novel_factory.local_models import SceneDraftRequest
+        self.assertTrue(ctx.endswith(long_bible))
         from importlib.util import spec_from_file_location, module_from_spec
         # The actual bridge packs only 12k characters of its scene canon.
         spec = spec_from_file_location('bridge_for_continuity',
@@ -140,6 +137,9 @@ class BatchWiringSourceContract(unittest.TestCase):
                          examples[-1][2])
         self.assertEqual(self.db.get_episode(self.pid, 50).final_text, '')
 
+
+
+class BatchWiringSourceContract(unittest.TestCase):
     def test_run_uses_atomic_insert_and_explicit_real_korean_screening(self):
         batch = BATCH.read_text(encoding='utf-8')
         self.assertIn('safe.create_unapproved_batch_episode(', batch)
