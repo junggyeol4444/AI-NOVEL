@@ -336,10 +336,13 @@ def run_auto_novel(
                     project_id, n, plot=outline,
                     draft=full_draft,
                     summary='미확정 AI 플롯 요약: ' + outline[:1600],
-                    scenes=tuple(
-                        (slot.scene_number,
-                         f'{outline[:600]}\n장면 목표: {n}화 {index}장면')
-                        for index, slot in enumerate(slots, 1)),
+                    # Persist the actual native model-written scene text.
+                    # The previous version stored manufactured outline/goal
+                    # placeholders in bible_episode_scenes while full_draft
+                    # held different prose, corrupting source provenance and
+                    # subsequent GUI scene reading. No model text is invented.
+                    scenes=tuple((slot.scene_number, scene_text)
+                                 for slot, scene_text in zip(slots, drafts)),
                     checks=tuple(checks))
             created.append(n)
             existing[n] = current

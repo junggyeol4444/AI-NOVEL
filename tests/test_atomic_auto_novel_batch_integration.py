@@ -89,6 +89,28 @@ class AtomicBatchEpisodeRegression(unittest.TestCase):
                     self.pid, 3, **{**self.kwargs(), **kwargs})
         self.assertEqual(self.db.list_episodes(self.pid), ())
 
+    def test_real_native_scene_text_is_preserved_across_sqlite_restart(self):
+        # Synthetic stored texts test SQL provenance only. No mocked Qwen
+        # acceptance, no fake literary PASS, no publication, no real files.
+        scenes = (
+            (1, '사서는 첫 번째 서랍에서 날짜가 지워진 종이를 발견했다.'),
+            (2, '조사자는 두 번째 서랍을 열어 봉인된 장부를 확인했다.'),
+        )
+        before = self.db.get_project(self.pid).revision
+        episode = self.db.create_unapproved_batch_episode(
+            self.pid, 1, plot='미승인 플롯', draft='\n\n'.join(s for _, s in scenes),
+            summary='미승인 요약', scenes=scenes,
+            checks=(('continuity', 'NOT_RUN', '실제 품질 미검증'),))
+        self.assertEqual(episode.revision, 4)
+        with EpisodeStore(self.path) as other:
+            loaded = other.snapshot(self.pid, 1)
+            self.assertEqual([s.text for s in loaded.scenes],
+                             [s for _, s in scenes])
+            self.assertEqual(loaded.episode.draft,
+                             '\n\n'.join(s for _, s in scenes))
+            self.assertEqual(loaded.episode.final_text, '')
+            self.assertEqual(other.get_project(self.pid).revision, before + 1)
+
     def test_250_episode_storage_contract_does_not_certify_ai(self):
         # Real SQLite transactions only; these are NOT model-written novels.
         for number in range(1, 251):
@@ -150,6 +172,8 @@ class BatchWiringSourceContract(unittest.TestCase):
     def test_run_uses_atomic_insert_and_explicit_real_korean_screening(self):
         batch = BATCH.read_text(encoding='utf-8')
         self.assertIn('safe.create_unapproved_batch_episode(', batch)
+        self.assertIn('for slot, scene_text in zip(slots, drafts)', batch)
+        self.assertNotIn("f'{outline[:600]}\\n장면 목표: {n}화", batch)
         self.assertIn("('korean_format', 'PASS' if screen.format_gate_pass", batch)
         self.assertIn("('reference_similarity', 'continuity',", batch)
         self.assertNotIn('safe.create_episode(project_id, n, plot=outline)', batch)

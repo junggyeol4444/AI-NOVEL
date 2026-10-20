@@ -92,6 +92,17 @@ def validate_clean_manuscript(raw: str) -> str:
         r'|<날씨\s*:[^\r\n>]{1,80}>\s*$'
         r'|---+\s*$)', text):
         raise ValueError('native console output mixed with draft')
+    # Actual Windows11 ARM Qwen 5000-char run 39379614192 wrote a screenplay,
+    # beginning with "### 장면 1", "**(날짜: ...)**", "**조사자:**"
+    # and "**(사서)**". These are production role/shot notes, not prose.
+    # Reject even when followed by otherwise well-formed Korean sentences.
+    if re.search(
+        r'(?m)^[ \t]*(?:#{1,6}[ \t]*(?:장면[ \t]*[0-9]+'
+        r'|제[ \t]*[0-9]+화|Scene[ \t]*[0-9]+)[^\r\n]{0,80}'
+        r'|\*\*[ \t]*\([^()\r\n]{1,80}\)[ \t]*\*\*'
+        r'|\*\*[ \t]*[가-힣][가-힣 ]{0,24}:[ \t]*\*\*)[ \t]*$',
+        text):
+        raise ValueError('native console output mixed with draft')
     # The real Windows 11 ARM Qwen output included an instruction-like
     # "next scene ... assume" sentence, not a fictional character's action.
     # Fail closed rather than persisting this observed meta narration.
@@ -418,7 +429,8 @@ def build_story_prompts(canon: str, goal: str, conflict: str, place: str,
         '인물의 선택, 행동, 대화, 주변 변화가 시간 순서대로 이어집니다. '
         '각 문단에는 이전 문단에서 일어난 사건의 결과와 새로운 진전이 있습니다. '
         '한국어 서술과 자연스러운 대화로 하나의 장면을 전개합니다. '
-        '장소·인물·결과를 목록이나 대본으로 나누지 않고 일반 소설의 문단으로 시작합니다.')
+        '장소·인물·결과를 목록이나 대본으로 나누지 않고 일반 소설의 문단으로 시작합니다. '
+        '인물의 표정과 행동을 서술한 뒤, 대화는 따옴표로 표현합니다.')
     # Windows Qwen has a fixed 4096-token context. The former prompt put
     # up to 17,000 characters of canon/style BEFORE the scene goal, so a
     # long author bible could hide the current action and conflict from the

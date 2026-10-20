@@ -67,6 +67,19 @@ class KoreanDraftScreenTests(unittest.TestCase):
                 self.assertFalse(result.format_gate_pass)
                 self.assertGreater(result.non_prose_markers, 0)
 
+    def test_latest_actual_windows_arm_screenplay_markers_are_not_novel(self):
+        natural = ('조사자는 문 앞에 서서 기록의 날짜를 비교했다. '
+                   '사서는 서랍을 열고 지워진 글씨의 흔적을 가리켰다. ')
+        for marker in ('### 장면 1',
+                       '**(날짜: 2019년 8월 1일)**',
+                       '**조사자:**',
+                       '**(사서)**'):
+            with self.subTest(marker=marker):
+                check = screen_korean_draft(
+                    natural * 55 + '\n' + marker, target_chars=5000)
+                self.assertFalse(check.format_gate_pass)
+                self.assertGreater(check.non_prose_markers, 0)
+
     def test_invalid_limits_and_types_rejected(self):
         for text, target in ((None, 5000), ('', 0), ('', True),
                              ('', 1_000_001), ('가' * 100001, 5000)):

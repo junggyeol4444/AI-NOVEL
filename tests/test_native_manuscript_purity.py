@@ -151,6 +151,26 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             '그가 도서관의 장소를 묻자 사서는 그 길을 조용히 알려 주었다.'),
             '그가 도서관의 장소를 묻자 사서는 그 길을 조용히 알려 주었다.')
 
+    def test_latest_real_windows11_arm_scene_cast_script_is_rejected(self):
+        # Real compiled Windows11 ARM run 39379614192, artifact 12244634146
+        # contained all these non-novel forms. Never persist role labels as
+        # user prose, including when a natural sentence follows afterwards.
+        samples = (
+            '### 장면 1\n조사자는 기록을 찾았다.',
+            '**(날짜: 2019년 8월 1일)**\n조사자는 문을 열었다.',
+            '**조사자:**\n"이 기록은 어디에 있었습니까?"',
+            '**(사서)**\n"저는 그 책을 다시 보았습니다."',
+            '**(조사자)**\n"이후의 일은 알 수 없었습니다."',
+        )
+        for text in samples:
+            with self.subTest(sample=text), self.assertRaisesRegex(
+                    ValueError, 'mixed with draft'):
+                module.validate_clean_manuscript(text)
+        # Real Korean narrative without a script label remains permitted.
+        actual_prose = '조사자가 문을 열자 사서가 책에서 눈을 떼고 질문을 들었다.'
+        self.assertEqual(module.validate_clean_manuscript(actual_prose),
+                         actual_prose)
+
     def test_refuse_empty_and_english_only(self):
         for text in ('', 'Loading model...', 'Sorry, I cannot write this story'):
             with self.subTest(text=text), self.assertRaises(ValueError):

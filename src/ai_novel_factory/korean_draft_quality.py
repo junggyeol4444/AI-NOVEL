@@ -17,6 +17,15 @@ _HAN_SCRIPT = re.compile(r'[\u3400-\u9fff]')
 _OTHER_SCRIPT_CORRUPTION = re.compile(
     r'[\u3040-\u30ff\u0400-\u052f\ufffd]'
     r'|[가-힣](?:[A-Za-z]{2,}|[\u0100-\u024f\u1e00-\u1eff])')
+# The latest real Windows11 ARM compiled EXE Qwen artifact generated
+# "### 장면 1", "**(날짜: ...)**", "**조사자:**", "**(사서)**".
+# This screen must agree with the native bridge; synthetic fixtures are
+# NOT literature approval. Source text is never rewritten or translated.
+_SCREENPLAY_LINE = re.compile(
+    r'(?m)^[ \t]*(?:#{1,6}[ \t]*(?:장면[ \t]*[0-9]+'
+    r'|제[ \t]*[0-9]+화|Scene[ \t]*[0-9]+)[^\r\n]{0,80}'
+    r'|\*\*[ \t]*\([^()\r\n]{1,80}\)[ \t]*\*\*'
+    r'|\*\*[ \t]*[가-힣][가-힣 ]{0,24}:[ \t]*\*\*)[ \t]*$')
 _NON_PROSE_LINE = re.compile(
     r'(?m)^[ \t]*(?:#{1,6}[ \t]+\S|(?:\*\*)?(?:제목|등장인물|장면|'
     r'조사를 위한 준비|사서의 설명과 검토|조사자의 선택 및 행동|작성 계획)\s*:'
@@ -59,7 +68,8 @@ def screen_korean_draft(text: str, *, target_chars: int = 5000) -> KoreanDraftSc
     chunks = [normalized[i:i + 40] for i in range(0, len(normalized) - 39, 40)]
     repeated_chunks = 1.0 - len(set(chunks)) / max(1, len(chunks))
     han_script_chars = len(_HAN_SCRIPT.findall(text))
-    non_prose_markers = len(_NON_PROSE_LINE.findall(text))
+    non_prose_markers = (len(_NON_PROSE_LINE.findall(text))
+                         + len(_SCREENPLAY_LINE.findall(text)))
     minimum = math.ceil(target_chars * 0.9)
     passed = (nonspace_chars >= minimum and hangul >= minimum
               and hangul_share >= 0.78
