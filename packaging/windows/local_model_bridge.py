@@ -106,6 +106,26 @@ def validate_clean_manuscript(raw: str) -> str:
     return text
 
 
+def native_script_failure_category(raw: str) -> str:
+    """Finite, no-content script labels for the rejected native sample.
+
+    Does not store, print or send author text, prompts or model prose. Strict
+    validation and the real 5000-character quality gate remain unchanged.
+    """
+    if type(raw) is not str:
+        return 'UNKNOWN'
+    if '\ufffd' in raw:
+        return 'DECODING_REPLACEMENT'
+    if re.search(r'[\u0400-\u052f]', raw):
+        return 'CYRILLIC'
+    if re.search(r'[\u3040-\u30ff]', raw):
+        return 'KANA'
+    if re.search(r'[\u3400-\u9fff]', raw):
+        return 'HAN'
+    if re.search(r'[가-힣](?:[a-z]{2,}|[\u0100-\u024f\u1e00-\u1eff])', raw):
+        return 'MIXED_KOREAN_TOKEN'
+    return 'OTHER'
+
 
 def build_native_command(llama: Path, model: Path, system_prompt: str,
                          prompt: str, prediction_budget: str) -> list[str]:
@@ -124,8 +144,15 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
     common = [
         '--model', str(model), '--predict', prediction_budget,
         '--ctx-size', '4096', '--threads', threads, '--threads-batch', threads,
-        '--repeat-penalty', '1.16', '--repeat-last-n', '256',
-        '--temp', '0.8', '--top-p', '0.92', '--no-display-prompt',
+        # Only user-selected Qwen gets a less punitive sampling profile.
+        # The observed long Windows drafts drifted from Korean into other
+        # scripts; this is a hypothesis to test with REAL weights/CI, never
+        # a declaration of literary quality. Bundled 135M remains unchanged.
+        '--repeat-penalty', ('1.08' if qwen else '1.16'),
+        '--repeat-last-n', ('128' if qwen else '256'),
+        '--temp', ('0.62' if qwen else '0.8'),
+        '--top-p', ('0.90' if qwen else '0.92'),
+        '--no-display-prompt',
     ]
     if qwen or model.name == MODEL_NAME:
         # The pinned bundle includes llama-completion.exe. Avoid llama-cli's
@@ -233,7 +260,11 @@ def retry_qwen_korean_text(prompt: str, *, first_error: ValueError,
         prompt + '\n'
         '첫 문장부터 한국어 소설 본문을 이어 씁니다. '
         '등장인물이 목표를 향해 행동하고 그 결과가 주변에 나타납니다.')
-    return invoke(retry_prompt, remaining, '160')
+    # The former 160-token Qwen retry consumed native startup just to
+    # produce another too-short fragment. Spend up to 320 real model tokens,
+    # with identical GGUF, strict validation and existing total deadline.
+    # The bundled 135M retry stays at 160 tokens.
+    return invoke(retry_prompt, remaining, '320')
 
 
 def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int,
@@ -581,6 +612,12 @@ def main(argv=None) -> int:
         # Expose a finite category, not raw native text or author content.
         reason = ''
         if stage == 'text_validation' and type(exc) is ValueError:
+            if str(exc) == 'native non-Korean script in draft':
+                # Fixed category only: do not leak the failed author prose.
+                print('NATIVE_SCRIPT_CATEGORY=' +
+                      native_script_failure_category(
+                          raw_draft if 'raw_draft' in locals() else ''),
+                      file=sys.stderr)
             category = {
                 'invalid native output type': 'INVALID_TYPE',
                 'invalid native output': 'EMPTY_CONTROL_OR_LENGTH',

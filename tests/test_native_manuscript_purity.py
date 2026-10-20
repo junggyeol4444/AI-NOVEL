@@ -165,6 +165,42 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                              scene_prompt)
             self.assertNotIn('<|im_start|>', ' '.join(command))
 
+    def test_qwen_sampling_profile_preserves_old_bundled_runtime(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'llama-completion.exe').touch()
+            cli = root / 'llama-cli.exe'
+            qwen = module.build_native_command(
+                cli, root / 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
+                '한국어 소설 작가', '사서의 선택과 사건', '512')
+            bundled = module.build_native_command(
+                cli, root / 'SmolLM2-135M-Instruct-Q4_K_M.gguf',
+                '작가', '사서의 선택과 사건', '384')
+            def opt(cmd, key):
+                return cmd[cmd.index(key) + 1]
+            self.assertEqual([opt(qwen, key) for key in
+                ('--repeat-penalty', '--repeat-last-n', '--temp', '--top-p')],
+                ['1.08', '128', '0.62', '0.90'])
+            self.assertEqual([opt(bundled, key) for key in
+                ('--repeat-penalty', '--repeat-last-n', '--temp', '--top-p')],
+                ['1.16', '256', '0.8', '0.92'])
+
+    def test_failed_script_classification_never_outputs_prose(self):
+        observed = {
+            '그녀가 기록을 읽었다. 異': 'HAN',
+            '그는 새로운 사실을見ながら 생각했다.': 'KANA',
+            '그는 자신이 알ва': 'CYRILLIC',
+            '그는 오래된 기록을 �': 'DECODING_REPLACEMENT',
+            '그는 다른 사실을 발견했mer': 'MIXED_KOREAN_TOKEN',
+            '그는 기록을 살펴보았다.': 'OTHER',
+        }
+        for raw, category in observed.items():
+            with self.subTest(category=category):
+                observed_category = module.native_script_failure_category(raw)
+                self.assertEqual(observed_category, category)
+                self.assertNotIn(raw, observed_category)
+
     def test_no_qwen_fallback_to_interactive_shell_without_completion(self):
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as directory:
@@ -272,7 +308,7 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertEqual(module.validate_clean_manuscript(raw), raw)
         self.assertEqual(len(calls), 1)
         self.assertIn('작가가 정한 가상의 도서관 장면', calls[0][0])
-        self.assertEqual(calls[0][2], '160')
+        self.assertEqual(calls[0][2], '320')
         self.assertEqual(calls[0][1], 50)
 
     def test_qwen_retry_never_bypasses_validation_or_time_budget(self):
@@ -423,7 +459,7 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertIn(valid.strip(), actual)
         self.assertNotIn('異', actual)
         self.assertEqual(len(calls), 3)
-        self.assertEqual(calls[1][2], '160')
+        self.assertEqual(calls[1][2], '320')
         self.assertLess(len(''.join(actual.split())), 4500)
 
     def test_qwen_repeated_invalid_continuation_keeps_only_valid_partial(self):

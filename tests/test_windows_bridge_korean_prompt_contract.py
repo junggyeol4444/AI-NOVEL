@@ -17,7 +17,7 @@ class KoreanNativeBridgeSourceContract(unittest.TestCase):
         self.assertIn('인물의 선택, 행동, 대화', source)
         self.assertIn('system_prompt, prompt = build_story_prompts(', source)
         self.assertIn("'--system-prompt', system_prompt", source)
-        self.assertIn("'--repeat-penalty', '1.16'", source)
+        self.assertIn("'--repeat-penalty', ('1.08' if qwen else '1.16')", source)
         self.assertIn("'--log-disable', '--no-show-timings'", source)
         self.assertNotIn("'--simple-io',", source)
         self.assertIn('draft = validate_clean_manuscript(raw_draft)', source)
