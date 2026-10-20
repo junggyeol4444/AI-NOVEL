@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
-    QPushButton, QPlainTextEdit, QSpinBox, QLineEdit,
+    QPushButton, QPlainTextEdit, QSpinBox, QLineEdit, QFileDialog,
 )
+from ai_novel_factory.epub3 import EpubError
+from ai_novel_factory.epub_reader import read_private_epub
 
 
 class PrivateNovelReader(QWidget):
@@ -20,6 +22,7 @@ class PrivateNovelReader(QWidget):
         self.setObjectName('privateNovelReader')
         self._session_getter = session_getter
         self._project_key = None
+        self._epub_chapters = None
         layout = QVBoxLayout(self)
         title = QLabel('저장된 소설 원고 읽기 · 내 PC 전용')
         title.setObjectName('privateReaderTitle')
@@ -29,6 +32,16 @@ class PrivateNovelReader(QWidget):
             '미승인 초고는 최종본이나 출판 승인으로 표시하지 않습니다.')
         notice.setWordWrap(True)
         layout.addWidget(notice)
+        book_bar = QHBoxLayout()
+        self.open_epub = QPushButton('검증된 로컬 EPUB3 파일 읽기')
+        self.open_epub.setObjectName('privateReaderOpenEpub')
+        self.open_epub.clicked.connect(self._choose_epub)
+        book_bar.addWidget(self.open_epub)
+        self.show_sqlite = QPushButton('현재 작품 SQLite 원고로 돌아가기')
+        self.show_sqlite.setObjectName('privateReaderReturnSqlite')
+        self.show_sqlite.clicked.connect(self._return_to_project)
+        book_bar.addWidget(self.show_sqlite)
+        layout.addLayout(book_bar)
         controls = QHBoxLayout()
         self.episodes = QComboBox()
         self.episodes.setObjectName('privateReaderEpisodes')
@@ -107,7 +120,40 @@ class PrivateNovelReader(QWidget):
             self.body.setTextCursor(cursor)
             self.body.find(text)
 
+    def _choose_epub(self):
+        file, _ = QFileDialog.getOpenFileName(
+            self, '로컬 EPUB3 원고 선택', '', 'EPUB 파일 (*.epub)')
+        if file:
+            self._load_epub_file(file)
+
+    def _load_epub_file(self, file):
+        # Verify/read the complete archive before changing the open book.
+        try:
+            chapters = read_private_epub(file)
+        except (EpubError, OSError, ValueError):
+            self.status.setText('로컬 EPUB3 검증 실패 · 현재 책은 변경하지 않았습니다.')
+            return
+        self._epub_chapters = chapters
+        self.version.setEnabled(False)
+        self.episodes.blockSignals(True)
+        try:
+            self.episodes.clear()
+            for number, chapter in enumerate(chapters, 1):
+                self.episodes.addItem(f'{number}화 · {chapter.title}', number)
+            self.episodes.setCurrentIndex(0)
+        finally:
+            self.episodes.blockSignals(False)
+        self._display()
+
+    def _return_to_project(self):
+        self._epub_chapters = None
+        self.version.setEnabled(True)
+        self.refresh()
+
     def refresh(self):
+        if self._epub_chapters is not None:
+            self._display()
+            return
         # This method is called when entering the reader tab, not by a
         # timer. It never creates or alters a database or manuscript.
         self.body.clear()
@@ -152,6 +198,16 @@ class PrivateNovelReader(QWidget):
         self._buttons()
         number = self.episodes.currentData()
         if number is None:
+            return
+        if self._epub_chapters is not None:
+            if type(number) is not int or not 1 <= number <= len(self._epub_chapters):
+                self.status.setText('EPUB 회차를 선택할 수 없습니다.')
+                return
+            chapter = self._epub_chapters[number - 1]
+            self.body.setPlainText(chapter.text)
+            self.status.setText(
+                f'{number}화 · 검증된 로컬 EPUB3 · {len(chapter.text)}자 · '
+                '읽기 전용 · 문학품질/출판 승인 아님')
             return
         try:
             session = self._session_getter()

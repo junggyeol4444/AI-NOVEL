@@ -37,6 +37,21 @@ class Stage93Epub3Tests(unittest.TestCase):
                     z.writestr(name,changed,compress_type=compression)
         return f
 
+    def test_250_chapter_export_and_nav_and_roundtrip(self):
+        # Synthesized fixture: this is NOT actual 250-episode AI novel QA.
+        chapters=[e.Chapter(f'제{n}화', f'가상 테스트 {n}번 사건.')
+                  for n in range(1,251)]
+        out=e.create_epub(self.meta,chapters,self.path)
+        self.assertEqual(
+            e.verify_epub(out.path,expected_chapters=250,
+                          expect_cover=False,expected_sha256=out.sha256).chapters,250)
+        with zipfile.ZipFile(out.path) as z:
+            self.assertIn('EPUB/chapters/ch0250.xhtml',z.namelist())
+            root=ET.fromstring(z.read(e.NAV))
+            anchors=root.findall('.//{http://www.w3.org/1999/xhtml}a')
+            self.assertEqual(len(anchors),250)
+            self.assertEqual(anchors[-1].attrib['href'],'chapters/ch0250.xhtml')
+
     def test_epub3_generation_roundtrip(self):
         result=self.build()
         self.assertEqual(result.chapters,2)
@@ -153,7 +168,7 @@ class Stage93Epub3Tests(unittest.TestCase):
         with self.assertRaises(e.EpubError):e.create_epub(self.meta,[],self.path)
 
     def test_too_many_chapters(self):
-        with self.assertRaises(e.EpubError):e.create_epub(self.meta,[e.Chapter('a','b')]*201,self.path)
+        with self.assertRaises(e.EpubError):e.create_epub(self.meta,[e.Chapter('a','b')]*251,self.path)
 
     def test_wrong_chapter_type(self):
         for cs in ([{'title':'hi','text':'hello'}],['abc'],None):

@@ -142,6 +142,14 @@ def run(args):
         txt, epub = output / 'draft.txt', output / 'book.epub'
         check('txt_export_content', txt.is_file() and draft in txt.read_text(encoding='utf-8'))
         check('epub_export_verified', epub.is_file() and verify_epub(epub, expected_chapters=1).valid)
+        window.novel_tabs.setCurrentIndex(2)
+        app.processEvents()
+        reader._load_epub_file(str(epub))
+        check('compiled_private_reader_reopens_verified_epub',
+              reader.body.isReadOnly() and draft in reader.body.toPlainText())
+        reader.show_sqlite.click()
+        window.novel_tabs.setCurrentIndex(1)
+        app.processEvents()
         # Use the six real sidebar editors, not direct backend CRUD calls.
         from ai_novel_factory.desktop.navigation import SECTIONS
         from ai_novel_factory.database.characters import CharacterStore

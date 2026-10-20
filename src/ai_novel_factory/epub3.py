@@ -30,7 +30,7 @@ OCF = 'META-INF/container.xml'
 OPF = 'EPUB/package.opf'
 NAV = 'EPUB/nav.xhtml'
 STYLE = 'EPUB/styles/book.css'
-MAX_CHAPTERS = 200
+MAX_CHAPTERS = 250
 MAX_CHAPTER_BYTES = 2_000_000
 MAX_TOTAL_CHAPTER_BYTES = 20_000_000
 MAX_COVER_BYTES = 12_000_000
@@ -83,7 +83,7 @@ def _text(value: object, field: str, max_chars: int, *, multiline: bool = False)
 
 def _normalize_chapters(chapters: object) -> tuple[Chapter, ...]:
     if not isinstance(chapters, (tuple, list)) or not (1 <= len(chapters) <= MAX_CHAPTERS):
-        raise EpubError('chapters: 1 to 200 chapters required')
+        raise EpubError('chapters: 1 to 250 chapters required')
     norm, total = [], 0
     for chapter in chapters:
         if not isinstance(chapter, Chapter):

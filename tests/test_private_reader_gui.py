@@ -48,6 +48,39 @@ class PrivateReaderSqliteTests(unittest.TestCase):
         self.reader = PrivateNovelReader(lambda: self.session)
         self.addCleanup(self.reader.close)
 
+    def test_qt_click_reads_verified_exported_epub_then_returns_to_sqlite(self):
+        from unittest.mock import patch
+        from ai_novel_factory.epub3 import Chapter, create_epub
+        from ai_novel_factory.publication_metadata import MetadataDraft
+        meta = MetadataDraft('epub-reader', '가상 EPUB', '임시 작가',
+                             '원작 가상 설정', '판타지', ('가상',), '0')
+        exported = create_epub(meta, [
+            Chapter('제1화', '기록을 살핀다.\n두 번째 줄.'),
+            Chapter('제2화', '다른 기록을 발견한다.')], self.path.parent)
+        before = self.store.get_episode(self.pid, 1)
+        self.reader.refresh()
+        with patch('ai_novel_factory.desktop.private_reader.QFileDialog.getOpenFileName',
+                   return_value=(str(exported.path), 'EPUB 파일 (*.epub)')):
+            self.reader.open_epub.click()
+        self.assertEqual(self.reader.episodes.count(), 2)
+        self.assertEqual(self.reader.body.toPlainText(),
+                         '기록을 살핀다.\n두 번째 줄.')
+        self.reader.next.click()
+        self.assertEqual(self.reader.body.toPlainText(), '다른 기록을 발견한다.')
+        self.reader.show_sqlite.click()
+        self.assertEqual(self.reader.body.toPlainText(), before.draft)
+        self.assertEqual(self.store.get_episode(self.pid, 1).revision,
+                         before.revision)
+
+    def test_corrupt_epub_does_not_erase_current_reader_text(self):
+        self.reader.refresh()
+        before = self.reader.body.toPlainText()
+        corrupt = self.path.parent / 'not-an-epub.epub'
+        corrupt.write_bytes(b'untrusted bytes')
+        self.reader._load_epub_file(str(corrupt))
+        self.assertEqual(self.reader.body.toPlainText(), before)
+        self.assertIn('검증 실패', self.reader.status.text())
+
     def test_only_persisted_text_is_visible_and_not_mutable(self):
         before = self.store.get_episode(self.pid, 1)
         self.reader.refresh()

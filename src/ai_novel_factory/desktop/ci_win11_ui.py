@@ -131,6 +131,27 @@ def run(output_dir: str) -> int:
               reader.body.font().pointSize() == 19
               and old_size != reader.body.font().pointSize())
         reader.font_size.setValue(16)
+        # Real offline EPUB3 export + plain-text chapter reader within EXE.
+        from ai_novel_factory.epub3 import Chapter, create_epub
+        from ai_novel_factory.publication_metadata import MetadataDraft
+        epub_dir = output / 'reader-export'
+        epub_dir.mkdir(parents=True, exist_ok=True)
+        sample = create_epub(
+            MetadataDraft('reader-gui', '가상 EPUB', '합성 작가',
+                          '가상의 원본 설정', '판타지', ('가상',), '0'),
+            [Chapter('첫 회', '가상의 EPUB 문장을 읽는다.'),
+             Chapter('두 번째', 'EPUB 다음 문장을 읽는다.')], epub_dir)
+        reader._load_epub_file(str(sample.path))
+        check('private_reader_validated_epub_opened_as_plain_text',
+              reader.episodes.count() == 2
+              and reader.body.isReadOnly()
+              and reader.body.toPlainText() == '가상의 EPUB 문장을 읽는다.')
+        reader.next.click()
+        check('private_reader_epub_second_chapter',
+              reader.body.toPlainText() == 'EPUB 다음 문장을 읽는다.')
+        reader.show_sqlite.click()
+        check('private_reader_returned_to_original_sqlite_draft',
+              reader.body.toPlainText() == '창작 원고 — 기존 작품을 복사하지 않은 합성 테스트')
         window.novel_tabs.setCurrentIndex(0)
         app.processEvents()
         snapshot = output / 'studio_real_writer_qt.png'
