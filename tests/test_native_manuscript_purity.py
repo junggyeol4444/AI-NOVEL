@@ -488,5 +488,26 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             self.assertEqual(report['noninteractive_completion']['exit'], 3221226356)
             self.assertEqual(report['kind'], 'diagnostic_not_literary_acceptance')
 
+
+    def test_short_real_qwen_continuation_gets_bounded_new_inference(self):
+        # Fake transport only. Short model text is NEVER padded or accepted.
+        original = '조사자는 도서관을 살폈다. ' * 20
+        valid = '그는 빈 기록을 확인하고 사서와 함께 출입문을 조사했다. ' * 8
+        seen = []
+        def invoke(_prompt, _remaining):
+            seen.append(True)
+            if len(seen) == 1:
+                return '사서가 고개를 들었다.'
+            return valid
+        actual = module.continue_korean_scene(
+            original, original_prompt='가상 도서관 기록 조사',
+            target_chars=5000, invoke=invoke, deadline=100,
+            clock=lambda: 0, short_retry_limit=1)
+        self.assertEqual(len(seen), 3)
+        self.assertIn(valid.strip(), actual)
+        self.assertNotIn('사서가 고개를 들었다.', actual)
+        self.assertEqual(actual.count(valid.strip()), 1)
+        self.assertLess(len(''.join(actual.split())), 4500)
+
 if __name__ == '__main__':
     unittest.main()
