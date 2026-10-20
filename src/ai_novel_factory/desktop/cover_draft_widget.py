@@ -109,7 +109,10 @@ class CoverDraftWidget(QWidget):
             return
         self._identity = identity
         self.title_field.setText(project.title)
-        self.author_field.setText(project.author or '')
+        # The existing NovelBible stores author under rules, not BibleProject.
+        # The legacy '미정' marker is not a user-approved pen name.
+        saved_author = rules.get('author', '')
+        self.author_field.setText('' if saved_author == '미정' else saved_author)
         self.genre_field.setText(rules.get('genre', '') or '소설')
         self.preview.clear()
         self.preview.setText('표지 미리보기 없음')

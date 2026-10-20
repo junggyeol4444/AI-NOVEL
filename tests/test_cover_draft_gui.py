@@ -36,8 +36,8 @@ class NativeCoverDraftTests(unittest.TestCase):
         self.database = self.root / 'only-synthetic.sqlite'
         self.store = EpisodeStore(self.database)
         self.addCleanup(self.store.close)
-        self.pid = self.store.create_project(
-            '테스트 소설 별빛의 기록', author='임시 작가').project_id
+        self.pid = self.store.create_project('테스트 소설 별빛의 기록').project_id
+        self.store.save_rule(self.pid, 'author', '임시 작가')
         self.session = SimpleNamespace(
             store=self.store, project_id=self.pid,
             path=self.database)
