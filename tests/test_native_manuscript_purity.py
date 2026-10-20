@@ -534,7 +534,7 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertNotIn('<|im_start|>', continuation)
 
     def test_repetition_guard_detects_long_sentence_not_only_copied_prefix(self):
-        sentence = '조사자는 낡은 열쇠를 발견하고 사서에게 비밀 통로의 존재를 알렸다.'
+        sentence = '조사자는 낡은 열쇠를 발견하고 사서에게 비밀 통로의 존재를 알렸고 그 사실을 기록에 남겨 두기로 결정했다.'
         paragraph = sentence + ' 그는 계단 아래로 내려가 기록을 다시 살폈다.'
         self.assertTrue(module.repeats_existing_passage(
             '새로운 증거를 찾기 시작했다. ' + sentence, paragraph))
