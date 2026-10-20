@@ -119,5 +119,40 @@ class BatchWiringSourceContract(unittest.TestCase):
         self.assertIn('str(session.project_id) == self.worker.project_id', gui)
 
 
+
+    def test_real_batch_passes_explicit_scene_allocation_to_native_wire_request(self):
+        from ai_novel_factory.local_models import (
+            SceneDraftRequest, _message, effective_scene_target)
+        request = SceneDraftRequest(
+            'a' * 32, 30, 3, '가상의 서고 이야기',
+            '장면 플롯이 이어진다', '기록을 잃는다', '책장 사이',
+            ('조사자',), target_chars=625)
+        self.assertEqual(_message(request)['request']['target_chars'], 625)
+        self.assertEqual(effective_scene_target(
+            request.scene_goal, request.target_chars), 625)
+        batch = BATCH.read_text(encoding='utf-8')
+        self.assertIn('target_chars=allocated_scene_chars', batch)
+        self.assertIn('allocated_scene_chars=per_scene', batch)
+
+    def test_short_scene_requires_korean_quality_gate_before_revision(self):
+        batch = BATCH.read_text(encoding='utf-8')
+        self.assertIn('scene_screen = screen_korean_draft(', batch)
+        self.assertIn('if (not scene_screen.format_gate_pass', batch)
+        self.assertIn('revised_screen = screen_korean_draft(', batch)
+        self.assertIn('revised_repeat = check_repetition(', batch)
+        self.assertIn('if better_format or better_partial:', batch)
+        # A brief 300-character output must not be accepted as a
+        # complete 1600-character scene merely because it exceeds 120.
+        from ai_novel_factory.korean_draft_quality import screen_korean_draft
+        screened = screen_korean_draft('조사자는 기록을 살폈다. ' * 15,
+                                       target_chars=1600)
+        self.assertFalse(screened.format_gate_pass)
+
+    def test_batch_worker_does_not_reveal_private_path_on_system_errors(self):
+        gui = GUI.read_text(encoding='utf-8')
+        self.assertIn('except (AutoNovelRunError, LocalModelError)', gui)
+        self.assertIn('except (OSError, ValueError):', gui)
+        self.assertNotIn("except (ValueError, OSError) as exc:", gui)
+
 if __name__ == '__main__':
     unittest.main()

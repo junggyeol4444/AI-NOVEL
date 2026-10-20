@@ -13,8 +13,8 @@ from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QFormLayout, QGroupBox, QLabel, QPushButton, QSpinBox, QVBoxLayout,
 )
-from ai_novel_factory.auto_novel_run import run_auto_novel
-from ai_novel_factory.local_models import LocalExecutableProvider
+from ai_novel_factory.auto_novel_run import run_auto_novel, AutoNovelRunError
+from ai_novel_factory.local_models import LocalExecutableProvider, LocalModelError
 
 
 class AutoBatchWorker(QThread):
@@ -42,10 +42,14 @@ class AutoBatchWorker(QThread):
                 progress=lambda n, step: self.progress_changed.emit(n, step),
                 should_stop=self.stop_requested.is_set)
             self.finished_report.emit(result)
-        except (ValueError, OSError) as exc:
+        except (AutoNovelRunError, LocalModelError) as exc:
+            # These are explicitly sanitized, finite application messages.
             self.failed.emit(str(exc)[:160])
-        except BaseException as exc:
-            self.failed.emit('자동 집필이 중단되었습니다. 분류: ' + type(exc).__name__)
+        except (OSError, ValueError):
+            # An OS error can embed private filenames or user rule contents.
+            self.failed.emit('로컬 집필 중 파일 접근·검증 오류가 발생했습니다.')
+        except BaseException:
+            self.failed.emit('자동 집필이 중단되었습니다. 작업 상태를 확인하세요.')
 
 
 class AutoBatchPanel(QGroupBox):
