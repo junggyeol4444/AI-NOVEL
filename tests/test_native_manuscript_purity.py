@@ -838,5 +838,22 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             self.assertIn('새로운 증거', returned['draft'])
             self.assertLess(len(''.join(returned['draft'].split())), 4500)
 
+    def test_bundled_retry_prioritizes_korean_without_changing_model(self):
+        # Transport-only regression. Synthetic output is not literary QA.
+        calls = []
+        def native(prompt, remaining, budget):
+            calls.append((prompt, remaining, budget))
+            return '조사자는 문을 열고 사서에게 손상된 기록을 물었다.'
+        result = module.retry_bundled_korean_text(
+            '작가가 정한 가상 서고의 사건',
+            first_error=ValueError('native output lacks Korean novel prose'),
+            invoke=native, remaining=45)
+        self.assertIn('조사자는', result)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][2], '160')
+        self.assertTrue(calls[0][0].startswith('한국어 소설 본문'))
+        self.assertIn('작가가 정한 가상 서고의 사건', calls[0][0])
+        self.assertNotIn('translate', calls[0][0].lower())
+
 if __name__ == '__main__':
     unittest.main()

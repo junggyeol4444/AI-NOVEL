@@ -57,5 +57,16 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertNotIn("self.buttons['save_draft'].setEnabled(True)", GUI)
         self.assertIn('이전 미저장 초고는 그대로 유지됩니다.', GUI)
 
+    def test_windows_foreground_retry_uses_real_gui_hwnd_and_still_fails_closed(self):
+        # Source contract only; this is NOT a Windows desktop E2E pass.
+        s = (ROOT / 'scripts/ci_windows11_desktop.ps1').read_text(encoding='utf-8')
+        self.assertIn('AttachThreadInput', s)
+        self.assertIn('GetCurrentThreadId', s)
+        self.assertIn('$verifiedOwnerPid -eq $ownGuiPid', s)
+        self.assertIn('$front = [ANFWin32]::GetForegroundWindow()', s)
+        self.assertIn('if ($front -ne $hwnd)', s)
+        self.assertIn('Desktop foreground is not our app', s)
+        self.assertNotIn('Stop-Process -Name WWAHost', s)
+
 if __name__ == '__main__':
     unittest.main()

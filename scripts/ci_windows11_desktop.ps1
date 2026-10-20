@@ -311,6 +311,11 @@ public static class ANFWin32 {
     [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd, IntPtr dc, uint flags);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hwnd, int show);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern IntPtr SetActiveWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern bool AttachThreadInput(
+        uint attachThread, uint attachToThread, bool attach);
+    [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(
@@ -376,6 +381,43 @@ public static class ANFWin32 {
     [void][ANFWin32]::SetForegroundWindow($hwnd)
     Start-Sleep -Milliseconds 400
     $front = [ANFWin32]::GetForegroundWindow()
+  }
+  # When Windows 11 ARM first-run UI (WWAHost) has focus, merely asking
+  # SetForegroundWindow from PowerShell can fail because of input-thread
+  # ownership. Try a bounded foreground-thread attachment on OUR Qt HWND.
+  # Never dismiss another app, send synthetic keystrokes, or grant a fake PASS.
+  if ($front -ne $hwnd -and $front -ne [IntPtr]::Zero) {
+    $verifiedOwnerPid = [uint32]0
+    $appThread = [ANFWin32]::GetWindowThreadProcessId($hwnd, [ref]$verifiedOwnerPid)
+    $blockerPid = [uint32]0
+    $frontThread = [ANFWin32]::GetWindowThreadProcessId($front, [ref]$blockerPid)
+    $testThread = [ANFWin32]::GetCurrentThreadId()
+    $frontAttached = $false
+    $appAttached = $false
+    if ($verifiedOwnerPid -eq $ownGuiPid -and $verifiedOwnerPid -ne 0 -and
+        $appThread -ne 0 -and $frontThread -ne 0) {
+      try {
+        if ($testThread -ne $frontThread) {
+          $frontAttached = [ANFWin32]::AttachThreadInput($testThread, $frontThread, $true)
+        }
+        if ($testThread -ne $appThread) {
+          $appAttached = [ANFWin32]::AttachThreadInput($testThread, $appThread, $true)
+        }
+        if (($testThread -eq $frontThread -or $frontAttached) -and
+            ($testThread -eq $appThread -or $appAttached)) {
+          [void][ANFWin32]::ShowWindow($hwnd, 9)
+          [void][ANFWin32]::BringWindowToTop($hwnd)
+          [void][ANFWin32]::SetActiveWindow($hwnd)
+          [void][ANFWin32]::SetForegroundWindow($hwnd)
+        }
+      } finally {
+        if ($appAttached) { [void][ANFWin32]::AttachThreadInput($testThread, $appThread, $false) }
+        if ($frontAttached) { [void][ANFWin32]::AttachThreadInput($testThread, $frontThread, $false) }
+      }
+    }
+    Start-Sleep -Milliseconds 450
+    $front = [ANFWin32]::GetForegroundWindow()
+    Write-Host ("OwnWindowThreadFocusAttempt={0}" -f ($front -eq $hwnd))
   }
   Write-Host ("QtForeground={0}; ForegroundHandle={1}" -f ($front -eq $hwnd), $front)
   if ($front -ne $hwnd -and $front -ne [IntPtr]::Zero) {

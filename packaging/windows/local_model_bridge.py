@@ -267,9 +267,15 @@ def retry_bundled_korean_text(prompt: str, *, first_error: ValueError,
                 'native non-Korean script in draft', 'model process failed')
             or remaining < 20):
         raise first_error
+    # The actual Windows bundled 135M GGUF returned an English-only scene.
+    # Keep the SAME public weight and exactly one bounded genuine inference,
+    # but place the Korean writing instruction BEFORE long author context.
+    # Neither the user's facts nor any invalid output are altered or saved.
     retry_prompt = (
-        prompt + '\n'
-        '인물은 주변에 있는 사물을 보고 한국어로 말한다. '
+        '한국어 소설 본문을 쓰는 장면입니다. 실제 행동과 사건을 한국어 문장으로 시작합니다.\n'
+        '앞선 문장의 결과가 다음 사건으로 이어지는 소설 문단을 작성합니다.\n'
+        + prompt + '\n'
+        + '인물은 주변에 있는 사물을 보고 한국어로 말한다. '
         '그 말을 들은 다른 인물이 실제로 움직인다.')
     return invoke(retry_prompt, remaining, '160')
 
