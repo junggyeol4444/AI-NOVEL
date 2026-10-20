@@ -47,7 +47,7 @@ class KoreanDraftScreenTests(unittest.TestCase):
                     for j in range(80)) +
             ' 사서가 자료를 정리했다.' for i in range(80))
         self.assertTrue(screen_korean_draft(base).format_gate_pass)
-        for corruption in ('и', 'ながら', '\ufffd', '기록mer'):
+        for corruption in ('и', 'ながら', '\ufffd', '기록mer', '침Inlining'):
             with self.subTest(corruption=corruption):
                 sample = screen_korean_draft(base + ' ' + corruption)
                 self.assertFalse(sample.format_gate_pass)

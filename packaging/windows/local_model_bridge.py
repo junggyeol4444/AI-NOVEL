@@ -93,11 +93,15 @@ def validate_clean_manuscript(raw: str) -> str:
     # Reject those observed corruptions, never rewrite model-authored prose.
     if re.search(r'[\u3400-\u9fff\u3040-\u30ff\u0400-\u052f\ufffd]', text):
         raise ValueError('native non-Korean script in draft')
+    # A later real Windows2022 Qwen sample (artifact 12243535386) leaked
+    # the uppercase mixed-script word "침Inlining". Both lowercase and
+    # uppercase Latin must be rejected by the SAME existing script gate.
+    # Do not alter or translate model-authored prose.
     # Real Windows 11 ARM artifact 12230384722 contained malformed single
     # Korean tokens such as 묘mer, 드ừng, 난ık. Do not reject legitimate
     # separately spaced foreign names, but reject corruption fused into
     # Hangul words without changing the text or translating it.
-    if re.search(r'[가-힣](?:[a-z]{2,}|[\u0100-\u024f\u1e00-\u1eff])', text):
+    if re.search(r'[가-힣](?:[A-Za-z]{2,}|[\u0100-\u024f\u1e00-\u1eff])', text):
         raise ValueError('native non-Korean script in draft')
     # The same actual novel draft contained actor-style line labels instead
     # of prose dialogue. No script/transcript should become approved prose.
@@ -122,7 +126,7 @@ def native_script_failure_category(raw: str) -> str:
         return 'KANA'
     if re.search(r'[\u3400-\u9fff]', raw):
         return 'HAN'
-    if re.search(r'[가-힣](?:[a-z]{2,}|[\u0100-\u024f\u1e00-\u1eff])', raw):
+    if re.search(r'[가-힣](?:[A-Za-z]{2,}|[\u0100-\u024f\u1e00-\u1eff])', raw):
         return 'MIXED_KOREAN_TOKEN'
     return 'OTHER'
 

@@ -274,7 +274,7 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
                 '한국어 작성이 가능한 GGUF 모델을 직접 선택하세요. 초고 저장 없음.')
         elif safe_category == 'native_non_korean_script':
             self.status.setText(
-                '모델 원고에 중국어·일본어 문자가 혼입됐습니다. '
+                '모델 원고에 한국어 단어와 외국 문자·깨진 표기가 혼입됐습니다. '
                 '원고를 수정·번역해 저장하지 않고 차단했습니다.')
         elif safe_category == 'native_prompt_echo':
             self.status.setText(

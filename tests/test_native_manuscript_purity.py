@@ -119,6 +119,18 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         prose = '조사자는 책갈피에서 3월의 날짜가 지워진 흔적을 발견했다. 사서는 아무 말 없이 창문을 잠갔다.'
         self.assertEqual(module.validate_clean_manuscript(prose), prose)
 
+    def test_real_windows2022_fused_uppercase_latin_cannot_be_saved(self):
+        # Actual Windows2022 artifact 12243535386 read a corrupted
+        # "침Inlining" token. Previous [a-z]{2,} did NOT catch it.
+        for invalid in ('조사자는 침Inlining하듯 말했다.',
+                        '그는 드릴PCMeter라 답했다.',
+                        '사서가 자료를 확인했mer'):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(ValueError, 'non-Korean script'):
+                    module.validate_clean_manuscript(invalid)
+                self.assertEqual(module.native_script_failure_category(invalid),
+                                 'MIXED_KOREAN_TOKEN')
+
     def test_refuse_empty_and_english_only(self):
         for text in ('', 'Loading model...', 'Sorry, I cannot write this story'):
             with self.subTest(text=text), self.assertRaises(ValueError):
