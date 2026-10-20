@@ -88,6 +88,16 @@ def validate_clean_manuscript(raw: str) -> str:
     # Reject those observed corruptions, never rewrite model-authored prose.
     if re.search(r'[\u3400-\u9fff\u3040-\u30ff\u0400-\u052f\ufffd]', text):
         raise ValueError('native non-Korean script in draft')
+    # Real Windows 11 ARM artifact 12230384722 contained malformed single
+    # Korean tokens such as 묘mer, 드ừng, 난ık. Do not reject legitimate
+    # separately spaced foreign names, but reject corruption fused into
+    # Hangul words without changing the text or translating it.
+    if re.search(r'[가-힣](?:[a-z]{2,}|[\u0100-\u024f\u1e00-\u1eff])', text):
+        raise ValueError('native non-Korean script in draft')
+    # The same actual novel draft contained actor-style line labels instead
+    # of prose dialogue. No script/transcript should become approved prose.
+    if re.search(r'(?m)^[가-힣][가-힣 ]{0,14}:\s*["“]', text):
+        raise ValueError('native console output mixed with draft')
     return text
 
 
