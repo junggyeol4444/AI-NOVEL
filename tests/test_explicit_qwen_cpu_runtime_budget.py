@@ -23,7 +23,7 @@ class ExplicitCpuRuntimeBudgetTests(unittest.TestCase):
                 executable.chmod(0o755)
             arguments = ('--gguf', str(root / 'chosen.gguf'))
             provider = LocalExecutableProvider(
-                bridge, arguments=arguments, timeout_seconds=1500,
+                str(bridge), arguments=arguments, timeout_seconds=1500,
                 explicitly_allowed=True)
             self.assertEqual(provider._timeout, 1500)
             for exe, args, timeout in (
@@ -31,7 +31,7 @@ class ExplicitCpuRuntimeBudgetTests(unittest.TestCase):
                     (bridge, (), 481),
                     (custom, arguments, 481)):
                 with self.subTest(executable=exe.name, args=args), self.assertRaises(LocalModelError):
-                    LocalExecutableProvider(exe, arguments=args,
+                    LocalExecutableProvider(str(exe), arguments=args,
                                             timeout_seconds=timeout,
                                             explicitly_allowed=True)
 
