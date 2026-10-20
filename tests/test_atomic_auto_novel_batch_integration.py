@@ -203,6 +203,55 @@ class BatchWiringSourceContract(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(AutoNovelRunError):
                 _cross_episode_sources(existing, bad)
 
+    def test_scene_context_preserves_actual_previous_scene_and_author_rules(self):
+        from ai_novel_factory.auto_novel_run import _scene_generation_context
+        from importlib.util import spec_from_file_location, module_from_spec
+        author_bible = '사용자 설정의 절대 규칙. ' * 1000
+        previous = '앞 장면에서 사서가 붉은 열쇠를 서랍에 넣었다.'
+        context = ('최근 회차의 미확정 집필 기록 (아래 사용자의 Novel Bible 설정이 우선):\n'
+                   + '50화 저장된 사건. ' * 180
+                   + '\n사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\n'
+                   + author_bible)
+        actual = _scene_generation_context(
+            context, '51화에서 서랍을 열어 열쇠를 찾는다.', previous)
+        self.assertLessEqual(len(actual), 12000)
+        self.assertIn(previous, actual)
+        self.assertIn('51화에서 서랍을 열어', actual)
+        # Long histories must retain the final saved chapter, not only old arcs.
+        long_history = ('오래된 미확정 회차. ' * 900
+                        + '50화의 실제 마지막 결과: 봉인이 풀렸다.\n')
+        newest_context = _scene_generation_context(
+            long_history + '\n사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\n'
+            + author_bible, '51화 플롯', previous)
+        self.assertIn('50화의 실제 마지막 결과: 봉인이 풀렸다.', newest_context)
+        self.assertIn('사용자 설정의 절대 규칙', newest_context)
+        self.assertIn('사용자 설정의 절대 규칙', actual)
+        spec = spec_from_file_location(
+            'native_scene_window', ROOT / 'packaging/windows/local_model_bridge.py')
+        bridge = module_from_spec(spec)
+        spec.loader.exec_module(bridge)
+        _, native_prompt = bridge.build_story_prompts(
+            actual, '51화 집필', '서랍이 잠겼다', '기록관', '', ['사서'])
+        self.assertIn(previous, native_prompt)
+        self.assertIn('사용자 설정의 절대 규칙', native_prompt)
+        self.assertIn('51화에서 서랍을 열어', native_prompt)
+
+    def test_revision_context_exposes_rejected_scene_before_native_truncation(self):
+        from ai_novel_factory.auto_novel_run import (
+            _scene_generation_context, _scene_revision_context)
+        canon = ('사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\n'
+                 + '중요한 설정을 반드시 유지한다. ' * 600)
+        original = _scene_generation_context(
+            canon, '이번 회차에서 봉인된 장부를 연다.',
+            '사서는 문을 닫고 봉인된 장부를 꺼냈다.')
+        revision = _scene_revision_context(
+            original, '수정할 장면의 실제 첫 초고. 원인이 빠졌다.' * 75)
+        self.assertLessEqual(len(revision), 12000)
+        self.assertIn('수정할 장면의 실제 첫 초고', revision)
+        self.assertIn('사서는 문을 닫고', revision)
+        self.assertIn('이번 회차에서 봉인된 장부', revision)
+        self.assertIn('중요한 설정을 반드시 유지', revision)
+
     def test_real_episode_budget_is_allocated_without_dropping_characters(self):
         from ai_novel_factory.auto_novel_run import (
             _scene_char_targets, AutoNovelRunError)
@@ -229,6 +278,10 @@ class BatchWiringSourceContract(unittest.TestCase):
         self.assertIn('enough = screen.nonspace_chars >= target_chars', batch)
         self.assertNotIn('enough = len(full_draft.strip()) >= target_chars', batch)
         self.assertIn('per_scene = scene_targets[scene_index]', batch)
+        self.assertIn('actual_nonspace={screen.nonspace_chars}', batch)
+        self.assertIn('_scene_generation_context(', batch)
+        self.assertIn('not has_foreign_script_corruption(revised)', batch)
+        self.assertIn('_scene_revision_context(scene_context, scene)', batch)
         # Stored temporary SQLite episode checks preserve the actual status
         # without author-editing, literary approval or model emulation.
         with tempfile.TemporaryDirectory() as folder:

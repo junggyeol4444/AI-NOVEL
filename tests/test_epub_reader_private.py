@@ -23,6 +23,16 @@ class PrivateEpubReadingTests(unittest.TestCase):
         self.assertEqual(read_private_epub(out.path),tuple(chapters))
         self.assertFalse(out.publication_approved)
 
+    def test_epub_chapter_css_is_available_to_private_reader(self):
+        import posixpath
+        from zipfile import ZipFile
+        chapters = [Chapter('첫 회', '그는 낡은 열쇠를 찾았다.')]
+        out = create_epub(self.meta, chapters, self.root)
+        with ZipFile(out.path) as archive:
+            self.assertIn(posixpath.normpath('EPUB/chapters/../styles/book.css'),
+                          archive.namelist())
+        self.assertEqual(read_private_epub(out.path), tuple(chapters))
+
     def test_verified_250_chapter_epub3_roundtrip(self):
         # Real EPUB creation/read, only synthetic stored text (NOT AI 250화).
         chapters=tuple(Chapter(f'{n}화', f'{n}번째 가상 원고.')

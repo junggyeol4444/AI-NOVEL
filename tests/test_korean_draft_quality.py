@@ -1,7 +1,8 @@
 """Local heuristic regressions: never interpret as real Windows literary PASS."""
 import unittest
 
-from ai_novel_factory.korean_draft_quality import screen_korean_draft
+from ai_novel_factory.korean_draft_quality import (
+    screen_korean_draft, has_foreign_script_corruption)
 
 
 class KoreanDraftScreenTests(unittest.TestCase):
@@ -79,6 +80,17 @@ class KoreanDraftScreenTests(unittest.TestCase):
                     natural * 55 + '\n' + marker, target_chars=5000)
                 self.assertFalse(check.format_gate_pass)
                 self.assertGreater(check.non_prose_markers, 0)
+
+    def test_longer_rewrite_with_observed_script_corruption_is_not_preferred(self):
+        clean = '조사자는 책상에서 서류를 발견했다.'
+        for corrupt in ('조사자는 서류를 열고 起床이라 말했다.',
+                        '사서가 창문을 닫으면서ながら 고개를 돌렸다.',
+                        '그는 기록mer을 확인했다.', '문서가 � 손상됐다.'):
+            with self.subTest(corrupt=corrupt):
+                self.assertFalse(has_foreign_script_corruption(clean))
+                self.assertTrue(has_foreign_script_corruption(corrupt))
+        with self.assertRaises(ValueError):
+            has_foreign_script_corruption(None)
 
     def test_invalid_limits_and_types_rejected(self):
         for text, target in ((None, 5000), ('', 0), ('', True),

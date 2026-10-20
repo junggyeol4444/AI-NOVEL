@@ -36,6 +36,13 @@ _NON_PROSE_LINE = re.compile(
     r'|다음은 첫 회차의 장면입니다\.|안녕하세요[,.!]|저는 인공지능)')
 
 
+def has_foreign_script_corruption(text: str) -> bool:
+    """Screen observed foreign scripts, broken decoding and fused Latin."""
+    if type(text) is not str:
+        raise ValueError('draft screening input invalid')
+    return bool(_HAN_SCRIPT.search(text) or _OTHER_SCRIPT_CORRUPTION.search(text))
+
+
 @dataclass(frozen=True)
 class KoreanDraftScreen:
     total_chars: int
@@ -76,8 +83,7 @@ def screen_korean_draft(text: str, *, target_chars: int = 5000) -> KoreanDraftSc
               and latin <= max(5, math.ceil(nonspace_chars * 0.05))
               and repeated_sentences <= 0.12
               and repeated_chunks <= 0.15
-              and han_script_chars == 0
-              and not _OTHER_SCRIPT_CORRUPTION.search(text)
+              and not has_foreign_script_corruption(text)
               and non_prose_markers == 0
               and len(sentences) >= (10 if target_chars >= 1000 else 2))
     return KoreanDraftScreen(

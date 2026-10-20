@@ -112,7 +112,7 @@ def _chapter_xhtml(chapter: Chapter, ordinal: int, language: str) -> bytes:
     return (f'<?xml version="1.0" encoding="utf-8"?>\n'
             f'<html xmlns="{NS_XHTML}" xml:lang="{language}" lang="{language}">'
             f'<head><title>{_xml(chapter.title)}</title><link rel="stylesheet" '
-            f'href="styles/book.css" type="text/css"/></head><body>'
+            f'href="../styles/book.css" type="text/css"/></head><body>'
             f'<section><h1>{_xml(chapter.title)}</h1>{paragraphs}</section></body></html>').encode('utf-8')
 
 
@@ -340,6 +340,21 @@ def verify_epub(path: str | Path, *, expected_chapters: int | None = None,
                     node=_parse_xml(z.read(name))
                     if node.tag!=f'{{{NS_XHTML}}}html' or node.find(f'{{{NS_XHTML}}}body') is None:
                         raise EpubError('invalid XHTML chapter/navigation')
+                    # Chapter XHTML is nested one level below styles/.
+                    if name.startswith('EPUB/chapters/'):
+                        links = node.findall(f'.//{{{NS_XHTML}}}link')
+                        if (len(links) != 1
+                                or links[0].attrib.get('rel') != 'stylesheet'
+                                or links[0].attrib.get('type') != 'text/css'
+                                or links[0].attrib.get('href') != '../styles/book.css'):
+                            raise EpubError('EPUB chapter stylesheet link invalid')
+                        if node.find(f'.//{{{NS_XHTML}}}section') is None:
+                            raise EpubError('EPUB chapter section missing')
+                    if name == 'EPUB/cover.xhtml':
+                        images = node.findall(f'.//{{{NS_XHTML}}}img')
+                        if (len(images) != 1
+                                or images[0].attrib.get('src') != 'images/cover.jpg'):
+                            raise EpubError('EPUB cover image link invalid')
                     for element in node.iter():
                         if element.tag.split('}')[-1].lower() in ('script','iframe','object','embed','form'):
                             raise EpubError('active content prohibited')

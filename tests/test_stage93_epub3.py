@@ -99,6 +99,42 @@ class Stage93Epub3Tests(unittest.TestCase):
             self.assertIn('dcterms:modified',src)
             self.assertNotIn('publication_approved',src)
 
+    def test_epub_chapter_css_resolves_from_nested_chapter_directory(self):
+        import posixpath
+        result = self.build()
+        with zipfile.ZipFile(result.path) as z:
+            root = ET.fromstring(z.read('EPUB/chapters/ch0001.xhtml'))
+            link = root.find('.//{http://www.w3.org/1999/xhtml}link')
+            self.assertEqual(link.attrib['href'], '../styles/book.css')
+            self.assertIn(posixpath.normpath('EPUB/chapters/' + link.attrib['href']),
+                          z.namelist())
+        self.assertTrue(e.verify_epub(result.path).valid)
+
+    def test_tampered_epub_stylesheet_and_cover_links_are_rejected(self):
+        result = self.build()
+        self.alter_zip(lambda name, body: (
+            body.replace(b'../styles/book.css', b'styles/book.css')
+            if name == 'EPUB/chapters/ch0001.xhtml' else body))
+        with self.assertRaises(e.EpubError):
+            e.verify_epub(result.path)
+        with tempfile.TemporaryDirectory() as td:
+            cover = Path(td) / 'cover.jpg'
+            cover.write_bytes(b'\xff\xd8\xff' + b'JPEG DEMO' * 20 + b'\xff\xd9')
+            dest = Path(td) / 'out'
+            dest.mkdir()
+            output = e.create_epub(self.meta, self.chapters, dest, cover_path=cover)
+            with zipfile.ZipFile(output.path) as z:
+                items = [(i.filename, z.read(i.filename), i.compress_type)
+                         for i in z.infolist()]
+            output.path.unlink()
+            with zipfile.ZipFile(output.path, 'w') as z:
+                for name, body, compression in items:
+                    if name == 'EPUB/cover.xhtml':
+                        body = body.replace(b'images/cover.jpg', b'images/missing.jpg')
+                    z.writestr(name, body, compress_type=compression)
+            with self.assertRaises(e.EpubError):
+                e.verify_epub(output.path)
+
     def test_navigation_order(self):
         with zipfile.ZipFile(self.build().path) as z:
             root=ET.fromstring(z.read(e.NAV))
@@ -239,7 +275,7 @@ class Stage93Epub3Tests(unittest.TestCase):
 
     def test_remote_link_blocked(self):
         self.build()
-        p=self.alter_zip(lambda n,b: b.replace(b'href="styles/book.css"',b'href="https://site.example/script"') if n.endswith('ch0001.xhtml') else b)
+        p=self.alter_zip(lambda n,b: b.replace(b'href="../styles/book.css"',b'href="https://site.example/script"') if n.endswith('ch0001.xhtml') else b)
         with self.assertRaises(e.EpubError):e.verify_epub(p)
 
     def test_missing_chapter(self):

@@ -21,7 +21,7 @@ from .story_arcs import plan_story_arcs, validate_arc_coverage
 from .episode_planner import plan_episodes, validate_episode_plans
 from .scene_planner import plan_scenes, validate_scene_plans
 from .repetition_checker import check_repetition
-from .korean_draft_quality import screen_korean_draft
+from .korean_draft_quality import screen_korean_draft, has_foreign_script_corruption
 from .episode_crosscheck import screen_cross_episode_reuse
 
 
@@ -125,6 +125,42 @@ def _cross_episode_sources(existing: dict[int, object], episode: int
         for p in range(first_checked, episode))
     older_unexamined = first_checked - 1
     return prior_drafts, missing_prior, older_unexamined
+
+
+def _scene_generation_context(context: str, outline: str,
+                              preceding_scene: str) -> str:
+    """Preserve immediate model-written scene, current plot and author canon.
+
+    The native bridge reads only the first 12,000 characters of this field.
+    Previously a 20k context hid the immediately preceding scene after
+    truncation. Only rearrange original local text; never create prose.
+    """
+    if not all(type(value) is str
+               for value in (context, outline, preceding_scene)):
+        raise AutoNovelRunError('장면 연결 문맥 형식이 올바르지 않습니다.')
+    lead = '이번 회차의 미확정 플롯:\n' + outline[:1200] + '\n'
+    if preceding_scene.strip():
+        lead += ('바로 앞 장면의 실제 초고(미검수):\n'
+                 + preceding_scene[-1200:] + '\n')
+    bible_label = '사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\n'
+    history, separator, bible = context.partition(bible_label)
+    if not separator:
+        return (lead + context)[:12000]
+    recent = history[-2500:]
+    prefix = lead + recent + bible_label
+    return prefix + bible[:max(0, 12000 - len(prefix))]
+
+
+def _scene_revision_context(scene_context: str, rejected_scene: str) -> str:
+    """Place rejected model text before the 12k native context truncation.
+
+    Preserve the previous real scene, current episode plan and author Bible
+    from scene_context; never alter stored manuscript or quality thresholds.
+    """
+    if type(scene_context) is not str or type(rejected_scene) is not str:
+        raise AutoNovelRunError('장면 재작성 문맥 형식이 올바르지 않습니다.')
+    return ('재작성할 미검수 초고:\n' + rejected_scene[-1800:] + '\n'
+            + scene_context)[:12000]
 
 
 def run_auto_novel(
@@ -279,9 +315,8 @@ def run_auto_novel(
                         f'회차 플롯: {outline[:1500]}. '
                         f'목표 분량 {per_scene}자 내외의 독창적 소설 본문을 작성. '
                         '기존 참고작의 문장·고유명사 복제 금지.')
-                    scene_context = (context + '\n회차 플롯(검토 전): ' + outline
-                                     + '\n앞 장면(검토 전): ' +
-                                     (drafts[-1][-1000:] if drafts else ''))[:22000]
+                    scene_context = _scene_generation_context(
+                        context, outline, drafts[-1] if drafts else '')
                     scene = model(n, slot.scene_number, scene_context,
                                   scene_goal, '새로운 갈등과 해결의 인과관계',
                                   f'{genre} 작품의 장면',
@@ -297,8 +332,8 @@ def run_auto_novel(
                             or original_repeat.findings):
                         emit(n, f'장면 {slot.scene_number} 재작성')
                         revised = model(
-                            n, slot.scene_number, (scene_context + '\n수정 전 초고: ' +
-                                                   scene[:2500])[:22000],
+                            n, slot.scene_number,
+                            _scene_revision_context(scene_context, scene),
                             '위 장면을 설정에 맞추어 더 길고 구체적인 새로운 소설 문장으로 다시 써줘.',
                             '반복 표현을 줄이고 사건·동기·행동을 구체화',
                             f'{genre} 작품의 장면',
@@ -314,8 +349,10 @@ def run_auto_novel(
                             and revised_screen.hangul_share >= scene_screen.hangul_share
                             and revised_screen.repeated_sentence_share <=
                                 scene_screen.repeated_sentence_share
-                            and revised_screen.non_prose_markers <=
-                                scene_screen.non_prose_markers
+                            and revised_screen.repeated_chunk_share <=
+                                scene_screen.repeated_chunk_share
+                            and revised_screen.non_prose_markers == 0
+                            and not has_foreign_script_corruption(revised)
                             and not revised_repeat.findings)
                         if better_format or better_partial:
                             scene = revised
@@ -347,7 +384,9 @@ def run_auto_novel(
             cross = screen_cross_episode_reuse(full_draft, prior_drafts)
             checks = [
                 ('length', 'PASS' if enough else 'WARN',
-                 f'actual_chars={len(full_draft)};target_chars={target_chars}'),
+                 f'actual_chars={len(full_draft)};'
+                 f'actual_nonspace={screen.nonspace_chars};'
+                 f'target_chars={target_chars}'),
                 ('repetition', 'PASS' if repetition.passed_checked_scope else 'WARN',
                  f'finding_count={len(repetition.findings)};'
                  f'unexamined_count={len(repetition.unexamined)}'),
