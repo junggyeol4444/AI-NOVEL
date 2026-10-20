@@ -102,6 +102,44 @@ class AtomicBatchEpisodeRegression(unittest.TestCase):
 
 
 class BatchWiringSourceContract(unittest.TestCase):
+    def test_recent_true_saved_chapter_context_survives_long_novel_bible(self):
+        from ai_novel_factory.auto_novel_run import _continuity_context
+        # Only disposable authoring DB and synthetic contents; no AI was run.
+        examples = [
+            (1, '첫 회차 계획', '첫 사건의 실제 장면을 저장했다.'),
+            (25, '25화 반전 계획', '주인공이 새로운 문서를 찾았다.'),
+            (49, '49화 흔적', '복도의 벽이 무너지는 소리가 났다.'),
+            (50, '50화 기록', '그는 사건의 날짜가 뒤바뀌었다는 사실을 발견했다.'),
+        ]
+        for number, summary, draft in examples:
+            self.db.create_unapproved_batch_episode(
+                self.pid, number, plot=summary, draft=draft,
+                summary=summary,
+                scenes=((1, '계속 사건'),),
+                checks=(('continuity', 'NOT_RUN', '진짜 작가의 검수 대기'),))
+        original = {e.episode: e for e in self.db.list_episodes(self.pid)}
+        long_bible = '사용자 원본 세계관 ' * 1400
+        ctx = _continuity_context(long_bible, original, 51)
+        self.assertIn('첫 회차 계획', ctx)
+        self.assertIn('25화 반전 계획', ctx)
+        self.assertIn('50화 기록', ctx)
+        self.assertIn('날짜가 뒤바뀌었다', ctx)
+        self.assertIn('사용자가 저장한 Novel Bible', ctx)
+        self.assertTrue(ctx.endswith(long_bible[:len(ctx)-ctx.index('사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\\n')-len('사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\\n')]))
+        from ai_novel_factory.local_models import SceneDraftRequest
+        from importlib.util import spec_from_file_location, module_from_spec
+        # The actual bridge packs only 12k characters of its scene canon.
+        spec = spec_from_file_location('bridge_for_continuity',
+                ROOT / 'packaging/windows/local_model_bridge.py')
+        bridge = module_from_spec(spec)
+        spec.loader.exec_module(bridge)
+        _, prompt = bridge.build_story_prompts(
+            ctx, '51화 사건', '새 갈등', '도서관', '', ['사서'])
+        self.assertIn('날짜가 뒤바뀌었다', prompt)
+        self.assertEqual(self.db.get_episode(self.pid, 50).draft,
+                         examples[-1][2])
+        self.assertEqual(self.db.get_episode(self.pid, 50).final_text, '')
+
     def test_run_uses_atomic_insert_and_explicit_real_korean_screening(self):
         batch = BATCH.read_text(encoding='utf-8')
         self.assertIn('safe.create_unapproved_batch_episode(', batch)

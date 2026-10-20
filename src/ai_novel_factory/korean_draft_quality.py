@@ -11,6 +11,12 @@ _NON_LETTERS = re.compile(r'[^가-힣A-Za-z]+')
 # headings, screenplay speaker tags and model-authored introduction text.
 # Treat these as format defects, not as proof of literary merit.
 _HAN_SCRIPT = re.compile(r'[\u3400-\u9fff]')
+# The real ARM Qwen drafts contained Cyrillic letters, Japanese Kana and a
+# broken UTF-8 replacement. Those cannot become Korean prose merely because
+# the remaining 95% of the chapter is Hangul. Fail closed for any occurrence.
+_OTHER_SCRIPT_CORRUPTION = re.compile(
+    r'[\u3040-\u30ff\u0400-\u052f\ufffd]'
+    r'|[가-힣](?:[A-Za-z]{2,}|[\u0100-\u024f\u1e00-\u1eff])')
 _NON_PROSE_LINE = re.compile(
     r'(?m)^[ \t]*(?:#{1,6}[ \t]+\S|(?:\*\*)?(?:제목|등장인물|장면|'
     r'조사를 위한 준비|사서의 설명과 검토|조사자의 선택 및 행동|작성 계획)\s*:'
@@ -56,7 +62,9 @@ def screen_korean_draft(text: str, *, target_chars: int = 5000) -> KoreanDraftSc
               and latin <= max(5, math.ceil(nonspace_chars * 0.05))
               and repeated_sentences <= 0.12
               and repeated_chunks <= 0.15
-              and han_script_chars == 0 and non_prose_markers == 0
+              and han_script_chars == 0
+              and not _OTHER_SCRIPT_CORRUPTION.search(text)
+              and non_prose_markers == 0
               and len(sentences) >= (10 if target_chars >= 1000 else 2))
     return KoreanDraftScreen(
         total_chars=len(text), nonspace_chars=nonspace_chars,

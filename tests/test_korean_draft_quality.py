@@ -38,6 +38,20 @@ class KoreanDraftScreenTests(unittest.TestCase):
         q = screen_korean_draft('Translation: ' + '자료를 읽고 다시 기록을 찾았다. ' * 350)
         self.assertFalse(q.format_gate_pass)
 
+    def test_arm_cyrillic_kana_replacement_or_fused_latin_rejected(self):
+        # A large, otherwise well-formed Hangul manuscript must not hide
+        # actual Windows ARM model encoding/script corruption.
+        base = '\n'.join(
+            '조사자가 사건을 살폈다. ' +
+            ''.join(chr(0xAC00 + (i * 103 + j) % 11172)
+                    for j in range(80)) +
+            ' 사서가 자료를 정리했다.' for i in range(80))
+        self.assertTrue(screen_korean_draft(base).format_gate_pass)
+        for corruption in ('и', 'ながら', '\ufffd', '기록mer'):
+            with self.subTest(corruption=corruption):
+                sample = screen_korean_draft(base + ' ' + corruption)
+                self.assertFalse(sample.format_gate_pass)
+
     def test_invalid_limits_and_types_rejected(self):
         for text, target in ((None, 5000), ('', 0), ('', True),
                              ('', 1_000_001), ('가' * 100001, 5000)):

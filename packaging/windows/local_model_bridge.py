@@ -517,7 +517,10 @@ def main(argv=None) -> int:
         # 400-second budget before continuation or a GUI status update.
         # Keep the requested 5000-character quality gate unchanged.
         if model.name.lower().startswith('qwen2.5-'):
-            prediction_budget = '512'
+            # 512 was exhausted before a substantial first scene on actual
+            # Windows Qwen2.5. Permit more genuine model tokens per call;
+            # EOS, 1400-second deadline and Korean quality gates are unchanged.
+            prediction_budget = '768'
         # The original 400s bridge / 450s GUI / 480s QA poll prematurely
         # ended real 5000-character Qwen inference on slower Windows CPUs.
         # Increase all three together ONLY for explicitly selected Qwen GGUF.

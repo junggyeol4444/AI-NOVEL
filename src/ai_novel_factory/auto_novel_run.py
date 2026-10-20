@@ -40,6 +40,54 @@ class AutoNovelRunReport:
     quality_certified: bool = False
 
 
+def _continuity_context(canon: str, existing: dict[int, object],
+                        next_episode: int) -> str:
+    """Read-only, bounded context of actual SAVED prior chapters.
+
+    Previously the recent-history string was placed after up to 14,000
+    characters of canon. The pinned Qwen bridge consumes only the first
+    12,000 characters of this field; a long Bible erased all recent
+    chapter continuity. Place unapproved progress first, but explicitly
+    preserve author-owned Bible supremacy. Nothing is written to SQLite.
+    """
+    if next_episode <= 1:
+        return canon[:20000]
+    checkpoints = []
+    recent = []
+    for index in sorted(existing):
+        if index >= next_episode:
+            continue
+        episode = existing[index]
+        # Every 25th actual saved chapter is a bounded long-range reminder.
+        # These are generated plan summaries, never certified story facts.
+        if (index == 1 or index % 25 == 0) and index < next_episode - 3:
+            summary = getattr(episode, 'summary', '') or ''
+            if summary.strip():
+                checkpoints.append(f'{index}화 미확정 진행 요약: {summary[:140]}')
+    for index in range(max(1, next_episode - 3), next_episode):
+        episode = existing.get(index)
+        if episode is None:
+            continue
+        summary = getattr(episode, 'summary', '') or ''
+        original_draft = getattr(episode, 'draft', '') or ''
+        # Include the actual LAST event, not only an early model outline.
+        # Private text is passed only to the already user-approved LOCAL model.
+        if summary.strip():
+            recent.append(f'{index}화 미확정 진행 요약: {summary[:320]}')
+        if original_draft.strip():
+            recent.append(f'{index}화 실제 저장 초고 마지막 사건(미검수): '
+                          + original_draft[-500:])
+    reminders = '\n'.join(checkpoints[-12:])[-1200:]
+    immediate = '\n'.join(recent)[-2600:]
+    # Even a very long Bible cannot hide the recent saved episode evidence;
+    # the author's actual Novel Bible is NEVER modified or auto-approved.
+    return (
+        '최근 회차의 미확정 집필 기록 (아래 사용자의 Novel Bible 설정이 우선):\n'
+        + reminders + '\n' + immediate
+        + '\n사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\n' + canon
+    )[:20000]
+
+
 def run_auto_novel(
     database_path: str | Path, project_id: str, provider: LocalExecutableProvider, *,
     through_episode: int, target_chars: int, scenes_per_episode: int = 2,
@@ -172,11 +220,7 @@ def run_auto_novel(
                 raise AutoNovelRunError('장면 계획 연속성이 깨졌습니다.')
             # Only previously saved *draft summaries*, explicitly marked as
             # unapproved, are used as context; they never overwrite canon.
-            history = '\n'.join(
-                ('%d화 임시 초고 요약(확정 아님): %s' % (p, existing[p].summary[:900]))
-                for p in range(max(1, n - 3), n)
-                if p in existing and existing[p].summary.strip())
-            context = (canon + '\n' + history)[:20000]
+            context = _continuity_context(canon, existing, n)
             emit(n, '회차 플롯 로컬 AI 생성')
             try:
                 outline = model(

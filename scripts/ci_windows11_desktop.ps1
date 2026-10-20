@@ -350,9 +350,23 @@ public static class ANFWin32 {
   Start-Sleep -Milliseconds 700
   $front = [ANFWin32]::GetForegroundWindow()
   # Retry focus only on OUR OWN GUI, via normal Windows UIAutomation.
-  # Never close, click through, or terminate an unrelated OS/OOBE window.
-  # The strict foreground gate below remains unchanged if WWAHost wins.
+  # Windows 11 ARM occasionally leaves WWAHost as the foreground host.
+  # AppActivate targets only the current compiled EXE window's PID.
+  # It NEVER dismisses/kills the unrelated OS process, types keystrokes,
+  # steals user data or relaxes the strict physical desktop acceptance gate.
+  $ownGuiPid = [uint32]0
+  [void][ANFWin32]::GetWindowThreadProcessId($hwnd, [ref]$ownGuiPid)
+  Write-Host ("OwnGuiForegroundPid={0}" -f $ownGuiPid)
   for ($focusAttempt = 1; $focusAttempt -le 3 -and $front -ne $hwnd; $focusAttempt++) {
+    if ($ownGuiPid -ne 0) {
+      try {
+        Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction Stop
+        [Microsoft.VisualBasic.Interaction]::AppActivate([int]$ownGuiPid)
+        Write-Host ("OwnGuiAppActivate={0}; Accepted=True" -f $focusAttempt)
+      } catch {
+        Write-Host ("OwnGuiAppActivate={0}; Accepted=False" -f $focusAttempt)
+      }
+    }
     try {
       $root.SetFocus()
       Write-Host ("OwnGuiUIAFocusRequest={0}; Accepted=True" -f $focusAttempt)
