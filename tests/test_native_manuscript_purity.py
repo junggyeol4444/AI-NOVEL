@@ -342,7 +342,7 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             return '사서가 기록을 열었다. 異'
         for error, remaining in (
             ('native non-Korean script in draft', 20),
-            ('native console output mixed with draft', 60),
+            ('native console output mixed with draft', 20),
             ('model process failed', 60),
         ):
             with self.subTest(error=error, remaining=remaining):
@@ -361,6 +361,25 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         source = SOURCE.read_text(encoding='utf-8')
         self.assertIn("raise initial_error from None", source)
         self.assertIn("and remaining >= 25", source)
+
+    def test_actual_windows_arm_prompt_echo_uses_bounded_same_gguf_retry(self):
+        # Windows 11 ARM evidence 12241084969 returned native_prompt_echo.
+        # Retry SAME approved Qwen GGUF without weakening the original check.
+        calls = []
+        def native(prompt, remaining, budget):
+            calls.append((prompt, remaining, budget))
+            return '그는 새로운 장면을 설명했다. 작품의 최우선 설정 (Novel Bible):'
+        rejected = ValueError('native console output mixed with draft')
+        result = module.retry_qwen_korean_text(
+            '가상 도서관에서 기록을 찾는 작가 소유 장면',
+            first_error=rejected, invoke=native, remaining=70)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][2], '320')
+        self.assertIn('가상 도서관', calls[0][0])
+        with self.assertRaisesRegex(ValueError, 'mixed with draft'):
+            module.validate_clean_manuscript(result)
+        # An invalid prompt echo must never become author prose.
+        self.assertIn('작품의 최우선 설정', result)
 
     def test_bundled_mixed_script_gets_one_strict_native_retry(self):
         # Windows real GGUF returned 'NON_KOREAN_SCRIPT' on first attempt.

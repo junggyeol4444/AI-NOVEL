@@ -253,7 +253,8 @@ def retry_qwen_korean_text(prompt: str, *, first_error: ValueError,
     if (type(first_error) is not ValueError
             or str(first_error) not in (
                 'native output lacks Korean novel prose',
-                'native non-Korean script in draft')
+                'native non-Korean script in draft',
+                'native console output mixed with draft')
             or remaining < 25):
         raise first_error
     retry_prompt = (
@@ -561,7 +562,8 @@ def main(argv=None) -> int:
             elif (model.name.lower().startswith('qwen2.5-')
                   and str(initial_error) in (
                       'native output lacks Korean novel prose',
-                      'native non-Korean script in draft')
+                      'native non-Korean script in draft',
+                      'native console output mixed with draft')
                   and remaining >= 25):
                 # The actual Windows Qwen GUI failed this exact script gate.
                 # Retry the SAME local model once; never translate, pad or
