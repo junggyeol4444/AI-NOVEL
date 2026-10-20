@@ -131,6 +131,26 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                 self.assertEqual(module.native_script_failure_category(invalid),
                                  'MIXED_KOREAN_TOKEN')
 
+    def test_real_qwen_gui_screenplay_structure_never_enters_sqlite(self):
+        # Actual Windows2022 native Qwen artifact 12243880394, NOT synthetic
+        # grounds for quality approval. Check all observed screenwriter forms.
+        observed = (
+            '**시작**\n조사자는 문을 열었다.',
+            '**장소:** 가상 섬 도서관\n조사자는 문을 열었다.',
+            '**결과:** 사서는 창문을 닫았다.',
+            '<날씨: 비가 계속되고>\n사서는 문을 닫았다.',
+            '다음은 첫 회차의 장면입니다.\n그가 들어갔다.',
+            '그가 걸었다. 이어서 쓰는 장면에서 인물의 선택과 행동이 변화하고 주변 환경이 변합니다.',
+        )
+        for sample in observed:
+            with self.subTest(sample=sample), self.assertRaisesRegex(
+                    ValueError, 'mixed with draft'):
+                module.validate_clean_manuscript(sample)
+        # Actual normal narrative using an ordinary word remains accepted.
+        self.assertEqual(module.validate_clean_manuscript(
+            '그가 도서관의 장소를 묻자 사서는 그 길을 조용히 알려 주었다.'),
+            '그가 도서관의 장소를 묻자 사서는 그 길을 조용히 알려 주었다.')
+
     def test_refuse_empty_and_english_only(self):
         for text in ('', 'Loading model...', 'Sorry, I cannot write this story'):
             with self.subTest(text=text), self.assertRaises(ValueError):

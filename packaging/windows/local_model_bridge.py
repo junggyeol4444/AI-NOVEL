@@ -73,8 +73,24 @@ def validate_clean_manuscript(raw: str) -> str:
         # Actual Windows2022 Qwen draft artifact 12230304211 closed with
         # an explanation of its instruction instead of the story's events.
         '그런 의미에서는 바로 그것이 이번 회차의 목표였습니다:',
+        # Real compiled Windows 2022/11 Qwen artifact 12243880394 and
+        # 12242784973 was SCENE METADATA, not a finished prose narrative.
+        # Never save the screenplay outline as an author-written novel.
+        '다음은 첫 회차의 장면입니다.',
+        '이어서 쓰는 장면에서 인물의 선택과 행동이 변화하고 주변 환경이 변합니다.',
     )
     if any(fragment in lower for fragment in forbidden):
+        raise ValueError('native console output mixed with draft')
+    # Actual Windows2022 Qwen generated multiline role/script metadata:
+    # "**시작**", "<날씨: 비가 시작했다>", "**장소:**", "**결과:**".
+    # Only reject these when they appear as standalone headings/labels;
+    # in-world dialogue can still mention a place, result or explanation.
+    if re.search(
+        r'(?m)^\s*(?:\*\*(?:시작|사건|장소|인물|시간|설명|내용|'
+        r'결과|결론)\*\*\s*:?' 
+        r'|\*\*(?:장소|인물|시간|설명|내용|결과|결론):\*\*'
+        r'|<날씨\s*:[^\r\n>]{1,80}>\s*$'
+        r'|---+\s*$)', text):
         raise ValueError('native console output mixed with draft')
     # The real Windows 11 ARM Qwen output included an instruction-like
     # "next scene ... assume" sentence, not a fictional character's action.
@@ -264,7 +280,8 @@ def retry_qwen_korean_text(prompt: str, *, first_error: ValueError,
     retry_prompt = (
         prompt + '\n'
         '첫 문장부터 한국어 소설 본문을 이어 씁니다. '
-        '등장인물이 목표를 향해 행동하고 그 결과가 주변에 나타납니다.')
+        '등장인물이 목표를 향해 행동하고 그 결과가 주변에 나타납니다. '
+        '목록·시나리오 형식이 아닌 실제 소설 문단만 계속 작성합니다.')
     # The former 160-token Qwen retry consumed native startup just to
     # produce another too-short fragment. Spend up to 320 real model tokens,
     # with identical GGUF, strict validation and existing total deadline.
@@ -400,7 +417,8 @@ def build_story_prompts(canon: str, goal: str, conflict: str, place: str,
         '당신은 한국어 소설 작가입니다. 주어진 작품 설정을 유지하며 바로 소설 본문을 씁니다. '
         '인물의 선택, 행동, 대화, 주변 변화가 시간 순서대로 이어집니다. '
         '각 문단에는 이전 문단에서 일어난 사건의 결과와 새로운 진전이 있습니다. '
-        '한국어 서술과 자연스러운 대화로 하나의 장면을 전개합니다.')
+        '한국어 서술과 자연스러운 대화로 하나의 장면을 전개합니다. '
+        '장소·인물·결과를 목록이나 대본으로 나누지 않고 일반 소설의 문단으로 시작합니다.')
     # Windows Qwen has a fixed 4096-token context. The former prompt put
     # up to 17,000 characters of canon/style BEFORE the scene goal, so a
     # long author bible could hide the current action and conflict from the
@@ -412,8 +430,10 @@ def build_story_prompts(canon: str, goal: str, conflict: str, place: str,
         '배경 장소:\n' + place[:1000] + '\n'
         '등장인물:\n' + ', '.join(characters[:20]) + '\n'
         '첫 문장부터 인물의 행동을 한국어 소설 문단으로 이어 쓰세요.\n'
-        '작품 설정:\n' + canon[:12000] + '\n'
-        '회차와 장면의 사건:\n' + style_bible[:5000])
+        # Writer constraints must be visible before the long author bible;
+        # 4096 native context tokens could otherwise truncate this section.
+        '회차와 장면의 사건:\n' + style_bible[:5000] + '\n'
+        '작품 설정:\n' + canon[:12000])
     return system, scene
 
 

@@ -140,6 +140,13 @@ class AtomicBatchEpisodeRegression(unittest.TestCase):
 
 
 class BatchWiringSourceContract(unittest.TestCase):
+    def test_cross_episode_reuse_is_recorded_as_scope_only_no_auto_approval(self):
+        batch = BATCH.read_text(encoding='utf-8')
+        self.assertIn('cross = screen_cross_episode_reuse(', batch)
+        self.assertIn("'cross_episode_sentence_reuse',", batch)
+        self.assertIn('scope_only=true;literary_approved=false', batch)
+        self.assertIn('requires_review = True', batch)
+
     def test_run_uses_atomic_insert_and_explicit_real_korean_screening(self):
         batch = BATCH.read_text(encoding='utf-8')
         self.assertIn('safe.create_unapproved_batch_episode(', batch)

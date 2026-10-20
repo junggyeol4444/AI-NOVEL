@@ -52,6 +52,21 @@ class KoreanDraftScreenTests(unittest.TestCase):
                 sample = screen_korean_draft(base + ' ' + corruption)
                 self.assertFalse(sample.format_gate_pass)
 
+    def test_real_qwen_screenplay_metadata_cannot_pass_long_format_gate(self):
+        base = '\n'.join(
+            '조사자는 증거를 살폈다. ' +
+            ''.join(chr(0xAC00 + (i * 103 + j) % 11172) for j in range(80)) +
+            ' 사서는 문을 닫았다.' for i in range(80))
+        self.assertTrue(screen_korean_draft(base).format_gate_pass)
+        for contaminated in (
+            '**시작**', '**장소:** 도서관', '**인물:** 조사자',
+            '<날씨: 비가 내렸다>', '다음은 첫 회차의 장면입니다.'
+        ):
+            with self.subTest(contaminated=contaminated):
+                result = screen_korean_draft(base + '\n' + contaminated)
+                self.assertFalse(result.format_gate_pass)
+                self.assertGreater(result.non_prose_markers, 0)
+
     def test_invalid_limits_and_types_rejected(self):
         for text, target in ((None, 5000), ('', 0), ('', True),
                              ('', 1_000_001), ('가' * 100001, 5000)):

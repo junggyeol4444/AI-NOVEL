@@ -22,6 +22,7 @@ from .episode_planner import plan_episodes, validate_episode_plans
 from .scene_planner import plan_scenes, validate_scene_plans
 from .repetition_checker import check_repetition
 from .korean_draft_quality import screen_korean_draft
+from .episode_crosscheck import screen_cross_episode_reuse
 
 
 class AutoNovelRunError(ValueError):
@@ -295,6 +296,13 @@ def run_auto_novel(
             # Screen actual, unaltered model prose separately from the old
             # length/repetition checks; this is NOT literary certification.
             screen = screen_korean_draft(full_draft, target_chars=target_chars)
+            # Inspect three actual SAVED preceding episode drafts. No raw
+            # cross-episode matches go into stored QC notes or network logs.
+            # Review is still mandatory even when this local scope is clear.
+            prior_drafts = tuple(
+                existing[p].draft for p in range(max(1, n - 3), n)
+                if p in existing and existing[p].draft.strip())
+            cross = screen_cross_episode_reuse(full_draft, prior_drafts)
             checks = [
                 ('length', 'PASS' if enough else 'WARN',
                  f'actual_chars={len(full_draft)};target_chars={target_chars}'),
@@ -306,6 +314,13 @@ def run_auto_novel(
                  f'foreign={screen.han_script_chars};'
                  f'repeated_sentence_share={screen.repeated_sentence_share};'
                  f'non_prose_markers={screen.non_prose_markers}'),
+                ('cross_episode_sentence_reuse',
+                 'WARN' if cross.exact_sentence_reuses
+                 else 'PASS' if cross.prior_episodes_examined else 'NOT_RUN',
+                 f'prior_episodes_examined={cross.prior_episodes_examined};'
+                 f'exact_sentences={cross.exact_sentence_reuses};'
+                 f'affected_chapters={cross.affected_prior_episodes};'
+                 'scope_only=true;literary_approved=false'),
             ]
             checks.extend((category, 'NOT_RUN',
                            '전체 증거가 없어 자동 승인하지 않음')
