@@ -544,5 +544,25 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             '조사자는 창가의 물자루를 조사했고 기록 담당자가 대답했다.',
             '처음 보는 열쇠가 있었다.'))
 
+
+    def test_real_windows_qwen_quoted_dialogue_repeated_across_chunks(self):
+        # Recorded failure class, not literary-quality approval.
+        quoted = '"여기에 도착한 것은 언제였습니까? 당신이 어디 있었는데?"'
+        previous = '조사자는 사서에게 물었다. ' + quoted + '\n사서가 답했다.'
+        next_scene = '다른 곳으로 가기로 했다. 사서에게 다시 물었다. ' + quoted
+        self.assertTrue(module.repeats_existing_passage(next_scene, previous))
+        self.assertFalse(module.repeats_existing_passage(
+            '사서가 두꺼운 기록을 펼치고 새로운 사건을 알렸다.',
+            previous))
+
+    def test_actual_qwen_goal_explanation_is_not_saved_as_literature(self):
+        # Exact observed phrase from Windows2022 action artifact 12230304211.
+        contaminated = (
+            '조사자는 도서관 밖으로 나섰다. '
+            '그런 의미에서는 바로 그것이 이번 회차의 목표였습니다: '
+            '한국어 현대 판타지 첫 장면 작성.')
+        with self.assertRaisesRegex(ValueError, 'mixed with draft'):
+            module.validate_clean_manuscript(contaminated)
+
 if __name__ == '__main__':
     unittest.main()
