@@ -197,15 +197,23 @@ class BatchWiringSourceContract(unittest.TestCase):
         self.assertIn('per_scene = scene_targets[scene_index]', batch)
         # Stored temporary SQLite episode checks preserve the actual status
         # without author-editing, literary approval or model emulation.
-        episode = self.db.create_unapproved_batch_episode(
-            self.pid, 1, plot='임시', draft='한글 글자 띄어쓰기',
-            summary='미확정', scenes=((1, '한글 글자 띄어쓰기'),),
-            checks=(('length', 'WARN', 'actual_nonspace=8;target_chars=5000'),))
-        self.assertEqual(episode.final_text, '')
-        with EpisodeStore(self.path) as independent:
-            record = independent.list_checks(self.pid, 1)[0]
-            self.assertEqual(record.outcome, 'WARN')
-            self.assertIn('target_chars=5000', record.note)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'only-fixture.sqlite'
+            with EpisodeStore(path) as db:
+                pid = db.create_project('임시 회귀 전용 소설').project_id
+                episode = db.create_unapproved_batch_episode(
+                    pid, 1, plot='임시', draft='한글 글자 띄어쓰기',
+                    summary='미확정', scenes=((1, '한글 글자 띄어쓰기'),),
+                    checks=(('length', 'WARN',
+                             'actual_nonspace=8;target_chars=5000'),))
+                self.assertEqual(episode.final_text, '')
+            # Reopen through an INDEPENDENT SQLite connection, as a user
+            # would after closing the native Windows program.
+            with EpisodeStore(path) as independent:
+                record = independent.list_checks(pid, 1)[0]
+                self.assertEqual(record.outcome, 'WARN')
+                self.assertIn('target_chars=5000', record.note)
+                self.assertEqual(independent.get_episode(pid, 1).final_text, '')
 
     def test_run_uses_atomic_insert_and_explicit_real_korean_screening(self):
         batch = BATCH.read_text(encoding='utf-8')
