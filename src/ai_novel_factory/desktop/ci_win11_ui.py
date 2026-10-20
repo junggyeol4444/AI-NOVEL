@@ -163,6 +163,10 @@ def run(output_dir: str) -> int:
         window._go_to_key('publication')
         app.processEvents()
         publication = window.additional_panels['publication']
+        from PySide6.QtWidgets import QScrollArea
+        check('publication_with_cover_is_scrollable_on_small_windows',
+              window.pages.currentWidget().findChild(
+                  QScrollArea, 'publicationScrollArea') is not None)
         cover_dir = output / 'local-cover-draft'
         cover_dir.mkdir(parents=True, exist_ok=True)
         publication.directory.setText(str(cover_dir))

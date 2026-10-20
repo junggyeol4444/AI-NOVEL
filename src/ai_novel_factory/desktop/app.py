@@ -115,7 +115,17 @@ class MainWindow(QMainWindow):
                 panel = (cls(page) if section.key == 'patterns' else
                          cls(lambda: self.authoring.session, page))
                 self.additional_panels[section.key] = panel
-                layout.addWidget(panel)
+                if section.key == 'publication':
+                    # Real cover preview and approval controls must remain
+                    # accessible at the supported 820x560 Windows minimum.
+                    # Keep the original workspace/widget IDs unchanged.
+                    scroll = QScrollArea(page)
+                    scroll.setObjectName('publicationScrollArea')
+                    scroll.setWidgetResizable(True)
+                    scroll.setWidget(panel)
+                    layout.addWidget(scroll)
+                else:
+                    layout.addWidget(panel)
             else:
                 layout.addWidget(pending)
                 layout.addStretch(1)
