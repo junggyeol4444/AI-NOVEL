@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import random
 import re
+import sys
 from typing import Final
 
 
@@ -85,7 +86,14 @@ def _find_font(font_path: str | Path | None) -> Path:
         if not path.is_file():
             raise CoverArtError('specified font is unavailable')
         return path
-    # Font files are OS/user-provided; never downloaded or bundled into the ZIP.
+    # The existing signed-off Windows GUI already packages an OFL Korean font
+    # as an internal PyInstaller asset; prefer it if the OS font is missing.
+    # No runtime font download, external file selection or font redistribution.
+    bundled_root = getattr(sys, '_MEIPASS', None)
+    if isinstance(bundled_root, str):
+        packaged = Path(bundled_root) / 'assets' / 'NotoSansKR.ttf'
+        if packaged.is_file():
+            return packaged
     options = (
         'C:/Windows/Fonts/malgun.ttf', 'C:/Windows/Fonts/malgunbd.ttf',
         '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',

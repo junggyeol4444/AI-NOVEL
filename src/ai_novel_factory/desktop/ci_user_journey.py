@@ -268,6 +268,14 @@ def run(args):
               and (reviewed / 'book.epub').is_file()
               and '합성 테스트 원고]' in (reviewed / 'final.txt').read_text(encoding='utf-8')
               and verify_epub(reviewed / 'book.epub', expected_chapters=1).valid)
+        # Existing desktop Stage 91 cover renderer exposed in actual GUI.
+        publication.cover_panel.author_field.setText('합성 테스트 작가')
+        QTest.mouseClick(publication.cover_panel.generate_button,
+                         Qt.MouseButton.LeftButton)
+        check('compiled_gui_manual_cover_jpeg_saved',
+              (private_path / 'cover.jpg').is_file()
+              and (private_path / 'thumbnail.jpg').is_file()
+              and '로컬 저장 완료' in publication.cover_panel.status.text())
         QTest.mouseClick(publication.export_button, Qt.MouseButton.LeftButton)
         check('publication_sidebar_private_export',
               '로컬 파일 생성 완료' in publication.status.text()

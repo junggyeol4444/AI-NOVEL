@@ -28,6 +28,7 @@ from ai_novel_factory.reference_similarity_checker import (
 )
 from .reference_profile_browser import default_local_catalog_path
 from .reference_coverage import read_reference_coverage
+from .cover_draft_widget import CoverDraftWidget
 
 
 class PatternWorkspace(QWidget):
@@ -216,6 +217,9 @@ class PublicationWorkspace(QWidget):
         choose.clicked.connect(self._choose)
         row.addWidget(choose)
         root.addLayout(row)
+        self.cover_panel = CoverDraftWidget(self.session, self.directory.text, self)
+        self.cover_panel.setObjectName('publicationCoverDraft')
+        root.addWidget(self.cover_panel)
         self.price = QLineEdit('0')
         self.price.setObjectName('publicationLocalMetadataPrice')
         root.addWidget(QLabel('가격 메타데이터 (KRW, 명시적 입력)'))
@@ -263,6 +267,7 @@ class PublicationWorkspace(QWidget):
 
     def refresh(self):
         s = self.session()
+        self.cover_panel.refresh()
         prev = self.wp_episodes.currentData()
         self.wp_episodes.clear()
         if s is None or s.project_id is None:

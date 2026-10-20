@@ -44,5 +44,7 @@ jobs:
         run: python -m unittest discover -s tests -p test_epub_reference_pipeline.py -v
       - name: Read-only SQLite and verified local EPUB reader with real Qt controls
         run: python -m unittest discover -s tests -p test_private_reader_gui.py -v
+      - name: Real Qt local cover draft buttons and anti-overwrite behavior
+        run: python -m unittest discover -s tests -p test_cover_draft_gui.py -v
       - name: Real local Qt widget clicks and SQLite versioned user journey
         run: python -m unittest discover -s tests -p test_studio_gui_optional.py -v
