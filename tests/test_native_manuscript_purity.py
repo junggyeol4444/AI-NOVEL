@@ -619,5 +619,57 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         genuine = '그녀가 도서관의 문을 열고 비밀 기록을 찾았다.'
         self.assertEqual(module.validate_clean_manuscript(genuine), genuine)
 
+
+    def test_real_windows_non_korean_initial_sample_gets_bounded_same_gguf_recovery(self):
+        # Native JSON IPC and strict validation; simulated native transport,
+        # not a fake real Qwen manuscript or literary acceptance.
+        import io
+        import json
+        import sys
+        import tempfile
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runtime = root / 'runtime'
+            runtime.mkdir()
+            llama = runtime / 'llama-cli.exe'
+            completion = runtime / 'llama-completion.exe'
+            llama.write_bytes(b'MZ')
+            completion.write_bytes(b'MZ')
+            model = root / 'qwen2.5-test.gguf'
+            with model.open('wb') as writer:
+                writer.truncate(8000000)
+            payload = {
+                'protocol': module.MODEL_PROTO, 'task': 'scene_draft',
+                'request': {
+                    'novel_bible': '가상 도서관의 기록',
+                    'scene_goal': '서고의 열쇠를 찾는다',
+                    'scene_conflict': '열쇠가 사라졌다',
+                    'scene_location': '도서관 서고',
+                    'characters': ['사서', '조사자'],
+                    'style_bible': '조사자가 사서와 함께 기록을 찾는다'}}
+            source = SimpleNamespace(
+                buffer=io.BytesIO(json.dumps(payload, ensure_ascii=False).encode('utf-8')))
+            target = SimpleNamespace(buffer=io.BytesIO())
+            calls = []
+            def fake_native(command, **_kwargs):
+                calls.append(tuple(command))
+                if len(calls) <= 2:
+                    prose = '조사자는 기록을 펼쳤다. 異'
+                else:
+                    prose = '조사자는 새로운 증거를 발견했고 사서에게 조심스럽게 알렸다. ' * 9
+                return subprocess.CompletedProcess(command, 0, prose, '')
+            with patch.object(module, 'bundled_files', return_value=(llama, root / 'other.gguf')), patch.object(
+                    module.subprocess, 'run', side_effect=fake_native), patch.object(
+                    sys, 'stdin', source), patch.object(sys, 'stdout', target):
+                result = module.main(['--gguf', str(model)])
+            self.assertEqual(result, 0)
+            self.assertEqual(len(calls), 3)
+            returned = json.loads(target.buffer.getvalue().decode('utf-8'))
+            self.assertNotIn('異', returned['draft'])
+            self.assertIn('새로운 증거', returned['draft'])
+            self.assertLess(len(''.join(returned['draft'].split())), 4500)
+
 if __name__ == '__main__':
     unittest.main()

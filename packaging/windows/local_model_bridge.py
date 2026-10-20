@@ -527,15 +527,27 @@ def main(argv=None) -> int:
                 # The actual Windows Qwen GUI failed this exact script gate.
                 # Retry the SAME local model once; never translate, pad or
                 # substitute a model, and keep the original rejection reason.
-                stage = 'native_inference'
-                raw_draft = retry_qwen_korean_text(
-                    prompt, first_error=initial_error,
-                    invoke=invoke_native, remaining=remaining)
-                stage = 'text_validation'
-                try:
-                    draft = validate_clean_manuscript(raw_draft)
-                except ValueError:
-                    raise initial_error from None
+                # Windows2022 real QA artifact 12234147184 confirmed
+                # non-Korean script on both the initial Qwen output and
+                # the first strict retry. Allow at most one additional
+                # independent native sample with the same approved GGUF.
+                # Do not translate, rewrite, store or accept rejected text.
+                for initial_retry in range(2):
+                    remaining = deadline - time.monotonic()
+                    if remaining < 25:
+                        raise initial_error from None
+                    stage = 'native_inference'
+                    raw_draft = retry_qwen_korean_text(
+                        prompt, first_error=initial_error,
+                        invoke=invoke_native, remaining=remaining)
+                    stage = 'text_validation'
+                    try:
+                        draft = validate_clean_manuscript(raw_draft)
+                    except ValueError:
+                        if initial_retry == 1:
+                            raise initial_error from None
+                    else:
+                        break
             else:
                 raise
         # A Korean-capable user-selected Qwen model sometimes returns an early
