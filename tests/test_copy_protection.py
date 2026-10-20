@@ -115,7 +115,17 @@ class CopyProtectionUnitTests(unittest.TestCase):
                 with self.assertRaises(CopyProtectionError):
                     analyze_copy_protection("원고", x)
 
-    def test_over_20_references_rejected(self):
+    def test_hundredth_reference_is_checked_and_101st_rejected(self):
+        phrase = distinct(BLOCK_MATCH_UNITS + 20)
+        references = ["전혀 다른 단편 기록"] * 99 + [phrase]
+        report = analyze_copy_protection(phrase, references)
+        self.assertEqual(report.references_checked, 100)
+        self.assertEqual(report.status, "blocked")
+        self.assertEqual(report.evidence.reference_number, 100)
+        with self.assertRaises(CopyProtectionError):
+            analyze_copy_protection(phrase, references + ["초과 참고 원문"])
+
+    def test_over_100_references_rejected(self):
         with self.assertRaises(CopyProtectionError):
             analyze_copy_protection("원고", ["원문"] * (MAX_REFERENCES + 1))
 
@@ -282,6 +292,53 @@ class CopyProtectionCliTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("review", out)
         self.assertEqual(err, "")
+
+    def test_cli_over_hundred_sources_fails_closed_before_reading(self):
+        self.draft.write_text("검사 원고", encoding="utf8")
+        code, out, err = self.run_cli(
+            "--draft", str(self.draft), "--reference", *([str(self.reference)] * 101))
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertNotIn(CANARY, err)
+
+    def test_cli_aggregate_source_limit_stops_early_without_leaking(self):
+        with patch('ai_novel_factory.references.copy_protection_cli._read_document',
+                   side_effect=['원고', '가' * 100_000 + ' ' * 500_000, '나' * 100_000 + ' ' * 500_000]) as reader:
+            code, out, err = self.run_cli(
+                '--draft', 'synthetic-draft.txt', '--reference',
+                'synthetic-one.txt', 'synthetic-two.txt', 'never-read.txt')
+        self.assertEqual(code, 2)
+        self.assertEqual(reader.call_count, 3)
+        self.assertEqual(out, '')
+        self.assertNotIn(CANARY, err)
+        self.assertNotIn('synthetic-one', err)
+
+    def test_cli_normalized_units_limit_stops_early_without_leaking(self):
+        with patch('ai_novel_factory.references.copy_protection_cli._read_document',
+                   side_effect=['원고', '가' * 300_000, '나' * 300_001]) as reader:
+            code, out, err = self.run_cli(
+                '--draft', 'synthetic-draft.txt', '--reference',
+                'synthetic-one.txt', 'synthetic-two.txt', 'never-read.txt')
+        self.assertEqual(code, 2)
+        self.assertEqual(reader.call_count, 3)
+        self.assertEqual(out, '')
+        self.assertNotIn('synthetic-one', err)
+
+    def test_cli_invalid_draft_stops_before_reference_reads(self):
+        with patch('ai_novel_factory.references.copy_protection_cli._read_document',
+                   side_effect=['가' * 200_001]) as reader:
+            code, out, err = self.run_cli(
+                '--draft', 'invalid-draft.txt', '--reference', 'never-read.txt')
+        self.assertEqual((code, out, reader.call_count), (2, '', 1))
+        self.assertNotIn('invalid-draft', err)
+
+    def test_cli_empty_reference_stops_before_next_read(self):
+        with patch('ai_novel_factory.references.copy_protection_cli._read_document',
+                   side_effect=['원고', ' !!! ', 'never-read']) as reader:
+            code, out, err = self.run_cli(
+                '--draft', 'draft.txt', '--reference', 'bad.txt', 'never-read.txt')
+        self.assertEqual((code, out, reader.call_count), (2, '', 2))
+        self.assertNotIn('bad.txt', err)
 
     def test_cli_missing_reference_fails_closed(self):
         self.draft.write_text("원고", encoding="utf8")

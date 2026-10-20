@@ -92,7 +92,7 @@ def _validate(
     references: Sequence[str | ParsedReference],
 ) -> tuple[str, tuple[str, ...]]:
     if type(references) not in (list, tuple) or not 1 <= len(references) <= MAX_REFERENCES:
-        raise SimilarityCheckError("유사성 검사에는 1~20개의 참고 원문이 필요합니다.")
+        raise SimilarityCheckError("유사성 검사에는 1~100개의 참고 원문이 필요합니다.")
     original_draft = _raw(draft)
     if len(original_draft) > MAX_RAW_DRAFT_CHARS or not 1 <= len(_normalize(original_draft)) <= MAX_DRAFT_UNITS:
         raise SimilarityCheckError("검사 원고가 크기 제한을 초과했거나 비어 있습니다.")

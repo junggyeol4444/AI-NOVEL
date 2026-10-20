@@ -6,6 +6,7 @@ from dataclasses import asdict, replace
 import io
 import socket
 from pathlib import Path
+from types import SimpleNamespace
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -193,9 +194,9 @@ class SimilarityBaselineUnitTests(unittest.TestCase):
                 with self.assertRaises(SimilarityCheckError):
                     analyze_similarity_baseline(TEXT_A, bad)
 
-    def test_more_than_twenty_sources_rejected(self):
+    def test_more_than_hundred_sources_rejected(self):
         with self.assertRaises(SimilarityCheckError):
-            analyze_similarity_baseline(TEXT_A, [TEXT_B] * 21)
+            analyze_similarity_baseline(TEXT_A, [TEXT_B] * 101)
 
     def test_raw_input_size_rejected(self):
         with self.assertRaises(SimilarityCheckError):
@@ -310,6 +311,57 @@ class SimilarityBaselineCLITests(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertNotIn(str(draft), stderr.getvalue())
 
+    def test_cli_aggregate_source_limit_stops_early_without_leaking(self):
+        with patch('ai_novel_factory.references.similarity_cli._read',
+                   side_effect=[SimpleNamespace(text='원고'),
+                                SimpleNamespace(text='가' * 100_000 + ' ' * 500_000),
+                                SimpleNamespace(text='나' * 100_000 + ' ' * 500_000)]) as reader:
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                code = similarity_main([
+                    '--draft', 'synthetic-draft.txt', '--reference',
+                    'synthetic-one.txt', 'synthetic-two.txt', 'never-read.txt'])
+        self.assertEqual(code, 2)
+        self.assertEqual(reader.call_count, 3)
+        self.assertEqual(stdout.getvalue(), '')
+        self.assertNotIn('synthetic-one', stderr.getvalue())
+
+    def test_cli_normalized_units_limit_stops_early_without_leaking(self):
+        with patch('ai_novel_factory.references.similarity_cli._read',
+                   side_effect=[SimpleNamespace(text='원고'),
+                                SimpleNamespace(text='가' * 300_000),
+                                SimpleNamespace(text='나' * 300_001)]) as reader:
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                code = similarity_main([
+                    '--draft', 'synthetic-draft.txt', '--reference',
+                    'synthetic-one.txt', 'synthetic-two.txt', 'never-read.txt'])
+        self.assertEqual(code, 2)
+        self.assertEqual(reader.call_count, 3)
+        self.assertEqual(stdout.getvalue(), '')
+        self.assertNotIn('synthetic-one', stderr.getvalue())
+
+    def test_cli_invalid_draft_stops_before_reference_reads(self):
+        with patch('ai_novel_factory.references.similarity_cli._read',
+                   side_effect=[SimpleNamespace(text='가' * 200_001)]) as reader:
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                code = similarity_main(['--draft', 'invalid-draft.txt',
+                                        '--reference', 'never-read.txt'])
+        self.assertEqual((code, stdout.getvalue(), reader.call_count), (2, '', 1))
+        self.assertNotIn('invalid-draft', stderr.getvalue())
+
+    def test_cli_empty_reference_stops_before_next_read(self):
+        with patch('ai_novel_factory.references.similarity_cli._read',
+                   side_effect=[SimpleNamespace(text='원고'),
+                                SimpleNamespace(text='  !!!  ')]) as reader:
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                code = similarity_main(['--draft', 'draft.txt',
+                                        '--reference', 'bad.txt', 'never-read.txt'])
+        self.assertEqual((code, stdout.getvalue(), reader.call_count), (2, '', 2))
+        self.assertNotIn('bad.txt', stderr.getvalue())
+
     def test_cli_missing_path_fails_closed(self):
         with tempfile.TemporaryDirectory() as folder:
             stdout, stderr = io.StringIO(), io.StringIO()
@@ -322,7 +374,7 @@ class SimilarityBaselineCLITests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             stderr = io.StringIO()
             with redirect_stderr(stderr):
-                code = similarity_main(["--draft", folder + "/missing.txt", "--reference"] + ["x.txt"] * 21)
+                code = similarity_main(["--draft", folder + "/missing.txt", "--reference"] + ["x.txt"] * 101)
             self.assertEqual(code, 2)
 
 

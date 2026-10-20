@@ -2,13 +2,15 @@
 from dataclasses import replace
 from hashlib import sha256
 import unittest
+from unittest.mock import patch
 
 from ai_novel_factory.database.reference_catalog import ReferenceCatalog
+from ai_novel_factory.references.copy_protection import analyze_copy_protection
 from ai_novel_factory.episode_assembler import EpisodeDraftPreview, SceneSpan
 from ai_novel_factory.reference_similarity_checker import (
     ReferenceMaterial, ReferenceSimilarityError, TextSpan,
     check_reference_similarity, check_episode_reference_similarity,
-    require_reference_similarity_clear,
+    require_reference_similarity_clear, _sentence_matches,
 )
 
 PID = 'a' * 32
@@ -185,6 +187,60 @@ class Stage78SimilarityTests(unittest.TestCase):
     def test_duplicate_reference_ids_rejected(self):
         with self.assertRaises(ReferenceSimilarityError):
             self.check(references=(ref(self.record), ref(self.record)))
+
+    def test_one_hundred_registered_references_include_last_and_fail_closed(self):
+        # Disposable catalog only. The 100th source must actually be examined.
+        references = []
+        for n in range(99):
+            text = ('완전히 별개의 검사용 항해 기록과 장치 설명입니다. '
+                    + str(n).zfill(3) + '번 실험은 독립된 가상 사건입니다.') * 2
+            record = self.catalog.register(
+                file_name=f'synthetic-{n:03}.txt', source_format='txt',
+                byte_count=len(text.encode()), sha256=h(text))
+            self.catalog.change_status(record.reference_id, 'analyzing')
+            self.catalog.change_status(record.reference_id, 'analyzed')
+            references.append(ref(record, text, scenes=False, beats=()))
+        references.append(ref(self.record))
+        selected = tuple(item.reference_id for item in references)
+        direct = analyze_copy_protection(SOURCE, tuple(item.text for item in references))
+        self.assertIsNotNone(direct.evidence)
+        self.assertEqual(direct.evidence.reference_number, 100)
+        report = check_reference_similarity(
+            PID, 3, SOURCE, references=tuple(references),
+            required_reference_ids=selected, catalog=self.catalog)
+        self.assertEqual(len(report.reference_ids), 100)
+        self.assertTrue(report.registration_checked)
+        self.assertIn(report.status, ('blocked', 'review', 'inconclusive'))
+        self.assertFalse(report.manuscript_approved)
+        self.assertFalse(report.publication_approved)
+        with self.assertRaises(ReferenceSimilarityError):
+            check_reference_similarity(
+                PID, 3, SOURCE, references=tuple(references[:-1]),
+                required_reference_ids=selected, catalog=self.catalog)
+        with self.assertRaises(ReferenceSimilarityError):
+            check_reference_similarity(
+                PID, 3, SOURCE, references=tuple(references) + (
+                    ReferenceMaterial('f' * 32, 'f' * 64, '초과된 독립 참고 원문입니다.'),))
+
+    def test_sentence_budget_still_samples_hundredth_reference(self):
+        # Sentence budget used to consume all 4,000 entries in earlier sources.
+        target = '깊은협곡에서비밀의서고를찾아낸순례자들은희망의빛을보았다'
+        filler = '오늘은평범한광장에서전혀다른약속을준비했다'
+        references = tuple(ReferenceMaterial('a' * 32, 'b' * 64,
+                                            'LAST' if n == 99 else f'REF{n}')
+                           for n in range(100))
+        def sentences(text):
+            if text in ('DRAFT', 'LAST'):
+                return [(0, len(target), target)]
+            return [(0, len(filler), filler)] * 41
+        flags, hits = set(), []
+        with patch('ai_novel_factory.reference_similarity_checker._sentences',
+                   side_effect=sentences):
+            count = _sentence_matches('DRAFT', references, flags,
+                                      lambda kind, number, *_: hits.append((kind, number)))
+        self.assertEqual(count, 1)
+        self.assertEqual(hits, [('SENTENCE', 100)])
+        self.assertIn('sentence_count_budget_exceeded', flags)
 
     def test_invalid_id_rejected(self):
         with self.assertRaises(ReferenceSimilarityError):

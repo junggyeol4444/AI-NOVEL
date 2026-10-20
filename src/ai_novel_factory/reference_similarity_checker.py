@@ -11,7 +11,7 @@ from hashlib import sha256
 import re
 from typing import TYPE_CHECKING
 
-from .references.copy_protection import _normalize
+from .references.copy_protection import MAX_REFERENCES, _normalize
 from .references.similarity_baseline import (
     SimilarityCheckError, analyze_similarity_baseline, _shingles,
 )
@@ -146,7 +146,7 @@ def _validate_inputs(project_id: object, episode_number: object, manuscript: obj
     manuscript = _valid_text(manuscript)
     draft_scenes = _validate_spans(manuscript, draft_scenes, MAX_SCENES_DRAFT)
     draft_beats = _validate_beats(draft_beats)
-    if type(references) is not tuple or not 1 <= len(references) <= 20:
+    if type(references) is not tuple or not 1 <= len(references) <= MAX_REFERENCES:
         raise ReferenceSimilarityError('invalid references')
     seen: set[str] = set()
     for ref in references:
@@ -160,7 +160,7 @@ def _validate_inputs(project_id: object, episode_number: object, manuscript: obj
         seen.add(ref.reference_id)
     if required_reference_ids is not None:
         if (type(required_reference_ids) is not tuple or not required_reference_ids
-                or len(required_reference_ids) > 20 or
+                or len(required_reference_ids) > MAX_REFERENCES or
                 any(type(i) is not str or not _ID.fullmatch(i) for i in required_reference_ids)
                 or len(set(required_reference_ids)) != len(required_reference_ids)
                 or set(required_reference_ids) != seen):
@@ -188,17 +188,23 @@ def _sentence_matches(manuscript: str, references: tuple[ReferenceMaterial, ...]
             unexamined.add('long_sentences_not_compared')
         elif len(norm) >= MIN_SENTENCE_UNITS:
             draft.append((start, end, norm))
-    sources = []
+    source_groups = []
     for number, ref in enumerate(references, 1):
-        before = len(sources)
+        group = []
         for start, end, sentence in _sentences(ref.text):
             norm = _normalize(sentence)
             if len(norm) > MAX_SENTENCE_UNITS:
                 unexamined.add('long_sentences_not_compared')
             elif len(norm) >= MIN_SENTENCE_UNITS:
-                sources.append((number, start, end, norm))
-        if len(sources) == before:
+                group.append((number, start, end, norm))
+        if not group:
             unexamined.add('reference_sentence_coverage_insufficient')
+        source_groups.append(group)
+    # Preserve input order within each source while sharing a limited budget
+    # across ALL selected references, not just the earliest files.
+    from itertools import zip_longest
+    sources = [sentence for round_items in zip_longest(*source_groups)
+               for sentence in round_items if sentence is not None]
     if not draft or not sources:
         unexamined.add('sentence_comparison_insufficient')
         return 0

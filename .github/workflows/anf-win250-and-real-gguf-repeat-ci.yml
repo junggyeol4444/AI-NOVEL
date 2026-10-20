@@ -37,7 +37,7 @@ jobs:
           python-version: '3.12'
       - name: Install isolated dependencies (no user data or models)
         run: python -m pip install -e ".[desktop,api,database,queue,documents,graphics,quality]"
-      - name: 30 100 250 episodes x 5000 characters, idempotent restart, 20 reference gate
+      - name: 30 100 250 episodes x 5000 characters, idempotent restart, 100 reference gate
         shell: bash
         run: |
           set -euo pipefail
@@ -138,7 +138,7 @@ jobs:
           def similarity_scope() -> dict:
               refs=[]
               with ReferenceCatalog(':memory:') as catalog:
-                  for n in range(20):
+                  for n in range(100):
                       text=('가상의 도시에는 인물이 독창적으로 설계한 기계가 있다. '
                             f'{n}번째 문서의 결정은 여름의 공원에서 검토되었다. ')*2
                       sha=hashlib.sha256(text.encode('utf-8')).hexdigest()
@@ -164,7 +164,7 @@ jobs:
                       missing_rejected=True
                   else:
                       raise AssertionError('Unexamined registered reference accepted')
-                  # 21 registered references exceed current checker cap and cannot claim clearance.
+                  # 101 references exceed the explicit 100-source limit and must fail closed.
                   more=(ReferenceMaterial(uuid4().hex,hashlib.sha256(b'extra').hexdigest(),
                                           '신규로 별도 등록된 참고 자료의 합성 문장입니다.'),)
                   try:
@@ -173,11 +173,11 @@ jobs:
                   except ReferenceSimilarityError:
                       beyond_limit_rejected=True
                   else:
-                      raise AssertionError('21-reference overflow accepted')
-                  return {'registered_tested':20,'exact_copy_status':report.status,
+                      raise AssertionError('101-reference overflow accepted')
+                  return {'registered_tested':100,'exact_copy_status':report.status,
                           'registered_set_checked':report.registration_checked,
                           'missing_reference_rejected':missing_rejected,
-                          'over_20_fail_closed':beyond_limit_rejected,'publication_approved':False}
+                          'over_100_fail_closed':beyond_limit_rejected,'publication_approved':False}
           
           
           def main() -> None:

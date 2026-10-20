@@ -18,7 +18,7 @@ from .plaintext_parser import ParsedReference, ReferenceParseError
 REVIEW_MATCH_UNITS = 48
 BLOCK_MATCH_UNITS = 96
 SHORT_SOURCE_REVIEW_UNITS = 16  # full copy of a 16..47-unit short work is reviewable
-MAX_REFERENCES = 20
+MAX_REFERENCES = 100
 MAX_REFERENCE_UNITS = 500_000
 MAX_DRAFT_UNITS = 200_000
 MAX_RAW_REFERENCE_CHARS = 1_000_000
@@ -67,7 +67,7 @@ def _validated_inputs(
     if type(draft) is not str or len(draft) > MAX_RAW_DRAFT_CHARS:
         raise CopyProtectionError("원고 문자열 또는 크기가 올바르지 않습니다.")
     if type(references) not in (tuple, list) or not 1 <= len(references) <= MAX_REFERENCES:
-        raise CopyProtectionError("검사할 참고 원문은 1~20개가 필요합니다.")
+        raise CopyProtectionError("검사할 참고 원문은 1~100개가 필요합니다.")
     normalized_draft = _normalize(draft)
     if not 1 <= len(normalized_draft) <= MAX_DRAFT_UNITS:
         raise CopyProtectionError("원고의 유효 문자 수가 허용 범위를 벗어났습니다.")
