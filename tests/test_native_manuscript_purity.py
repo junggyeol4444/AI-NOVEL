@@ -817,6 +817,9 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             completion.write_bytes(b'MZ')
             model = root / 'qwen2.5-test.gguf'
             with model.open('wb') as writer:
+                writer.write(b'GGUF' + (3).to_bytes(4, 'little')
+                             + (200).to_bytes(8, 'little')
+                             + (40).to_bytes(8, 'little'))
                 writer.truncate(8000000)
             payload = {
                 'protocol': module.MODEL_PROTO, 'task': 'scene_draft',

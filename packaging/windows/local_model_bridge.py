@@ -678,10 +678,12 @@ def main(argv=None) -> int:
                     or not 8_000_000 <= selected.stat().st_size <= 32_000_000_000):
                 raise ValueError('model path rejected')
             with selected.open('rb') as stream:
-                header = stream.read(8)
-            if (len(header) != 8 or header[:4] != b'GGUF'
-                    or int.from_bytes(header[4:], 'little') not in (2, 3)):
-                raise ValueError('not GGUF')
+                header = stream.read(24)
+            if (len(header) != 24 or header[:4] != b'GGUF'
+                    or int.from_bytes(header[4:8], 'little') not in (2, 3)
+                    or not 1 <= int.from_bytes(header[8:16], 'little') <= 1_000_000
+                    or not 1 <= int.from_bytes(header[16:24], 'little') <= 1_000_000):
+                raise ValueError('invalid GGUF header')
             model = selected.resolve(strict=True)
         except (OSError, ValueError):
             print('INVALID_LOCAL_GGUF_SELECTION', file=sys.stderr)

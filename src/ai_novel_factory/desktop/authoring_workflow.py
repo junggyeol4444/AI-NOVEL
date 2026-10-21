@@ -124,10 +124,16 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             # damaged/renamed file: verify the on-disk GGUF binary header.
             # GGUF is little-endian: magic GGUF + 32-bit format version.
             with selected.open('rb') as stream:
-                header = stream.read(8)
-            if (len(header) != 8 or header[:4] != b'GGUF'
-                    or int.from_bytes(header[4:], 'little') not in (2, 3)):
-                raise ValueError('not GGUF')
+                header = stream.read(24)
+            # GGUF v2/v3: magic, u32 version, u64 tensor_count,
+            # u64 metadata_kv_count. Reject renamed empty files before
+            # launching a native process. This is header integrity only,
+            # not a model/literary quality certification.
+            if (len(header) != 24 or header[:4] != b'GGUF'
+                    or int.from_bytes(header[4:8], 'little') not in (2, 3)
+                    or not 1 <= int.from_bytes(header[8:16], 'little') <= 1_000_000
+                    or not 1 <= int.from_bytes(header[16:24], 'little') <= 1_000_000):
+                raise ValueError('invalid GGUF header')
         except (OSError, ValueError):
             self.status.setText('GGUF 모델 파일의 경로·크기·헤더가 올바르지 않습니다.')
             return
