@@ -101,5 +101,12 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertIn("if ($front -ne $hwnd)", ps)
         self.assertNotIn('Stop-Process -Name WWAHost', ps)
 
+    def test_bundled_real_gui_qa_records_only_character_counts(self):
+        source = (ROOT / 'src/ai_novel_factory/desktop/ci_portable_gui.py').read_text(
+            encoding='utf-8')
+        self.assertIn("report['draft_nonspace_chars']", source)
+        self.assertIn("report['draft_hangul_chars']", source)
+        self.assertNotIn("report['raw_draft']", source)
+
 if __name__ == '__main__':
     unittest.main()

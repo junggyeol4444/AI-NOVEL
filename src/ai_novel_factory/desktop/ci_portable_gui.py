@@ -108,6 +108,10 @@ def run(out: str) -> int:
             (code for code in allowed_failure_codes
              if accessible == '로컬 AI 생성 실패 ' + code), 'NONE')
         report['generated_nonempty_draft'] = bool(draft.strip())
+        # Metadata only; failed model prose and author facts never uploaded.
+        # Distinguishes runtime instability from genuine native Korean drafts.
+        report['draft_nonspace_chars'] = len(''.join(draft.split()))
+        report['draft_hangul_chars'] = sum('가' <= ch <= '힣' for ch in draft)
         report['pending_matches_visible_draft'] = bool(
             draft.strip() and ui.session.pending_draft == draft)
         check('real_bundled_gguf_model_generated_prose_via_gui',

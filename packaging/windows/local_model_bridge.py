@@ -140,6 +140,20 @@ def validate_clean_manuscript(raw: str) -> str:
     # of prose dialogue. No script/transcript should become approved prose.
     if re.search(r'(?m)^[가-힣][가-힣 ]{0,14}:\s*["“]', text):
         raise ValueError('native console output mixed with draft')
+    # Windows bundled 135M repeatedly produced one Korean word among long
+    # English paragraphs (real repeat-GGUF run 39526952842).  The existing
+    # GUI quality screen ALREADY requires >=78% Hangul and <=5% Latin.
+    # Reject its clearly non-Korean candidate early, allowing an independent
+    # SAME-GGUF retry rather than "successful" but unusable preview.
+    # Tiny snippets (<80 nonspace chars) retain the previous basic transport
+    # check; the GUI still applies the full exact format gate.
+    compact = ''.join(text.split())
+    if len(compact) >= 80:
+        hangul = sum('가' <= ch <= '힣' for ch in compact)
+        latin = sum(('A' <= ch <= 'Z') or ('a' <= ch <= 'z') for ch in compact)
+        if (hangul * 100 < 78 * len(compact)
+                or latin > max(5, (len(compact) + 19) // 20)):
+            raise ValueError('native non-Korean script in draft')
     return text
 
 
@@ -467,10 +481,19 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
         if nonspace_count(draft) >= minimum or clock() >= deadline:
             break
         previous = draft[-320:]
+        # The Windows2022 real Qwen draft stopped after 424 nonspace chars
+        # despite a 5000-char author target. Preserve the same model and
+        # actual author context, but make the remaining real-prose workload
+        # explicit on every native continuation attempt. The number here
+        # guides generation ONLY; no characters are padded or synthesized.
+        deficit = max(0, target_chars - nonspace_count(draft))
         continuation_prompt = (
             original_prompt[:1800] + '\n'
             '이어지는 문단의 앞부분:\n' + previous.strip() + '\n'
-            + instructions[attempt % len(instructions)]
+            + instructions[attempt % len(instructions)] + '\n'
+            + f'현재 장면에서 아직 필요한 분량은 공백 제외 약 {deficit}자입니다. '
+            '이전 문장을 반복하지 않고 새 사건과 인물 행동을 한국어 소설 본문으로 '
+            '여러 문단에 걸쳐 길게 직접 집필합니다. 설명문이나 계획표를 쓰지 않습니다.'
         )
         remaining = deadline - clock()
         if remaining <= 5:
@@ -816,7 +839,7 @@ def main(argv=None) -> int:
                     retry_qwen_korean_text(
                         continuation_prompt, first_error=first_error,
                         invoke=invoke_native, remaining=seconds),
-                short_retry_limit=6)
+                short_retry_limit=10)
         response = {'protocol': MODEL_PROTO, 'draft': draft}
         stage = 'json_output'
         # Windows frozen console executables may use a legacy code page even

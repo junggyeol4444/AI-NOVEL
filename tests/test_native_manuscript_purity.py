@@ -995,5 +995,32 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                     runner=crash, clock=lambda: 0)
             self.assertEqual(len(calls), 2)
 
+    def test_real_bundled_mostly_english_stdout_gets_same_gguf_retry_error(self):
+        # Actual runtime saw 7 Hangul / 370 Latin in a 504-byte sample.
+        # The established 78%/5% GUI gate must not accept it by accident.
+        mixed = '사서가 기록을 찾았다. ' + 'This is a description, not Korean prose. ' * 14
+        with self.assertRaisesRegex(ValueError, 'native non-Korean script'):
+            module.validate_clean_manuscript(mixed)
+        self.assertEqual(
+            module.validate_clean_manuscript(
+                '사서가 책장을 넘겼다. 조사자는 뒤쪽 복도의 문을 열었다.'),
+            '사서가 책장을 넘겼다. 조사자는 뒤쪽 복도의 문을 열었다.')
+
+    def test_real_qwen_5000_target_deficit_is_present_in_native_continuations(self):
+        original = '조사자가 도서관 기록을 확인했다. ' * 16
+        seen = []
+        def next_real_attempt(prompt, seconds):
+            seen.append((prompt, seconds))
+            return '사서가 다른 통로를 발견했다. ' * 2
+        module.continue_korean_scene(
+            original, original_prompt='가상 서고의 인물 조사',
+            target_chars=5000, invoke=next_real_attempt,
+            deadline=100, clock=lambda: 0, short_retry_limit=1)
+        self.assertTrue(seen)
+        self.assertIn('공백 제외 약 ', seen[0][0])
+        self.assertIn('새 사건과 인물 행동', seen[0][0])
+        self.assertIn('이어지는 문단의 앞부분:', seen[0][0])
+        self.assertNotIn('모의 초고', seen[0][0])
+
 if __name__ == '__main__':
     unittest.main()
