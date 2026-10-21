@@ -433,18 +433,12 @@ def retry_qwen_korean_text(prompt: str, *, first_error: ValueError,
     # No changing GGUF weights, original prompt in SQLite, or quality gate.
     if type(attempt) is not int or not 0 <= attempt <= 1:
         raise first_error
-    if attempt == 0:
-        retry_prompt = (
-            prompt + '\n'
-            '첫 문장부터 한국어 소설 본문을 이어 씁니다. '
-            '등장인물이 목표를 향해 행동하고 그 결과가 주변에 나타납니다. '
-            '목록·시나리오 형식이 아닌 실제 소설 문단만 계속 작성합니다.')
-    else:
-        retry_prompt = (
-            prompt + '\n'
-            '인물의 표정과 몸짓 다음에 사건이 전개되는 자연스러운 소설 문단을 '
-            '집필합니다. 대사는 따옴표로 표현하고, 사건의 원인과 결과를 '
-            '서술 문장으로 이어갑니다.')
+    # The real Windows2022/ARM error is prompt-echo, so appending another
+    # command to the end of a rejected scene recreates the very failure.
+    # Retry with the SAME Qwen GGUF and a separately framed prompt from
+    # build_story_prompts(prose_retry=...). Leave author facts as the
+    # last content. The two token budgets and strict rejection remain.
+    retry_prompt = prompt.rstrip() + '\n\n'
     # Only real model tokens: no translation, synthetic padding, fallback
     # model, source rewriting or literary approval on either attempt.
     return invoke(retry_prompt, remaining,
@@ -604,24 +598,22 @@ def build_story_prompts(canon: str, goal: str, conflict: str, place: str,
         # the failed Windows2022/ARM model prose. Prompt-only transformation:
         # no project, Novel Bible, user source or database modification.
         scene = (
-            '소설 본문을 실제 인물의 움직임으로 시작합니다.\n'
-            + goal[:2000] + '\n' + conflict[:1000] + '\n'
+            '작품 설정:\n' + canon[:12000] + '\n'
+            + '회차와 장면의 사건:\n' + style_bible[:5000] + '\n'
             + place[:1000] + '\n'
             + ', '.join(characters[:20]) + '\n'
-            + style_bible[:5000] + '\n'
-            + canon[:12000] + '\n'
-            + '인물이 눈앞의 상황에 행동으로 대응하는 소설 문단을 씁니다.')
+            + conflict[:1000] + '\n'
+            # Different label-free framing of the SAME author goal.
+            # No model-authored command or invented prose after the goal.
+            + goal[:2000].strip() + '\n\n')
         return system, scene
     scene = (
-        '이번 장면의 목표:\n' + goal[:2000] + '\n'
-        '충돌과 장애물:\n' + conflict[:1000] + '\n'
-        '배경 장소:\n' + place[:1000] + '\n'
-        '등장인물:\n' + ', '.join(characters[:20]) + '\n'
-        '첫 문장부터 인물의 행동을 한국어 소설 문단으로 이어 쓰세요.\n'
-        # Writer constraints must be visible before the long author bible;
-        # 4096 native context tokens could otherwise truncate this section.
+        '작품 설정:\n' + canon[:12000] + '\n'
         '회차와 장면의 사건:\n' + style_bible[:5000] + '\n'
-        '작품 설정:\n' + canon[:12000])
+        '등장인물:\n' + ', '.join(characters[:20]) + '\n'
+        '배경 장소:\n' + place[:1000] + '\n'
+        '충돌과 장애물:\n' + conflict[:1000] + '\n'
+        '이번 장면의 목표:\n' + goal[:2000].strip() + '\n\n')
     return system, scene
 
 

@@ -25,7 +25,8 @@ class KoreanNativeBridgeSourceContract(unittest.TestCase):
         self.assertNotIn("'--simple-io',", source)
         self.assertIn('draft = validate_clean_manuscript(raw_draft)', source)
         self.assertIn('latin > max(5, (len(compact) + 19) // 20)', source)
-        self.assertIn('현재 장면에서 아직 필요한 분량은 공백 제외 약', source)
+        self.assertIn("previous = candidate_context[-480:].strip()", source)
+        self.assertIn("retry_prompt = prompt.rstrip() + '\\n\\n'", source)
         self.assertIn('new = validate_clean_manuscript(next_raw)', source)
 
     def test_output_budget_no_longer_384(self):

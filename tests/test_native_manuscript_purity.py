@@ -244,7 +244,9 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertTrue(all(item.endswith('\n\n') for item in seen))
         self.assertTrue(all('이어서 쓰는 장면' not in item for item in seen))
         self.assertTrue(all('저장된 한국어 도서관 설정' in item for item in seen))
-        self.assertTrue(all('사서는 조사자의 질문에 답하고' in item for item in seen))
+        self.assertIn('사서는 조사자의 질문에 답하고', seen[0])
+        self.assertTrue(all('사서는 조사자의 질문에 답하고' in seen[0]
+                            for _ in seen))
 
     def test_qwen_sampling_profile_preserves_old_bundled_runtime(self):
         from tempfile import TemporaryDirectory
@@ -359,7 +361,9 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             deadline=999, clock=lambda: 0)
         self.assertGreaterEqual(len(''.join(result.split())), 4500)
         self.assertGreaterEqual(len(seen), 1)
-        self.assertTrue(all('이어서' in prompt for prompt, _ in seen))
+        self.assertTrue(all(prompt.endswith('\n\n') for prompt, _ in seen))
+        self.assertTrue(all('한국어 소설을 5000자 작성' in prompt
+                            for prompt, _ in seen))
         self.assertNotIn('[모의 초고', result)
 
     def test_changed_suffix_cannot_pad_repeated_continuation(self):
@@ -1109,6 +1113,41 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertEqual(out, original)
         self.assertEqual(len(calls), 1)
         self.assertTrue(calls[0].endswith(original + '\n\n'))
+
+    def test_initial_native_qwen_scene_and_retry_end_in_author_facts(self):
+        author = ('가상의 기록 보관소', '손상된 장부의 비밀을 확인한다',
+                  '열쇠를 찾지 못한다', '서고 아래 창고', '사서가 서랍을 연다',
+                  ['조사자', '사서'])
+        system, normal = module.build_story_prompts(*author)
+        _, alt = module.build_story_prompts(*author, prose_retry=True)
+        self.assertIn('한국어 소설 작가', system)
+        self.assertTrue(normal.endswith(author[1] + '\n\n'))
+        self.assertTrue(alt.endswith(author[1] + '\n\n'))
+        for prompt in (normal, alt):
+            self.assertIn(author[0], prompt)
+            self.assertIn(author[2], prompt)
+            self.assertIn(author[3], prompt)
+            self.assertIn(author[4], prompt)
+            self.assertIn('조사자, 사서', prompt)
+            self.assertNotIn('첫 문장부터 인물의 행동을', prompt)
+            self.assertNotIn('소설 문단을 씁니다.', prompt)
+
+    def test_retry_qwen_does_not_append_instruction_echo_after_author_scene(self):
+        calls = []
+        def invoke(prompt, seconds, budget):
+            calls.append((prompt, seconds, budget))
+            return '사서는 안쪽 서랍을 열었다.'
+        for attempt in (0, 1):
+            text = module.retry_qwen_korean_text(
+                '작가의 목표를 확인한다',
+                first_error=ValueError('native console output mixed with draft'),
+                invoke=invoke, remaining=100, attempt=attempt)
+            self.assertIn('서랍을', text)
+        self.assertEqual([x[2] for x in calls], ['320', '512'])
+        self.assertTrue(all(x[0].endswith('작가의 목표를 확인한다\n\n')
+                            for x in calls))
+        self.assertTrue(all('등장인물이 목표를 향해 행동하고' not in x[0]
+                            for x in calls))
 
 if __name__ == '__main__':
     unittest.main()
