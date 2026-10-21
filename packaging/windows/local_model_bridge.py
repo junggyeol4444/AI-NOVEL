@@ -181,7 +181,7 @@ def native_script_failure_category(raw: str) -> str:
 def build_native_command(llama: Path, model: Path, system_prompt: str,
                          prompt: str, prediction_budget: str, *,
                          qwen_crash_recovery: bool = False) -> list[str]:
-    """Use the bundled completion executable for the existing Qwen QA model.
+    """Use noninteractive GGUF completion for all explicitly selected local models.
 
     The separate completion executable avoids llama-cli's chat shell. It
     applies the model's own chat template to ordinary --system-prompt and
@@ -189,12 +189,13 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
     Its argument set excludes CLI-only --no-show-timings. Only verbosity 0
     keeps response tokens while hiding informational messages.
     """
-    qwen = model.name.lower().startswith('qwen2.5-') and model.suffix.lower() == '.gguf'
-    # The Windows 2022/11 native 48-token diagnostic verified four Qwen CPU
-    # threads are faster than one. Preserve the bundled 135M smoke path.
-    # The same pinned Qwen GGUF occasionally exits with Windows heap
-    # corruption (0xC0000374). A single-thread attempt is only made after
-    # that precise native crash; the normal four-thread path is unchanged.
+    bundled_qa = model.name == MODEL_NAME
+    # A user's approved GGUF must not be treated as the tiny bundled
+    # 135M smoke model merely because its filename is not "qwen2.5-*".
+    # Model weights and author data are never changed by this selection.
+    qwen = not bundled_qa
+    # Four native CPU threads for any selected longform GGUF, one for the
+    # bundled smoke fixture; a heap-corruption retry always uses one.
     threads = '1' if qwen_crash_recovery else ('4' if qwen else '1')
     common = [
         '--model', str(model), '--predict', prediction_budget,
@@ -209,26 +210,23 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
         '--top-p', ('0.90' if qwen else '0.92'),
         '--no-display-prompt',
     ]
-    if qwen_crash_recovery and (qwen or model.name == MODEL_NAME):
+    if qwen_crash_recovery and model.suffix.lower() == '.gguf':
         # The original pinned b11624 completion executable supports this
         # memory-mapping switch. Use it only after observed 0xC0000374,
         # keeping the same GGUF, binary, author text and quality validation.
         common.append('--no-mmap')
-    if qwen or model.name == MODEL_NAME:
-        # The pinned bundle includes llama-completion.exe. Avoid llama-cli's
-        # interactive shell, which emitted banners/prompt echoes into stdout.
-        completion = llama.with_name('llama-completion.exe')
-        if not completion.is_file():
-            raise ValueError('non-interactive completion runtime missing')
-        if qwen and any(token in part for part in (system_prompt, prompt) for token in
-                        ('<|im_start|>', '<|im_end|>', '<|im_sep|>')):
-            raise ValueError('unsafe chat template delimiter')
-        return [str(completion), *common, '--log-verbosity', '0',
-                '--system-prompt', system_prompt, '--prompt', prompt,
-                '--single-turn']
-    # Any other explicitly selected local model retains the original CLI
-    # pathway, with fail-closed native output validation.
-    return [str(llama), *common, '--log-disable', '--no-show-timings',
+    # Every user-approved GGUF now uses exactly the same noninteractive
+    # completion executable. The prior non-Qwen fallback launched llama-cli
+    # (chat shell), the source of banners and prompt echo in manuscripts.
+    # Never guess a GGUF's chat template from its filename: the native
+    # executable reads metadata, with strict output screening afterward.
+    completion = llama.with_name('llama-completion.exe')
+    if not completion.is_file():
+        raise ValueError('non-interactive completion runtime missing')
+    if any(token in part for part in (system_prompt, prompt) for token in
+           ('<|im_start|>', '<|im_end|>', '<|im_sep|>')):
+        raise ValueError('unsafe chat template delimiter')
+    return [str(completion), *common, '--log-verbosity', '0',
             '--system-prompt', system_prompt, '--prompt', prompt,
             '--single-turn']
 
@@ -258,7 +256,7 @@ def run_native_with_heap_crash_recovery(
         llama, model, system_prompt, scene_prompt, budget)
     proc = call(command)
     qwen = (model.suffix.lower() == '.gguf'
-            and model.name.lower().startswith('qwen2.5-'))
+            and model.name != MODEL_NAME)
     bundled = (model.name == MODEL_NAME)
     # Real Windows 2022 repeat-GGUF test 39526404872 found the very same
     # pinned runtime heap exit even with the bundled 135M model. Both
@@ -719,27 +717,16 @@ def main(argv=None) -> int:
         # Earlier Windows CI found that --simple-io plus conversation flags
         # returned native exit 1. Use single-turn without simple-io while
         # keeping fail-closed console-output rejection.
-        # Keep the small bundled 135M smoke route responsive. Larger, explicitly
-        # selected multilingual GGUF weights need a separate bounded CPU budget.
+        # The bundled 135M GGUF is a packaging/transport fixture, not the
+        # user's chosen novel-writing model. Every explicitly selected GGUF
+        # gets the SAME longer real-writing CPU deadline and continuation
+        # logic, independent of brand or filename. No new default GGUF.
         is_bundled_qa_model = model.name == MODEL_NAME
-        prediction_budget = '384' if is_bundled_qa_model else '3072'
-        # Windows native probe: Qwen 48 tokens took 3.88s on x64 and
-        # >30s on ARM. A 3072-token single call can exhaust the entire
-        # 400-second budget before continuation or a GUI status update.
-        # Keep the requested 5000-character quality gate unchanged.
-        if model.name.lower().startswith('qwen2.5-'):
-            # 512 was exhausted before a substantial first scene on actual
-            # Windows Qwen2.5. Permit more genuine model tokens per call;
-            # EOS, 1400-second deadline and Korean quality gates are unchanged.
-            prediction_budget = '768'
-        # The original 400s bridge / 450s GUI / 480s QA poll prematurely
-        # ended real 5000-character Qwen inference on slower Windows CPUs.
-        # Increase all three together ONLY for explicitly selected Qwen GGUF.
-        # Keep bundled 135M and other model paths at their previous limits.
+        is_selected_longform_model = not is_bundled_qa_model
+        prediction_budget = '384' if is_bundled_qa_model else '768'
         native_timeout = (
-            1400 if model.name.lower().startswith('qwen2.5-')
-            else bundled_timeout_seconds(arm64_host=windows_native_arm64())
-            if is_bundled_qa_model else 400)
+            bundled_timeout_seconds(arm64_host=windows_native_arm64())
+            if is_bundled_qa_model else 1400)
         command = build_native_command(
             llama, model, system_prompt, prompt, prediction_budget)
         env = {k: os.environ[k] for k in
@@ -782,7 +769,7 @@ def main(argv=None) -> int:
                         remaining=deadline - time.monotonic())
                     stage = 'text_validation'
                     draft = validate_clean_manuscript(raw_draft)
-            elif (model.name.lower().startswith('qwen2.5-')
+            elif (is_selected_longform_model
                   and str(initial_error) in (
                       'native output lacks Korean novel prose',
                       'native non-Korean script in draft',
@@ -828,8 +815,7 @@ def main(argv=None) -> int:
         # actual model prose under the existing single 400-second deadline.
         # Never pretend that a short/incoherent scene meets the quality gate.
         target = requested_scene_target(goal, req)
-        if (not is_bundled_qa_model and model.name.lower().startswith('qwen2.5-')
-                and target is not None):
+        if is_selected_longform_model and target is not None:
             draft = continue_korean_scene(
                 draft, original_prompt=build_continuation_context(
                     canon, goal, conflict, place, style_bible, characters),

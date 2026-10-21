@@ -1150,5 +1150,49 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertTrue(all('등장인물이 목표를 향해 행동하고' not in x[0]
                             for x in calls))
 
+    def test_other_author_selected_gguf_uses_full_noninteractive_longform_runtime(self):
+        # This is an explicit choice by the user, NOT a new default model.
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as temp:
+            parent = Path(temp)
+            (parent / 'llama-completion.exe').touch()
+            cli = parent / 'llama-cli.exe'
+            names = ('approved-Korean-author-model.gguf',
+                     'my-local-writer.gguf',
+                     'qwen2.5-1.5b-instruct-q4_k_m.gguf')
+            for name in names:
+                with self.subTest(name=name):
+                    cmd = module.build_native_command(
+                        cli, parent / name, '한국어 집필', '장면의 사건', '768')
+                    self.assertEqual(Path(cmd[0]).name, 'llama-completion.exe')
+                    self.assertEqual(cmd[cmd.index('--threads') + 1], '4')
+                    self.assertEqual(cmd[cmd.index('--repeat-penalty') + 1],
+                                     '1.08')
+                    self.assertEqual(cmd[cmd.index('--predict') + 1], '768')
+                    self.assertNotIn('--log-disable', cmd)
+                    self.assertNotIn('--no-show-timings', cmd)
+
+    def test_non_qwen_selected_gguf_recovers_same_weights_after_heap_corruption(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as temp:
+            parent = Path(temp)
+            (parent / 'llama-completion.exe').touch()
+            model = parent / 'approved-Korean-author-model.gguf'
+            cmds = []
+            def native(cmd, **_kwargs):
+                cmds.append(cmd)
+                return subprocess.CompletedProcess(
+                    cmd, 3221226356 if len(cmds) == 1 else 0,
+                    '사서가 문을 열고 기록을 확인했다.', '')
+            draft = module.run_native_with_heap_crash_recovery(
+                parent / 'llama-cli.exe', model, '한국어 집필', '서가 탐색',
+                '768', 100, {}, runner=native, clock=lambda: 0)
+            self.assertIn('기록을', draft)
+            self.assertEqual(len(cmds), 2)
+            self.assertEqual(cmds[0][cmds[0].index('--model') + 1],
+                             cmds[1][cmds[1].index('--model') + 1])
+            self.assertNotIn('--no-mmap', cmds[0])
+            self.assertIn('--no-mmap', cmds[1])
+
 if __name__ == '__main__':
     unittest.main()
