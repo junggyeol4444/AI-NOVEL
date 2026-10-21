@@ -259,6 +259,7 @@ class BatchWiringSourceContract(unittest.TestCase):
             (5000, 3, (1667, 1667, 1666)),
             (5000, 20, (250,) * 20),
             (5000, 1, (5000,)),
+            (50000, 5, (10000,) * 5),
             (101, 2, (51, 50)),
             (250, 5, (50,) * 5),
         ):
@@ -268,7 +269,8 @@ class BatchWiringSourceContract(unittest.TestCase):
                 self.assertEqual(sum(actual), total)
                 self.assertTrue(all(x >= 50 for x in actual))
         for total, count in ((50, 3), (999, 20), (100, 0),
-                             (5000, 21), (5000, True)):
+                             (5000, 21), (5000, True),
+                             (50000, 1), (20001, 2)):
             with self.subTest(invalid=(total, count)):
                 with self.assertRaises(AutoNovelRunError):
                     _scene_char_targets(total, count)
@@ -318,6 +320,7 @@ class BatchWiringSourceContract(unittest.TestCase):
         self.assertIn("timeout_seconds=(", gui)
         self.assertIn('self.auto_panel.request_stop()', workflow)
         self.assertIn('self.target_chars.value() < 50 * self.scenes.value()', gui)
+        self.assertIn('self.target_chars.value() > 10_000 * self.scenes.value()', gui)
         self.assertIn("if self.auto_panel.is_running():", workflow)
         self.assertIn('str(session.project_id) == self.worker.project_id', gui)
 

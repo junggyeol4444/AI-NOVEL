@@ -129,6 +129,11 @@ class AutoBatchPanel(QGroupBox):
                 '회차 목표 분량이 장면 수에 비해 작습니다. '
                 '장면마다 최소 50자 이상으로 설정하세요.')
             return
+        if self.target_chars.value() > 10_000 * self.scenes.value():
+            self.status.setText(
+                '한 장면은 최대 10,000자까지 지원합니다. '
+                '회차 목표 분량은 유지하고 장면 수를 늘려 주세요.')
+            return
         if not self.consent.isChecked():
             self.status.setText('실제 로컬 AI 연속 실행에 대한 이번 회차 승인이 필요합니다.')
             return

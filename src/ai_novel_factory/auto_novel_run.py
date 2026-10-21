@@ -101,6 +101,14 @@ def _scene_char_targets(episode_target: int, scene_count: int) -> tuple[int, ...
             or not 50 <= episode_target <= 50000
             or episode_target < 50 * scene_count):
         raise AutoNovelRunError('장면마다 최소 50자 이상이 되도록 회차 분량·장면 수를 설정하세요.')
+    # The native bridge can process at most 10,000 characters in one scene
+    # and now fails closed on an unsupported target. Reject incompatible
+    # chapter/scene settings BEFORE making any model calls or SQLite writes,
+    # rather than silently saving a 50,000-character chapter as a short draft.
+    if episode_target > 10_000 * scene_count:
+        raise AutoNovelRunError(
+            '장면 하나의 목표는 최대 10,000자입니다. '
+            '회차 총 분량은 유지하고 장면 수를 늘려 주세요.')
     base, remainder = divmod(episode_target, scene_count)
     return tuple(base + (index < remainder)
                  for index in range(scene_count))
