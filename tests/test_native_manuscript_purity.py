@@ -4,6 +4,7 @@ import os
 import subprocess
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 SOURCE = Path(__file__).resolve().parents[1] / 'packaging/windows/local_model_bridge.py'
 spec = importlib.util.spec_from_file_location('anf_test_native_bridge', SOURCE)
