@@ -127,6 +127,27 @@ sys.exit(1)
         with self.assertRaisesRegex(LocalModelError, 'native_process_crash'):
             worker.generate(self.request)
 
+    def test_signed_heap_corruption_is_reported_without_private_stderr(self):
+        worker = self._worker('''import sys
+sys.stderr.write("private draft must not be printed\\n")
+sys.stderr.write("LLAMA_NATIVE_EXIT=-1073740940\\n")
+sys.stderr.write("LOCAL_MODEL_GENERATION_FAILED;STAGE=native_inference;TYPE=ValueError\\n")
+sys.exit(1)
+''')
+        with self.assertRaises(LocalModelError) as ctx:
+            worker.generate(self.request)
+        self.assertEqual(str(ctx.exception), 'native_process_crash')
+        self.assertNotIn('private draft', str(ctx.exception))
+
+    def test_windows_access_violation_exit_is_a_native_crash(self):
+        worker = self._worker('''import sys
+sys.stderr.write("LLAMA_NATIVE_EXIT=-1073741819\\n")
+sys.stderr.write("LOCAL_MODEL_GENERATION_FAILED;STAGE=native_inference;TYPE=ValueError\\n")
+sys.exit(1)
+''')
+        with self.assertRaisesRegex(LocalModelError, 'native_process_crash'):
+            worker.generate(self.request)
+
     def test_explicit_scene_length_matches_windows_bridge(self):
         from ai_novel_factory.local_models import effective_scene_target
         self.assertEqual(effective_scene_target('이 장면 6000자 작성', 2500), 6000)

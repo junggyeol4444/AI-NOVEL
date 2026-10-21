@@ -116,5 +116,15 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertIn("self._text('arguments').strip() == ''", src)
         self.assertIn('사용자가 직접 선택·승인해야 합니다', src)
 
+    def test_explicit_author_model_selection_never_reuses_old_approval(self):
+        src = (ROOT / 'src/ai_novel_factory/desktop/authoring_workflow.py').read_text(
+            encoding='utf-8')
+        self.assertIn("self.fields['executable'].textChanged.connect(", src)
+        self.assertIn("self.fields['arguments'].textChanged.connect(", src)
+        self.assertIn("self._set('arguments', '')", src)
+        self.assertIn('self.approved.setChecked(False)', src)
+        self.assertIn("shlex.quote(str(selected))", src)
+        self.assertIn('모델 자동 교체·다운로드는 없으며', src)
+
 if __name__ == '__main__':
     unittest.main()

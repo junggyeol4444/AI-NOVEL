@@ -188,7 +188,14 @@ class LocalExecutableProvider:
                     if match.group(2) == 'TimeoutExpired':
                         raise LocalModelError('native_timeout')
                     # Observed Windows 0xC0000374 (heap corruption).
-                    if 'LLAMA_NATIVE_EXIT=3221226356' in completed.stderr[:300]:
+                    # The same Windows NTSTATUS may be rendered as signed or
+                    # unsigned by Python/PowerShell subprocess reporting.
+                    # Classify both heap corruption and access violations
+                    # without leaking private native stderr/model text.
+                    if re.search(
+                        r'LLAMA_NATIVE_EXIT=(?:3221226356|-1073740940'
+                        r'|3221225477|-1073741819)(?![0-9])',
+                        completed.stderr[:500]):
                         raise LocalModelError('native_process_crash')
                     raise LocalModelError('native_inference_failure')
                 if match.group(1) == 'text_validation':

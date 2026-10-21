@@ -18,6 +18,13 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         self._draft_request = None
         self._draft_identity = None
         self.build_controls()
+        # Approval belongs to the exact executable AND arguments the author
+        # reviewed. A later manual edit must immediately invalidate approval;
+        # it must never carry over to another arbitrary local program/model.
+        self.fields['executable'].textChanged.connect(
+            lambda _text: self.approved.setChecked(False))
+        self.fields['arguments'].textChanged.connect(
+            lambda _text: self.approved.setChecked(False))
         # An empty workspace has no pending AI draft to save.
         self.buttons['save_draft'].setEnabled(False)
         # The optional portable QA bundle includes both the console IPC bridge
@@ -34,8 +41,10 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
                 self._set('executable', str(bridge))
                 self._set('arguments', '')
                 self.status.setText(
-                    '오프라인 CPU AI 번들 발견. 별도 Python이나 API 키 없이 '
-                    '로컬 모델을 사용할 수 있습니다. 실행할 때마다 직접 승인해야 합니다.')
+                    '오프라인 CPU 실행기와 연결 점검용 135M GGUF 발견. '
+                    '이 기본 모델은 한국어 장편 집필용으로 검증되지 않았습니다. '
+                    '실제 소설 집필에는 사용 권한이 있는 로컬 GGUF를 직접 선택하세요. '
+                    '모델 자동 교체·다운로드는 없으며 실행할 때마다 승인해야 합니다.')
 
     def _run(self, fn, message):
         try:
@@ -79,7 +88,14 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self, '신뢰할 수 있는 로컬 AI 실행 파일', '',
             'Windows 실행 파일 (*.exe);;모든 파일 (*)')
         if path:
+            # Executable replacement must never reuse --gguf args pointing
+            # to a different runtime or preserve a previous approval.
+            self.approved.setChecked(False)
             self._set('executable', path)
+            self._set('arguments', '')
+            self.status.setText(
+                '로컬 실행 파일을 선택했습니다. 이전 모델 인수를 초기화했습니다. '
+                '새 실행 파일의 기능을 확인한 뒤 이번 실행을 직접 승인하세요.')
 
     def _choose_gguf_model(self):
         import sys
@@ -108,7 +124,9 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.status.setText('GGUF 모델 경로 또는 파일 크기가 올바르지 않습니다.')
             return
         self._set('executable', str(bridge))
-        self._set('arguments', '--gguf "' + str(selected) + '"')
+        # Quote paths with spaces or literal double quotes using the
+        # documented shlex tokenization already used in _generate.
+        self._set('arguments', '--gguf ' + shlex.quote(str(selected)))
         self.approved.setChecked(False)
         self.status.setText(
             '선택한 로컬 GGUF로 생성하도록 설정했습니다. '
