@@ -86,6 +86,16 @@ class AutoBatchPanel(QGroupBox):
             '이번 실행에서만 지정한 로컬 모델로 순차 집필하는 것을 승인합니다')
         self.consent.setObjectName('autoBatchExplicitApproval')
         root.addWidget(self.consent)
+        # Approval is for the CURRENT model, its arguments, and this exact
+        # chapter configuration. Editing any of them revokes the earlier
+        # batch approval before a worker can launch a different executable.
+        self.authoring.fields['executable'].textChanged.connect(
+            lambda _text: self.consent.setChecked(False))
+        self.authoring.fields['arguments'].textChanged.connect(
+            lambda _text: self.consent.setChecked(False))
+        for spin in (self.through, self.target_chars, self.scenes):
+            spin.valueChanged.connect(
+                lambda _value: self.consent.setChecked(False))
         self.start_button = QPushButton('로컬 AI 여러 회차 집필 시작')
         self.start_button.setObjectName('autoBatchStart')
         self.stop_button = QPushButton('현재 장면 완료 후 중단')

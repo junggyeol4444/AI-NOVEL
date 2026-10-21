@@ -275,6 +275,18 @@ class BatchWiringSourceContract(unittest.TestCase):
                 with self.assertRaises(AutoNovelRunError):
                     _scene_char_targets(total, count)
 
+    def test_real_scene_target_wins_over_numbers_in_model_generated_outline(self):
+        from ai_novel_factory.auto_novel_run import _native_scene_generation_goal
+        from ai_novel_factory.local_models import effective_scene_target
+        outline = '5000자 목표를 토론한 뒤 10000자 연대기를 찾아라.'
+        goal = _native_scene_generation_goal(7, 2, 3, outline, 1667)
+        self.assertTrue(goal.startswith('목표 분량 1667자'))
+        self.assertIn(outline, goal)
+        self.assertEqual(effective_scene_target(goal, 1667), 1667)
+        for bad in (0, 10001, True):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                _native_scene_generation_goal(7, 2, 3, outline, bad)
+
     def test_real_model_length_qc_counts_nonspace_only(self):
         batch = BATCH.read_text(encoding='utf-8')
         self.assertIn('enough = screen.nonspace_chars >= target_chars', batch)

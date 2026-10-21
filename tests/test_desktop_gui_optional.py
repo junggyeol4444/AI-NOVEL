@@ -127,8 +127,12 @@ class ModelApprovalGuiTests(unittest.TestCase):
                 self.assertEqual(shlex.split(ui._text('arguments')),
                                  ['--gguf', str(gguf)])
                 self.assertFalse(ui.approved.isChecked())
-                self.assertEqual(ui._text('executable'),
-                                 str(root / 'ANF_Local_Model.exe'))
+                # Windows can return a resolved long-name path for the same
+                # temp folder passed as RUNNER~1. Compare filesystem targets,
+                # never textual 8.3 aliases, without weakening model checks.
+                self.assertEqual(
+                    Path(ui._text('executable')).resolve(),
+                    (root / 'ANF_Local_Model.exe').resolve())
         finally:
             ui.close()
             app.processEvents()
@@ -192,6 +196,34 @@ class ModelApprovalGuiTests(unittest.TestCase):
                 self.assertEqual(ui._text('arguments'), '')
                 self.assertFalse(ui.approved.isChecked())
                 self.assertIn('헤더가 올바르지', ui.status.text())
+        finally:
+            ui.close()
+            app.processEvents()
+
+    @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
+    def test_batch_approval_revoked_after_model_and_scope_changes(self):
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        from PySide6.QtWidgets import QApplication
+        from ai_novel_factory.desktop.authoring_workflow import AuthoringWorkflowWidget
+        app = QApplication.instance() or QApplication([])
+        ui = AuthoringWorkflowWidget()
+        try:
+            batch = ui.auto_panel
+            batch.consent.setChecked(True)
+            ui._set('arguments', '--gguf selected_model_one.gguf')
+            self.assertFalse(batch.consent.isChecked())
+            batch.consent.setChecked(True)
+            ui._set('executable', '/temporary/another-approved-runtime.exe')
+            self.assertFalse(batch.consent.isChecked())
+            batch.consent.setChecked(True)
+            batch.scenes.setValue(batch.scenes.value() + 1)
+            self.assertFalse(batch.consent.isChecked())
+            batch.consent.setChecked(True)
+            batch.target_chars.setValue(batch.target_chars.value() + 1)
+            self.assertFalse(batch.consent.isChecked())
+            batch.consent.setChecked(True)
+            batch.through.setValue(batch.through.value() + 1)
+            self.assertFalse(batch.consent.isChecked())
         finally:
             ui.close()
             app.processEvents()

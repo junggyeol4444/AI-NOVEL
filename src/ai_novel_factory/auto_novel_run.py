@@ -114,6 +114,28 @@ def _scene_char_targets(episode_target: int, scene_count: int) -> tuple[int, ...
                  for index in range(scene_count))
 
 
+
+def _native_scene_generation_goal(episode: int, scene: int, total_scenes: int,
+                                  outline: str, target: int) -> str:
+    """Put the allocated target before untrusted model-authored plot text.
+
+    The native bridge reads the FIRST 'NNNN자' expression from the goal.
+    A prior outline can itself mention "5000자" or "10000자" and override
+    a 1667-character allocation unless this prefix is anchored first.
+    All bytes from the outline remain author-visible context; no generated
+    prose is fabricated, shortened for quality claims, or persisted here.
+    """
+    if (type(target) is not int or not 50 <= target <= 10_000
+            or type(outline) is not str):
+        raise AutoNovelRunError('장면 분량 또는 회차 플롯이 올바르지 않습니다.')
+    return (
+        f'목표 분량 {target}자 내외의 독창적 소설 본문을 작성. '
+        f'{episode}화 {scene}/{total_scenes}장면. '
+        f'회차 플롯: {outline[:1500]}. '
+        '기존 참고작의 문장·고유명사 복제 금지.'
+    )
+
+
 def _cross_episode_sources(existing: dict[int, object], episode: int
                            ) -> tuple[tuple[str, ...], int, int]:
     """Bound the checked window to 250 SAVED prior drafts, without approval.
@@ -318,11 +340,9 @@ def run_auto_novel(
                 for scene_index, slot in enumerate(slots):
                     per_scene = scene_targets[scene_index]
                     emit(n, f'장면 {slot.scene_number}/{scenes_per_episode} 로컬 AI 집필')
-                    scene_goal = (
-                        f'{n}화 {slot.scene_number}/{scenes_per_episode}장면. '
-                        f'회차 플롯: {outline[:1500]}. '
-                        f'목표 분량 {per_scene}자 내외의 독창적 소설 본문을 작성. '
-                        '기존 참고작의 문장·고유명사 복제 금지.')
+                    scene_goal = _native_scene_generation_goal(
+                        n, slot.scene_number, scenes_per_episode,
+                        outline, per_scene)
                     scene_context = _scene_generation_context(
                         context, outline, drafts[-1] if drafts else '')
                     scene = model(n, slot.scene_number, scene_context,
