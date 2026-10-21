@@ -893,7 +893,7 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                              second[second.index('--prompt') + 1])
             self.assertEqual(second[second.index('--threads-batch') + 1], '1')
 
-    def test_qwen_noncrash_failure_and_other_model_do_not_retry(self):
+    def test_selected_gguf_noncrash_failure_does_not_retry_but_heap_crash_does(self):
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as td:
             root = Path(td)
@@ -911,7 +911,11 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                     module.run_native_with_heap_crash_recovery(
                         llama, model, '작가', '장면', '128', 500, {},
                         runner=runner, clock=lambda: 0)
-                self.assertEqual(len(calls), 1)
+                self.assertEqual(len(calls), 1 if exit_code == 1 else 2)
+                if exit_code != 1:
+                    self.assertIn('--no-mmap', calls[1])
+                    self.assertEqual(calls[0][calls[0].index('--model') + 1],
+                                     calls[1][calls[1].index('--model') + 1])
 
     def test_arm64_bundled_cpu_budget_only_extends_inference_time(self):
         # Not a model, quality threshold, manuscript, or user UI acceptance.

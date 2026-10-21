@@ -40,9 +40,9 @@ class ExplicitCpuRuntimeBudgetTests(unittest.TestCase):
         bridge = (ROOT / 'packaging/windows/local_model_bridge.py').read_text(encoding='utf-8')
         workflow = (ROOT / '.github/workflows/anf-real-windows-exe-korean-literary-gate.yml').read_text(encoding='utf-8')
         self.assertIn('limit = 1500 if user_gguf and packaged_bridge', session)
-        self.assertIn("1400 if model.name.lower().startswith('qwen2.5-')", bridge)
+        self.assertIn('if is_bundled_qa_model else 1400', bridge)
         self.assertIn("bundled_timeout_seconds(arm64_host=windows_native_arm64())", bridge)
-        self.assertIn("if is_bundled_qa_model else 400", bridge)
+        self.assertIn('if is_selected_longform_model and target is not None', bridge)
         self.assertIn('for($i=0;$i -lt 3900;$i++){', workflow)
         self.assertIn('timeout-minutes: 35', workflow)
 
