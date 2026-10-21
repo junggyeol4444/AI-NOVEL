@@ -354,6 +354,16 @@ class BatchWiringSourceContract(unittest.TestCase):
         self.assertIn('if self.is_generating():', workflow)
         self.assertIn("for key in ('plot', 'draft', 'final_text'):", workflow)
 
+    def test_studio_project_creation_uses_same_inference_and_consent_guards(self):
+        source = (ROOT / 'src/ai_novel_factory/desktop/project_studio.py').read_text(
+            encoding='utf-8')
+        body = source.split('    def _create_project(self):', 1)[1].split(
+            '    def _start_first_episode(self):', 1)[0]
+        self.assertIn('self.workflow.auto_panel.is_running()', body)
+        self.assertIn('self.workflow.is_generating()', body)
+        self.assertLess(body.index('self.workflow._revoke_project_approvals()'),
+                        body.index('self.workflow.session.create_project('))
+
     def test_real_batch_passes_explicit_scene_allocation_to_native_wire_request(self):
         from ai_novel_factory.local_models import (
             SceneDraftRequest, _message, effective_scene_target)

@@ -1,5 +1,6 @@
 """Optional GUI smoke test; runs only if PySide6 is available."""
 import importlib.util
+from contextlib import closing
 import os
 from pathlib import Path
 import sys
@@ -237,7 +238,10 @@ class ModelApprovalGuiTests(unittest.TestCase):
         app = QApplication.instance() or QApplication([])
         ui = AuthoringWorkflowWidget()
         try:
-            with TemporaryDirectory() as folder:
+            # On Windows an open SQLite handle prevents TemporaryDirectory
+            # removal. Close the live session before deleting fixture files,
+            # even if an assertion raises.
+            with TemporaryDirectory() as folder, closing(ui.session):
                 first = Path(folder) / 'first.sqlite'
                 second = Path(folder) / 'second.sqlite'
                 ui._set('db', str(first))
@@ -289,7 +293,10 @@ class ModelApprovalGuiTests(unittest.TestCase):
         app = QApplication.instance() or QApplication([])
         ui = AuthoringWorkflowWidget()
         try:
-            with TemporaryDirectory() as folder:
+            # On Windows an open SQLite handle prevents TemporaryDirectory
+            # removal. Close the live session before deleting fixture files,
+            # even if an assertion raises.
+            with TemporaryDirectory() as folder, closing(ui.session):
                 first = Path(folder) / 'first.sqlite'
                 second = Path(folder) / 'second.sqlite'
                 ui._set('db', str(first))

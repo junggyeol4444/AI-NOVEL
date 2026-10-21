@@ -19,6 +19,55 @@ sys.path.insert(0, str(ROOT / 'src'))
 
 @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
 class UserFirstStudioTests(unittest.TestCase):
+    def test_studio_creation_blocks_live_ai_and_revokes_model_consent(self):
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+        from unittest.mock import patch
+        from PySide6.QtCore import QStandardPaths
+        from PySide6.QtWidgets import QApplication
+        from ai_novel_factory.desktop.app import MainWindow
+
+        QStandardPaths.setTestModeEnabled(True)
+        app = QApplication.instance() or QApplication([])
+        window = MainWindow()
+        studio = window.studio
+        try:
+            studio.new_title.setText('합성 프로젝트 전환 보호')
+            studio.new_premise.setPlainText('테스트용 가상 설정')
+            with (
+                patch.object(window.authoring.auto_panel, 'is_running',
+                             return_value=True),
+                patch.object(studio, 'confirm_discard',
+                             side_effect=AssertionError('실행 중 확인 창 금지')),
+                patch.object(window.authoring.session, 'create_project',
+                             side_effect=AssertionError('실행 중 DB 생성 금지')),
+            ):
+                studio._create_project()
+            self.assertIn('다회차 집필 중', studio.create_status.text())
+            with (
+                patch.object(window.authoring, 'is_generating',
+                             return_value=True),
+                patch.object(studio, 'confirm_discard',
+                             side_effect=AssertionError('집필 중 확인 창 금지')),
+                patch.object(window.authoring.session, 'create_project',
+                             side_effect=AssertionError('집필 중 DB 생성 금지')),
+            ):
+                studio._create_project()
+            self.assertIn('장면 집필 중', studio.create_status.text())
+
+            # Simulate an SQLite create failure after user consent was given:
+            # the failed switch must not carry old approvals into a retry.
+            window.authoring.approved.setChecked(True)
+            window.authoring.auto_panel.consent.setChecked(True)
+            with patch.object(window.authoring.session, 'create_project',
+                              side_effect=ValueError('합성 생성 실패')):
+                studio._create_project()
+            self.assertFalse(window.authoring.approved.isChecked())
+            self.assertFalse(window.authoring.auto_panel.consent.isChecked())
+            self.assertIn('합성 생성 실패', studio.create_status.text())
+        finally:
+            window.close()
+            app.processEvents()
+
     def test_gui_smoke_launches_current_main_window(self):
         # Execute the same launcher --gui-smoke path as the packaged Windows
         # EXE, against disposable CI settings and without a remote API call.

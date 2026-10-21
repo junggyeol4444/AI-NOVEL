@@ -499,6 +499,16 @@ class ProjectStudio(QWidget):
                 self._show_error(str(exc))
 
     def _create_project(self):
+        # The simple studio shares the same SQLite session and AI workers
+        # with the advanced form. Never replace their project mid-inference.
+        if self.workflow.auto_panel.is_running():
+            self.create_status.setText(
+                '로컬 AI 다회차 집필 중에는 다른 작품을 생성할 수 없습니다.')
+            return
+        if self.workflow.is_generating():
+            self.create_status.setText(
+                '로컬 AI 장면 집필 중에는 다른 작품을 생성할 수 없습니다.')
+            return
         if not self.confirm_discard(apply=False):
             return
         title = self.new_title.text().strip()
@@ -526,6 +536,9 @@ class ProjectStudio(QWidget):
                 'characters_per_episode': str(self.new_characters.value()),
                 'mood': self.new_mood.text().strip(),
             }
+            # Creating through the studio must revoke both model consents,
+            # just like the advanced form; no approval crosses projects.
+            self.workflow._revoke_project_approvals()
             self.workflow.session.create_project(
                 str(path), title, self.new_author.text().strip(),
                 self.new_premise.toPlainText(), extra_rules=rules)
