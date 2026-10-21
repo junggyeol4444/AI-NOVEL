@@ -696,6 +696,7 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         _, prompt = module.build_story_prompts(
             huge_canon, goal, conflict, place, '', characters)
         self.assertTrue(prompt.startswith('이번 장면의 목표:\n' + goal))
+        self.assertTrue(prompt.endswith(goal + '\n\n'))
         self.assertLess(prompt.index(goal), prompt.index('작품 설정:'))
         self.assertLess(prompt.index('충돌과 장애물:'), 1800)
         self.assertLess(prompt.index('사서, 조사자'), 1800)

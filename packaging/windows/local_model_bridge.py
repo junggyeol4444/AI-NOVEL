@@ -608,12 +608,19 @@ def build_story_prompts(canon: str, goal: str, conflict: str, place: str,
             + goal[:2000].strip() + '\n\n')
         return system, scene
     scene = (
-        '작품 설정:\n' + canon[:12000] + '\n'
-        '회차와 장면의 사건:\n' + style_bible[:5000] + '\n'
-        '등장인물:\n' + ', '.join(characters[:20]) + '\n'
-        '배경 장소:\n' + place[:1000] + '\n'
+        # Existing author goal/characters MUST remain early, even with a
+        # very long Novel Bible. This is a real scene-continuity requirement
+        # already guarded by test_long_author_bible_does_not_hide_scene_goal.
+        '이번 장면의 목표:\n' + goal[:2000] + '\n'
         '충돌과 장애물:\n' + conflict[:1000] + '\n'
-        '이번 장면의 목표:\n' + goal[:2000].strip() + '\n\n')
+        '배경 장소:\n' + place[:1000] + '\n'
+        '등장인물:\n' + ', '.join(characters[:20]) + '\n'
+        '회차와 장면의 사건:\n' + style_bible[:5000] + '\n'
+        '작품 설정:\n' + canon[:12000] + '\n'
+        # Model completion sees ONLY the writer's actual goal at its tail.
+        # Repeating this factual goal (not a model instruction) protects it
+        # from 4096-token context clipping in the native Qwen runtime.
+        + goal[:2000].strip() + '\n\n')
     return system, scene
 
 
