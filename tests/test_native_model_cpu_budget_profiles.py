@@ -10,8 +10,10 @@ class NativeProfileBudgetTests(unittest.TestCase):
         self.assertIn("prediction_budget = '384' if is_bundled_qa_model else '3072'", SOURCE)
         self.assertIn("prediction_budget = '768'", SOURCE)
         self.assertIn("if model.name.lower().startswith('qwen2.5-')", SOURCE)
-        self.assertIn("native_timeout = (1400 if model.name.lower().startswith('qwen2.5-')", SOURCE)
-        self.assertIn('else 110 if is_bundled_qa_model else 400)', SOURCE)
+        self.assertIn("1400 if model.name.lower().startswith('qwen2.5-')", SOURCE)
+        self.assertIn('bundled_timeout_seconds(arm64_host=windows_native_arm64())', SOURCE)
+        self.assertIn('return 300 if arm64_host else 110', SOURCE)
+        self.assertIn('if is_bundled_qa_model else 400', SOURCE)
         self.assertIn("'--predict', prediction_budget", SOURCE)
 
     def test_no_cloud_model_provider(self):
