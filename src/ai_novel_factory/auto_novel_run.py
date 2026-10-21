@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Callable
 
 from .database.episodes import EpisodeStore
-from .database.characters import CharacterStore
+from .database.characters import CharacterStore, BibleCharacter
 from .local_models import LocalExecutableProvider, SceneDraftRequest, draft_scene
 from .planning import PlanningInput, draft_premise
 from .story_arcs import plan_story_arcs, validate_arc_coverage
@@ -87,6 +87,28 @@ def _continuity_context(canon: str, existing: dict[int, object],
         + reminders + '\n' + immediate
         + '\n사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\n' + canon
     )[:20000]
+
+
+def _character_bible_context(characters: tuple[BibleCharacter, ...]) -> str:
+    """Carry SAVED author-owned character facts to the same approved local model.
+
+    A name-only character list omitted personality, motivation, voice and
+    secrets even when the author had explicitly saved all those fields.
+    Keep this within the native 12k prompt window; never mutate the Bible,
+    claim continuity approval, or include any external reference passages.
+    """
+    if not characters:
+        return ''
+    details = []
+    for character in characters[:8]:
+        details.append(
+            f'인물 {character.name[:100]} | 성격: {character.personality[:200]} | '
+            f'목표: {character.goal[:200]} | 말투: {character.speech_style[:180]}'
+            + (f' | 비밀 설정: {character.secret[:160]}'
+               if character.secret.strip() else '')
+        )
+    return ('사용자가 직접 저장한 인물 Novel Bible (미검수 AI 제안과 구분):\n'
+            + '\n'.join(details))[:6500]
 
 
 def _scene_char_targets(episode_target: int, scene_count: int) -> tuple[int, ...]:
@@ -244,16 +266,19 @@ def run_auto_novel(
         plans = {e.episode_number: e for e in episodes}
         by_arc = {arc.number: arc for arc in arcs.arcs}
         existing = {e.episode: e for e in db.list_episodes(project_id)}
-        # User-written project canon has higher priority than AI suggestions.
-        canon_rules = ['%s: %s' % (k, v) for k, v in rules.items()
-                       if k not in {'author'} and v.strip()]
-        canon = '\n'.join(canon_rules)[:14000]
-        if not canon.strip():
-            raise AutoNovelRunError('Novel Bible 입력이 비어 있습니다.')
+        # Author-owned character facts must be visible inside the FIRST
+        # 12k native-context characters, rather than only the names list.
         with CharacterStore(database_path) as chars:
-            character_names = tuple(c.name for c in chars.list_characters(project_id)[:8])
-        if not character_names:
-            character_names = ('주인공',)
+            characters = chars.list_characters(project_id)[:8]
+        character_names = tuple(c.name for c in characters) or ('주인공',)
+        character_bible = _character_bible_context(characters)
+        # The preview is explicitly UNAPPROVED and will be appended once
+        # below. Do not accidentally duplicate it as a saved canon rule.
+        canon_rules = ['%s: %s' % (k, v) for k, v in rules.items()
+                       if k not in {'author', 'ai_story_outline_preview'} and v.strip()]
+        canon = (character_bible + '\n' + '\n'.join(canon_rules)).strip()[:14000]
+        if not canon:
+            raise AutoNovelRunError('Novel Bible 입력이 비어 있습니다.')
 
         def emit(number: int, stage: str) -> None:
             if progress is not None:

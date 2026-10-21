@@ -122,6 +122,35 @@ class AtomicBatchEpisodeRegression(unittest.TestCase):
                                 for e in independent.list_episodes(self.pid)))
             self.assertEqual(len(independent.list_checks(self.pid, 250)), 3)
 
+    def test_saved_character_traits_reach_native_prompt_without_database_changes(self):
+        from ai_novel_factory.database.characters import CharacterStore
+        from ai_novel_factory.auto_novel_run import (
+            _character_bible_context, _continuity_context,
+            _scene_generation_context)
+        with CharacterStore(self.path) as characters:
+            characters.create_character(
+                self.pid, name='선우', personality='성급하지만 약속을 지킴',
+                goal='사라진 형을 찾기', speech_style='짧고 명확한 존댓말',
+                secret='오래된 편지의 비밀')
+            before = characters.list_characters(self.pid)
+        notes = _character_bible_context(before)
+        self.assertIn('성급하지만 약속을 지킴', notes)
+        self.assertIn('사라진 형을 찾기', notes)
+        self.assertIn('짧고 명확한 존댓말', notes)
+        self.assertIn('오래된 편지의 비밀', notes)
+        long_rules = '작가 설정 원본 ' * 1300
+        first = _scene_generation_context(notes + '\n' + long_rules,
+                                          '첫 회차 가상 플롯', '')
+        next_context = _continuity_context(notes + '\n' + long_rules, {}, 2)
+        later = _scene_generation_context(next_context, '두 번째 플롯', '')
+        for actual_prompt in (first, later):
+            self.assertLessEqual(len(actual_prompt), 12000)
+            self.assertIn('성급하지만 약속을 지킴', actual_prompt)
+            self.assertIn('짧고 명확한 존댓말', actual_prompt)
+            self.assertIn('오래된 편지의 비밀', actual_prompt)
+        with CharacterStore(self.path) as characters:
+            self.assertEqual(characters.list_characters(self.pid), before)
+
     def test_recent_true_saved_chapter_context_survives_long_novel_bible(self):
         from ai_novel_factory.auto_novel_run import _continuity_context
         # Only disposable authoring DB and synthetic contents; no AI was run.
@@ -162,6 +191,12 @@ class AtomicBatchEpisodeRegression(unittest.TestCase):
 
 
 class BatchWiringSourceContract(unittest.TestCase):
+    def test_saved_ai_outline_preview_is_not_duplicated_as_author_canon(self):
+        batch = BATCH.read_text(encoding='utf-8')
+        self.assertIn("{'author', 'ai_story_outline_preview'}", batch)
+        self.assertIn('character_bible = _character_bible_context(characters)', batch)
+
+
     def test_cross_episode_reuse_is_recorded_as_scope_only_no_auto_approval(self):
         batch = BATCH.read_text(encoding='utf-8')
         self.assertIn('cross = screen_cross_episode_reuse(', batch)
