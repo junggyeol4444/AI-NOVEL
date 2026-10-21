@@ -86,7 +86,10 @@ def run(out: str) -> int:
         ui.approved.setChecked(True)
         QTest.mouseClick(ui.buttons['generate'], Qt.MouseButton.LeftButton)
         from time import monotonic
-        deadline = monotonic() + 150
+        # Windows11 ARM emulates the same x64 packaged CPU bridge. The
+        # bundled 135M may run longer than 150 seconds there. Increase only
+        # this QA waiting budget; strict output and saved-draft tests remain.
+        deadline = monotonic() + 360
         while ui.is_generating() and monotonic() < deadline:
             app.processEvents()
             QTest.qWait(80)

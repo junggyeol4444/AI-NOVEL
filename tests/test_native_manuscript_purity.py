@@ -1,5 +1,6 @@
 """Synthetic transport regression: rejecting llama-cli banners is not literary approval."""
 import importlib.util
+import os
 import subprocess
 from pathlib import Path
 import unittest
@@ -902,6 +903,12 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                         llama, model, '작가', '장면', '128', 500, {},
                         runner=runner, clock=lambda: 0)
                 self.assertEqual(len(calls), 1)
+
+    def test_arm64_bundled_cpu_budget_only_extends_inference_time(self):
+        # Not a model, quality threshold, manuscript, or user UI acceptance.
+        self.assertEqual(module.bundled_timeout_seconds(arm64_host=False), 110)
+        self.assertEqual(module.bundled_timeout_seconds(arm64_host=True), 300)
+        self.assertFalse(module.windows_native_arm64() if os.name != 'nt' else False)
 
 if __name__ == '__main__':
     unittest.main()

@@ -29,10 +29,15 @@ class KoreanNativeBridgeSourceContract(unittest.TestCase):
     def test_output_budget_no_longer_384(self):
         source = SOURCE.read_text(encoding='utf-8')
         self.assertIn("prediction_budget = '384' if is_bundled_qa_model else '3072'", source)
-        self.assertIn("native_timeout = (1400 if model.name.lower().startswith('qwen2.5-')", source)
-        self.assertIn('else 110 if is_bundled_qa_model else 400)', source)
+        self.assertIn("1400 if model.name.lower().startswith('qwen2.5-')", source)
+        self.assertIn('bundled_timeout_seconds(arm64_host=windows_native_arm64())', source)
+        self.assertIn('if is_bundled_qa_model else 400)', source)
         self.assertIn("'--ctx-size', '4096'", source)
-        self.assertIn("threads = '4' if qwen else '1'", source)
+        self.assertIn(
+            "threads = '1' if qwen_crash_recovery else ('4' if qwen else '1')",
+            source)
+        self.assertIn('run_native_with_heap_crash_recovery(', source)
+        self.assertIn('qwen_crash_recovery=True', source)
 
     def test_no_network_api_or_auto_publish(self):
         source = SOURCE.read_text(encoding='utf-8')

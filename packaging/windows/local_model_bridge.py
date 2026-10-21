@@ -249,6 +249,39 @@ def run_native_with_heap_crash_recovery(
     return proc.stdout
 
 
+
+def windows_native_arm64() -> bool:
+    """Detect an ARM64 Windows host even from an emulated x64 frozen EXE.
+
+    Used only to give the SAME bundled GGUF enough CPU time. Never changes
+    author data, model weights, acceptance criteria or output.
+    """
+    if os.name != 'nt':
+        return False
+    try:
+        import ctypes
+        api = ctypes.windll.kernel32
+        get_process = api.GetCurrentProcess
+        get_process.restype = ctypes.c_void_p
+        query = api.IsWow64Process2
+        query.argtypes = (ctypes.c_void_p, ctypes.POINTER(ctypes.c_ushort),
+                          ctypes.POINTER(ctypes.c_ushort))
+        query.restype = ctypes.c_int
+        process_machine = ctypes.c_ushort()
+        native_machine = ctypes.c_ushort()
+        if query(get_process(), ctypes.byref(process_machine),
+                 ctypes.byref(native_machine)):
+            return native_machine.value == 0xAA64
+    except (OSError, AttributeError, ValueError):
+        pass
+    return os.environ.get('PROCESSOR_ARCHITECTURE', '').upper() == 'ARM64'
+
+
+def bundled_timeout_seconds(*, arm64_host: bool) -> int:
+    """Separate runtime deadline from manuscript quality: never auto-approve."""
+    return 300 if arm64_host else 110
+
+
 def repeats_existing_passage(addition: str, manuscript: str) -> bool:
     """Reject a long copied prefix even if later words or digits differ.
 
@@ -641,8 +674,10 @@ def main(argv=None) -> int:
         # ended real 5000-character Qwen inference on slower Windows CPUs.
         # Increase all three together ONLY for explicitly selected Qwen GGUF.
         # Keep bundled 135M and other model paths at their previous limits.
-        native_timeout = (1400 if model.name.lower().startswith('qwen2.5-')
-                          else 110 if is_bundled_qa_model else 400)
+        native_timeout = (
+            1400 if model.name.lower().startswith('qwen2.5-')
+            else bundled_timeout_seconds(arm64_host=windows_native_arm64())
+            if is_bundled_qa_model else 400)
         command = build_native_command(
             llama, model, system_prompt, prompt, prediction_budget)
         env = {k: os.environ[k] for k in

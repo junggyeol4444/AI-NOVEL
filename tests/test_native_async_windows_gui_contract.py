@@ -85,5 +85,13 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertNotIn("report['failed_model_text']", source)
         self.assertIn("ui.status.accessibleName()", source)
 
+    def test_arm64_portable_gui_waits_for_real_worker_without_forging_prose(self):
+        source = (ROOT / 'src/ai_novel_factory/desktop/ci_portable_gui.py').read_text(
+            encoding='utf-8')
+        self.assertIn('deadline = monotonic() + 360', source)
+        self.assertIn('while ui.is_generating()', source)
+        self.assertIn("check('real_bundled_gguf_model_generated_prose_via_gui'", source)
+        self.assertIn("ui.session.pending_draft == draft", source)
+
 if __name__ == '__main__':
     unittest.main()
