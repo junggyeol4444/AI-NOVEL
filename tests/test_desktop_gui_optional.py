@@ -230,6 +230,44 @@ class ModelApprovalGuiTests(unittest.TestCase):
             app.processEvents()
 
     @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
+    def test_legacy_sqlite_without_optional_length_rule_keeps_generated_preview(self):
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        from tempfile import TemporaryDirectory
+        from PySide6.QtWidgets import QApplication
+        from ai_novel_factory.desktop.authoring_workflow import AuthoringWorkflowWidget
+        from ai_novel_factory.local_models import SceneDraftRequest, SceneDraftResult
+        app = QApplication.instance() or QApplication([])
+        ui = AuthoringWorkflowWidget()
+        try:
+            with TemporaryDirectory() as folder, closing(ui.session):
+                path = Path(folder) / 'legacy-synthetic.sqlite'
+                pid = ui.session.create_project(
+                    str(path), '가상 이전 버전 작품', '테스트 작가', '가상 설정')
+                ui.session.create_episode(1, '가상 사건')
+                ui.session.add_scene('가상의 첫 장면')
+                episode, scene = ui.session.episode(), ui.session.scene()
+                request = SceneDraftRequest(
+                    pid, 1, scene.position, '가상 설정', '사건 진행',
+                    '문이 잠긴다', '서재', ('주인공',))
+                rules = tuple(sorted((rule.key, rule.value, rule.revision)
+                                     for rule in ui.session.store.list_rules(pid)))
+                ui._draft_request = request
+                ui._draft_identity = (
+                    str(path), pid, 1, scene.scene_id, episode.revision,
+                    scene.text, rules)
+                draft = '주인공이 문을 열었다. 복도에서 낯선 소리가 들렸다. ' * 100
+                result = SceneDraftResult(pid, 1, scene.position, draft,
+                                          'local-executable-v1')
+                ui._on_generation_result(result)
+                self.assertEqual(ui.session.pending_draft, draft)
+                self.assertNotIn('AI 결과 반영 실패', ui.status.text())
+                self.assertIn('회차 목표 5000자', ui.status.text())
+                self.assertFalse(ui.session.store.get_episode(pid, 1).draft)
+        finally:
+            ui.close()
+            app.processEvents()
+
+    @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
     def test_real_qt_project_switch_revokes_both_approvals_and_stale_editor(self):
         os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
         from tempfile import TemporaryDirectory

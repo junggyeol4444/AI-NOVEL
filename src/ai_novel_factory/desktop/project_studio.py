@@ -476,6 +476,13 @@ class ProjectStudio(QWidget):
             self._open_path(Path(path))
 
     def _open_path(self, path):
+        # Do not open the discard dialog or mutate DB selection during AI work.
+        if self.workflow.auto_panel.is_running():
+            self._show_error('로컬 AI 다회차 집필 중에는 작품을 변경할 수 없습니다.')
+            return
+        if self.workflow.is_generating():
+            self._show_error('로컬 AI 장면 집필 중에는 작품을 변경할 수 없습니다.')
+            return
         if not self.confirm_discard(apply=False):
             return
         previous_db = self.workflow._text('db')

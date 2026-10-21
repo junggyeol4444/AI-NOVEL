@@ -68,6 +68,36 @@ class UserFirstStudioTests(unittest.TestCase):
             window.close()
             app.processEvents()
 
+    def test_studio_open_blocks_live_inference_before_discard_or_db_edit(self):
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+        from unittest.mock import patch
+        from PySide6.QtWidgets import QApplication
+        from ai_novel_factory.desktop.app import MainWindow
+        app = QApplication.instance() or QApplication([])
+        window = MainWindow()
+        studio = window.studio
+        try:
+            before = window.authoring._text('db')
+            for panel, generating, expected in (
+                (True, False, '다회차 집필 중'),
+                (False, True, '장면 집필 중'),
+            ):
+                with (
+                    patch.object(window.authoring.auto_panel, 'is_running',
+                                 return_value=panel),
+                    patch.object(window.authoring, 'is_generating',
+                                 return_value=generating),
+                    patch.object(studio, 'confirm_discard',
+                                 side_effect=AssertionError('실행 중 확인창 금지')),
+                    patch.object(studio, '_show_error') as show_error,
+                ):
+                    studio._open_path(Path('/synthetic/never-open.sqlite'))
+                self.assertIn(expected, show_error.call_args.args[0])
+                self.assertEqual(window.authoring._text('db'), before)
+        finally:
+            window.close()
+            app.processEvents()
+
     def test_gui_smoke_launches_current_main_window(self):
         # Execute the same launcher --gui-smoke path as the packaged Windows
         # EXE, against disposable CI settings and without a remote API call.

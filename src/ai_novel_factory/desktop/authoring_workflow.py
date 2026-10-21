@@ -277,9 +277,11 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.session.accept_generation(self._draft_request, result, self._draft_identity)
             self._sync_episode()
             draft = result.draft
-            # The saved author setting, not an unsaved input edit, is the
-            # actual full-episode quota. Match the native explicit goal parser.
-            target_text = self.session.rule('characters_per_episode').strip()
+            # Older valid SQLite projects may lack the optional length rule.
+            # Keep the unsaved preview and never rewrite user rules here.
+            saved_rules = {rule.key: rule.value for rule in
+                           self.session.store.list_rules(self.session.project_id)}
+            target_text = saved_rules.get('characters_per_episode', '').strip()
             episode_target = int(target_text) if target_text.isdecimal() else 5000
             target = effective_scene_target(
                 self._draft_request.scene_goal, self._draft_request.target_chars)
