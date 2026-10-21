@@ -466,41 +466,27 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
     minimum = (target_chars * 9 + 9) // 10
     def nonspace_count(value):
         return sum(not ch.isspace() for ch in value)
-    # The observed real Windows Qwen draft had 35% repeated sentences and
-    # stopped at 740 characters. Vary story-first *instructions*, not source
-    # facts, after an unsuccessful generation. All candidate text must still
-    # come from the same native model and pass the original strict checks.
-    # Keep genuinely model-authored short prose off the accepted manuscript
-    # until consecutive *different* valid fragments form a substantial
-    # >=80-character addition. Earlier code discarded each short EOS output,
-    # preventing the 5000-character Qwen continuation from making progress.
-    # Nothing is padded, translated, fabricated or persisted here.
+    # Actual Windows Qwen output repeatedly copied trailing generation
+    # instructions instead of writing the scene. Keep system-level Korean
+    # novelist guidance and existing author facts, but do not append ANY
+    # instruction after the last real prose fragment. A completion model
+    # must see story text, not the next "please write" command, at its tail.
+    # Stage short genuinely native fragments, never synthetic filler.
     staged_short = ''
-    instructions = (
-        '이어서 쓰는 장면에서 인물이 새로운 행동을 취하고 주변이 반응합니다.',
-        '이어서 쓰는 장면에서 인물의 선택이 실제 결과를 낳습니다. '
-        '앞에서 했던 질문이나 대답을 다시 쓰지 않고 다음 사건으로 나아갑니다.',
-        '이어서 쓰는 장면에서 새로 드러난 장애물에 대응하는 행동과 '
-        '그 행동 때문에 달라진 주변 상황을 소설 문단으로 계속 씁니다.',
-    )
     for attempt in range(24):
         if nonspace_count(draft) >= minimum or clock() >= deadline:
             break
         candidate_context = draft + ('\n\n' + staged_short if staged_short else '')
-        previous = candidate_context[-320:]
-        # The Windows2022 real Qwen draft stopped after 424 nonspace chars
-        # despite a 5000-char author target. Preserve the same model and
-        # actual author context, but make the remaining real-prose workload
-        # explicit on every native continuation attempt. The number here
-        # guides generation ONLY; no characters are padded or synthesized.
-        deficit = max(0, target_chars - nonspace_count(candidate_context))
+        previous = candidate_context[-480:].strip()
+        # Root cause from the real Windows Qwen failure metadata:
+        # instructions at the END of the prompt were echoed as generated
+        # prose. Put the actual existing manuscript at the very end instead.
+        # The author's active goal/canon stays before it; never modify those
+        # saved fields. The model gets only actual manuscript as the next
+        # continuation prefix. No label/command/fabricated sentence follows.
         continuation_prompt = (
-            original_prompt[:1800] + '\n'
-            '이어지는 문단의 앞부분:\n' + previous.strip() + '\n'
-            + instructions[attempt % len(instructions)] + '\n'
-            + f'현재 장면에서 아직 필요한 분량은 공백 제외 약 {deficit}자입니다. '
-            '이전 문장을 반복하지 않고 새 사건과 인물 행동을 한국어 소설 본문으로 '
-            '여러 문단에 걸쳐 길게 직접 집필합니다. 설명문이나 계획표를 쓰지 않습니다.'
+            original_prompt[:1800].rstrip() + '\n\n'
+            + previous + '\n\n'
         )
         remaining = deadline - clock()
         if remaining <= 5:

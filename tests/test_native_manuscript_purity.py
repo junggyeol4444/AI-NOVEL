@@ -64,7 +64,9 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             '그는 증거를 발견했다. ', original_prompt='조사자와 사서의 수수께끼',
             target_chars=5000, invoke=invoke, deadline=999, clock=lambda: 0)
         self.assertTrue(prompts)
-        self.assertIn('이어서 쓰는 장면에서 인물이', prompts[0])
+        self.assertTrue(prompts[0].endswith('그는 증거를 발견했다.\n\n'))
+        self.assertIn('조사자와 사서의 수수께끼', prompts[0])
+        self.assertNotIn('이어서 쓰는 장면에서 인물이', prompts[0])
         self.assertNotIn('이어서 등장인물이 선택하고 행동하는 다음 사건', prompts[0])
         self.assertNotIn('이미 집필된 소설의 마지막 부분(반복하여 다시 쓰지 마세요):', prompts[0])
         self.assertNotIn('머리말·해설·작성 예정 보고·요약을 쓰지 마세요.', prompts[0])
@@ -112,7 +114,8 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             draft, original_prompt='도서관에서 사건을 추적한다.',
             target_chars=5000, invoke=invoke, deadline=999, clock=lambda: 0)
         self.assertTrue(calls)
-        self.assertIn('이어지는 문단의 앞부분:', calls[0][0])
+        self.assertTrue(calls[0][0].endswith('조사자가 기록을 확인했다.\n\n'))
+        self.assertNotIn('이어지는 문단의 앞부분:', calls[0][0])
         self.assertNotIn('지금까지 이어진 이야기의 마지막 문단:', calls[0][0])
         self.assertNotIn('장소와 인물의 대화를 자연스럽게 연결하고', calls[0][0])
 
@@ -238,9 +241,10 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertGreaterEqual(len(seen), 3)
         self.assertNotIn(short, result)
         self.assertIn(new_action.strip(), result)
-        self.assertIn('질문이나 대답을 다시 쓰지 않고', seen[1])
-        self.assertIn('장애물에 대응하는 행동', seen[2])
-        self.assertTrue(all('이어서 쓰는 장면' in item for item in seen))
+        self.assertTrue(all(item.endswith('\n\n') for item in seen))
+        self.assertTrue(all('이어서 쓰는 장면' not in item for item in seen))
+        self.assertTrue(all('저장된 한국어 도서관 설정' in item for item in seen))
+        self.assertTrue(all('사서는 조사자의 질문에 답하고' in item for item in seen))
 
     def test_qwen_sampling_profile_preserves_old_bundled_runtime(self):
         from tempfile import TemporaryDirectory
@@ -1017,9 +1021,10 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             target_chars=5000, invoke=next_real_attempt,
             deadline=100, clock=lambda: 0, short_retry_limit=1)
         self.assertTrue(seen)
-        self.assertIn('공백 제외 약 ', seen[0][0])
-        self.assertIn('새 사건과 인물 행동', seen[0][0])
-        self.assertIn('이어지는 문단의 앞부분:', seen[0][0])
+        self.assertTrue(seen[0][0].endswith('조사자가 도서관 기록을 확인했다.\n\n'))
+        self.assertIn('가상 서고의 인물 조사', seen[0][0])
+        self.assertNotIn('공백 제외 약 ', seen[0][0])
+        self.assertNotIn('이어지는 문단의 앞부분:', seen[0][0])
         self.assertNotIn('모의 초고', seen[0][0])
 
     def test_short_valid_native_qwen_prose_accumulates_before_acceptance(self):
@@ -1070,6 +1075,40 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             target_chars=5000, invoke=lambda _p, _s: short,
             deadline=1000, clock=lambda: 0, short_retry_limit=2)
         self.assertEqual(output, original)
+
+    def test_real_qwen_continuation_tail_ends_with_prose_not_model_commands(self):
+        # Synthetic transport fixture: model not exercised, not literary PASS.
+        original = ('도서관 문이 열리자 조사자는 계단 아래로 내려갔다. '
+                    '사서는 소리 없이 위쪽 문을 닫았다.')
+        prompts = []
+        def native(prompt, remaining):
+            prompts.append(prompt)
+            return '그는 다른 서랍에서 낡은 기록을 찾았다. ' * 4
+        module.continue_korean_scene(
+            original, original_prompt='작가 설정: 유적의 비밀은 지하에 있다.',
+            target_chars=5000, invoke=native, deadline=1000, clock=lambda: 0)
+        self.assertTrue(prompts)
+        self.assertIn('작가 설정: 유적의 비밀은 지하에 있다.', prompts[0])
+        self.assertTrue(prompts[0].endswith(original + '\n\n'))
+        for leaked in ('이어지는 문단의 앞부분:', '현재 장면에서 아직 필요한 분량은',
+                       '이어서 쓰는 장면에서 인물이'):
+            self.assertNotIn(leaked, prompts[0])
+        # The next prompt uses native new text, not fabricated filler.
+        self.assertIn('그는 다른 서랍에서 낡은 기록을 찾았다.', prompts[1])
+
+    def test_invalid_native_continuation_remains_unapproved_without_prompt_leak(self):
+        original = '조사자가 문을 열었다.'
+        calls = []
+        def invalid(prompt, remaining):
+            calls.append(prompt)
+            return 'I am now continuing the novel as requested in this prompt'
+        out = module.continue_korean_scene(
+            original, original_prompt='작품 설정: 가상의 창고.',
+            target_chars=5000, invoke=invalid,
+            deadline=100, clock=lambda: 0)
+        self.assertEqual(out, original)
+        self.assertEqual(len(calls), 1)
+        self.assertTrue(calls[0].endswith(original + '\n\n'))
 
 if __name__ == '__main__':
     unittest.main()
