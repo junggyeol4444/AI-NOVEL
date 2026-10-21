@@ -470,6 +470,12 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
     # stopped at 740 characters. Vary story-first *instructions*, not source
     # facts, after an unsuccessful generation. All candidate text must still
     # come from the same native model and pass the original strict checks.
+    # Keep genuinely model-authored short prose off the accepted manuscript
+    # until consecutive *different* valid fragments form a substantial
+    # >=80-character addition. Earlier code discarded each short EOS output,
+    # preventing the 5000-character Qwen continuation from making progress.
+    # Nothing is padded, translated, fabricated or persisted here.
+    staged_short = ''
     instructions = (
         '이어서 쓰는 장면에서 인물이 새로운 행동을 취하고 주변이 반응합니다.',
         '이어서 쓰는 장면에서 인물의 선택이 실제 결과를 낳습니다. '
@@ -480,13 +486,14 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
     for attempt in range(24):
         if nonspace_count(draft) >= minimum or clock() >= deadline:
             break
-        previous = draft[-320:]
+        candidate_context = draft + ('\n\n' + staged_short if staged_short else '')
+        previous = candidate_context[-320:]
         # The Windows2022 real Qwen draft stopped after 424 nonspace chars
         # despite a 5000-char author target. Preserve the same model and
         # actual author context, but make the remaining real-prose workload
         # explicit on every native continuation attempt. The number here
         # guides generation ONLY; no characters are padded or synthesized.
-        deficit = max(0, target_chars - nonspace_count(draft))
+        deficit = max(0, target_chars - nonspace_count(candidate_context))
         continuation_prompt = (
             original_prompt[:1800] + '\n'
             '이어지는 문단의 앞부분:\n' + previous.strip() + '\n'
@@ -531,33 +538,41 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
                     continue
                 # Preserve only previously validated, unapproved prose.
                 break
-        # Do not silently fill short drafts by repeating previous generations.
-        if not new or new in draft or len(new) < 80:
-            # Some actual Qwen generations end after one short phrase.
-            # Try a bounded fresh inference without adding that fragment.
+        # The continuation may duplicate the prose already shown as context.
+        # Compare against both the committed draft and pending model tokens.
+        if not new or new in candidate_context:
             if short_retry_limit > 0:
                 short_retry_limit -= 1
                 continue
             break
         overlap = 0
-        for n in range(min(180, len(new), len(draft)), 24, -1):
-            if draft.endswith(new[:n]):
+        for n in range(min(180, len(new), len(candidate_context)), 24, -1):
+            if candidate_context.endswith(new[:n]):
                 overlap = n
                 break
         addition = new[overlap:].strip()
-        if len(addition) < 80 or addition in draft:
+        if not addition or addition in candidate_context or len(addition) < 24:
             if short_retry_limit > 0:
                 short_retry_limit -= 1
                 continue
             break
-        # Real Qwen continuations sometimes recite the same first paragraph
-        # with a changed final phrase. Do not count it toward manuscript length.
-        if repeats_existing_passage(addition, draft):
+        # Keep only individually validated model prose; stage short,
+        # nonduplicated fragments, then apply the original >=80 threshold
+        # to the combined real text before it reaches the preview.
+        candidate = staged_short + ('\n\n' if staged_short else '') + addition
+        if repeats_existing_passage(candidate, draft):
+            staged_short = ''
             if short_retry_limit > 0:
                 short_retry_limit -= 1
                 continue
             break
-        draft += '\n\n' + addition
+        if len(candidate) < 80:
+            staged_short = candidate
+            # Staged text is still uncommitted. If the deadline expires,
+            # it is discarded, not passed off as an accepted continuation.
+            continue
+        draft += '\n\n' + candidate
+        staged_short = ''
         if len(draft) > 100_000:
             raise ValueError('invalid native output')
     return draft

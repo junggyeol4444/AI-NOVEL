@@ -273,9 +273,20 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
                 '선택된 로컬 모델에서 한국어 소설이 생성되지 않았습니다. '
                 '한국어 작성이 가능한 GGUF 모델을 직접 선택하세요. 초고 저장 없음.')
         elif safe_category == 'native_non_korean_script':
-            self.status.setText(
-                '모델 원고에 한국어 단어와 외국 문자·깨진 표기가 혼입됐습니다. '
-                '원고를 수정·번역해 저장하지 않고 차단했습니다.')
+            bundled_qa = (
+                self._text('arguments').strip() == ''
+                and self._text('executable').replace('\\', '/').lower().endswith(
+                    '/anf_local_model.exe'))
+            if bundled_qa:
+                self.status.setText(
+                    '기본 번들 135M GGUF에서 한국어 비중이 부족한 원고가 생성됐습니다. '
+                    '이 모델의 한국어 장편 집필 안정성은 검증되지 않았습니다. '
+                    '기존 초고를 저장하지 않았습니다. '
+                    '한국어를 지원하는 로컬 GGUF는 사용자가 직접 선택·승인해야 합니다.')
+            else:
+                self.status.setText(
+                    '모델 원고에 한국어 단어와 외국 문자·깨진 표기가 혼입됐습니다. '
+                    '원고를 수정·번역해 저장하지 않고 차단했습니다.')
         elif safe_category == 'native_prompt_echo':
             self.status.setText(
                 '모델이 원고 대신 실행 지시나 콘솔 문구를 반복했습니다. '

@@ -1022,5 +1022,54 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertIn('이어지는 문단의 앞부분:', seen[0][0])
         self.assertNotIn('모의 초고', seen[0][0])
 
+    def test_short_valid_native_qwen_prose_accumulates_before_acceptance(self):
+        # Synthetic transport fixture; NOT evidence of literary quality.
+        initial = '조사자는 가상의 서고에서 낡은 문서를 발견했다.'
+        first = ('사서는 한참 망설이다 오래된 금고를 열었다. '
+                 '그 안에는 흙이 묻은 봉투가 놓여 있었다.')
+        second = ('조사자는 봉투 속 편지를 펼치고 서명을 확인했다. '
+                  '복도 끝에서 문이 닫히는 소리가 들렸다.')
+        self.assertLess(len(first), 80)
+        self.assertLess(len(second), 80)
+        self.assertGreaterEqual(len(first + '\n\n' + second), 80)
+        prompts = []
+        responses = iter((first, second, ''))
+        def native(prompt, remaining):
+            prompts.append(prompt)
+            return next(responses)
+        result = module.continue_korean_scene(
+            initial, original_prompt='가상 서고의 사건',
+            target_chars=5000, invoke=native, deadline=1000,
+            clock=lambda: 0, short_retry_limit=0)
+        self.assertIn(first, result)
+        self.assertIn(second, result)
+        self.assertEqual(result.count(first), 1)
+        self.assertEqual(result.count(second), 1)
+        self.assertIn(first, prompts[1])
+        self.assertTrue(result.startswith(initial))
+        self.assertNotIn('모의 초고', result)
+
+    def test_invalid_second_native_fragment_does_not_commit_short_first(self):
+        # An invalid continuation cannot turn a prior staged fragment into
+        # approved prose or a stored manuscript.
+        initial = '사서는 지도를 펼쳤다.'
+        first = '조사자는 옆방에서 낡은 장부를 꺼내 비밀 표시를 찾았다.'
+        self.assertLess(len(first), 80)
+        responses = iter((first, 'Only English model output'))
+        result = module.continue_korean_scene(
+            initial, original_prompt='가상 서고',
+            target_chars=5000, invoke=lambda _p, _s: next(responses),
+            deadline=1000, clock=lambda: 0)
+        self.assertEqual(result, initial)
+
+    def test_repeated_short_native_fragment_never_fills_length(self):
+        original = '조사자는 도서관을 살폈다.'
+        short = '사서는 감춰 둔 책을 꺼내 조심스럽게 펼쳐 보였다.'
+        output = module.continue_korean_scene(
+            original, original_prompt='도서관',
+            target_chars=5000, invoke=lambda _p, _s: short,
+            deadline=1000, clock=lambda: 0, short_retry_limit=2)
+        self.assertEqual(output, original)
+
 if __name__ == '__main__':
     unittest.main()

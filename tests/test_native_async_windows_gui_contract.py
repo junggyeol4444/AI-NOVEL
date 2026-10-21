@@ -108,5 +108,13 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertIn("report['draft_hangul_chars']", source)
         self.assertNotIn("report['raw_draft']", source)
 
+    def test_unreliable_bundled_135m_korean_failure_is_explicit(self):
+        src = (ROOT / 'src/ai_novel_factory/desktop/authoring_workflow.py').read_text(
+            encoding='utf-8')
+        self.assertIn('기본 번들 135M GGUF에서 한국어 비중이 부족한', src)
+        self.assertIn('한국어 장편 집필 안정성은 검증되지 않았습니다', src)
+        self.assertIn("self._text('arguments').strip() == ''", src)
+        self.assertIn('사용자가 직접 선택·승인해야 합니다', src)
+
 if __name__ == '__main__':
     unittest.main()
