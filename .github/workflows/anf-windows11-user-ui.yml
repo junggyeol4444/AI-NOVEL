@@ -51,7 +51,7 @@ jobs:
           if-no-files-found: error
   windows11-native-desktop:
     needs: qa-exe-x64-build
-    runs-on: windows-11-arm
+    runs-on: windows-11-vs2026-arm
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
