@@ -1343,6 +1343,7 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         with TemporaryDirectory() as td:
             root = Path(td)
             rt = root / 'llama-cli.exe'
+            rt.touch()  # Simulated bridge needs a real path for bundled_files.
             model = root / 'fiction-approved.gguf'
             with model.open('wb') as out:
                 out.write(b'GGUF' + (3).to_bytes(4, 'little')
