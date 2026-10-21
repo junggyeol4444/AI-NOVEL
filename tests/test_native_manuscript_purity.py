@@ -1286,5 +1286,41 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                 self.assertIn('INVALID_LOCAL_GGUF_SELECTION', stderr.getvalue())
                 self.assertNotIn(str(bad), stderr.getvalue())
 
+    def test_genuine_small_native_fragments_can_pass_5000_without_24_attempt_wall(self):
+        # Synthetic TRANSPORT fixture. Every newly generated character is
+        # returned by invoke; this is not a model/literary-quality PASS.
+        original = '작가가 정한 사건의 첫 장면이다.'
+        calls = []
+        def native(prompt, remaining):
+            idx = len(calls)
+            calls.append(prompt)
+            # Distinct Korean-only text across >24 independent calls.
+            return ''.join(chr(0xAC00 + ((idx * 150 + j) % 11172))
+                           for j in range(125))
+        out = module.continue_korean_scene(
+            original, original_prompt='가상 서고의 사건을 집필한다',
+            target_chars=5000, invoke=native, deadline=5000,
+            clock=lambda: 0)
+        self.assertGreater(len(calls), 24)
+        self.assertGreaterEqual(len(''.join(out.split())), 4500)
+        self.assertTrue(out.startswith(original))
+        self.assertNotIn('모의 초고', out)
+
+    def test_small_scene_still_uses_deadline_and_never_creates_padding(self):
+        original = '유적에서 조사자가 편지를 펼쳤다.'
+        calls = []
+        def native(prompt, remaining):
+            calls.append(True)
+            return '사서가 문을 열고 기록을 확인했다.' * 4
+        clock_values = iter((0, 1, 3, 100))
+        def clock():
+            return next(clock_values, 100)
+        got = module.continue_korean_scene(
+            original, original_prompt='작가 설정을 유지한다',
+            target_chars=5000, invoke=native, deadline=5, clock=clock)
+        self.assertLessEqual(len(calls), 2)
+        self.assertNotIn('모의 초고', got)
+        self.assertTrue(got.startswith(original))
+
 if __name__ == '__main__':
     unittest.main()

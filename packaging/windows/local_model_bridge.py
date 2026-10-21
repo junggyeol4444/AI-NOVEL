@@ -477,7 +477,16 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
     # must see story text, not the next "please write" command, at its tail.
     # Stage short genuinely native fragments, never synthetic filler.
     staged_short = ''
-    for attempt in range(24):
+    # The original fixed 24-iteration ceiling could never reach a genuine
+    # 5000-10000-character scene when an approved local GGUF yields valid
+    # 80-150-character continuations. Size the maximum number of actual
+    # native attempts from the requested remaining prose, NOT from a model
+    # brand or a constant number of scene fragments. Keep the original
+    # absolute deadline, output-size, script, duplication, and no-padding
+    # constraints; this formula does not claim the model can write well.
+    missing = max(0, minimum - nonspace_count(draft))
+    max_native_attempts = min(160, max(24, (missing + 79) // 80 + 4))
+    for attempt in range(max_native_attempts):
         if nonspace_count(draft) >= minimum or clock() >= deadline:
             break
         candidate_context = draft + ('\n\n' + staged_short if staged_short else '')
