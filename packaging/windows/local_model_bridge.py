@@ -195,6 +195,11 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
         '--top-p', ('0.90' if qwen else '0.92'),
         '--no-display-prompt',
     ]
+    if qwen_crash_recovery and (qwen or model.name == MODEL_NAME):
+        # The original pinned b11624 completion executable supports this
+        # memory-mapping switch. Use it only after observed 0xC0000374,
+        # keeping the same GGUF, binary, author text and quality validation.
+        common.append('--no-mmap')
     if qwen or model.name == MODEL_NAME:
         # The pinned bundle includes llama-completion.exe. Avoid llama-cli's
         # interactive shell, which emitted banners/prompt echoes into stdout.
@@ -240,9 +245,12 @@ def run_native_with_heap_crash_recovery(
     proc = call(command)
     qwen = (model.suffix.lower() == '.gguf'
             and model.name.lower().startswith('qwen2.5-'))
-    # 0xC0000374 is STATUS_HEAP_CORRUPTION in Windows process exit codes.
-    # Python may report the unsigned code or its signed representation.
-    if (qwen and proc.returncode in (3221226356, -1073740940)
+    bundled = (model.name == MODEL_NAME)
+    # Real Windows 2022 repeat-GGUF test 39526404872 found the very same
+    # pinned runtime heap exit even with the bundled 135M model. Both
+    # approved models may retry ONCE with no mmap, never swap weights.
+    # 0xC0000374 is STATUS_HEAP_CORRUPTION. Signed and unsigned handled.
+    if ((qwen or bundled) and proc.returncode in (3221226356, -1073740940)
             and deadline - clock() >= 30):
         safe_command = build_native_command(
             llama, model, system_prompt, scene_prompt, budget,

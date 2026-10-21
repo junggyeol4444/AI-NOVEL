@@ -891,8 +891,8 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             (root / 'llama-completion.exe').touch()
             llama = root / 'llama-cli.exe'
             qwen = root / 'qwen2.5-1.5b-instruct-q4_k_m.gguf'
-            smol = root / 'SmolLM2-135M-Instruct-Q4_K_M.gguf'
-            for model, exit_code in ((qwen, 1), (smol, 3221226356)):
+            unrelated = root / 'OtherUserChosenModel.gguf'
+            for model, exit_code in ((qwen, 1), (unrelated, 3221226356)):
                 calls = []
                 def runner(command, **kwargs):
                     calls.append(command)
@@ -949,6 +949,51 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertTrue(module.repeats_existing_passage(addition, prior))
         self.assertFalse(module.repeats_existing_passage(
             '그녀는 다른 책을 집었다. "괜찮으신가요?" 새로운 단서가 나왔다.', prior))
+
+
+    def test_windows2022_real_bundled_heap_exit_recovers_same_gguf_once(self):
+        # No substitute GGUF, no generated filler and no literary PASS.
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            (root / 'llama-completion.exe').touch()
+            llama = root / 'llama-cli.exe'
+            model = root / module.MODEL_NAME
+            calls = []
+            def fake_native(command, **kwargs):
+                calls.append((command, kwargs))
+                if len(calls) == 1:
+                    return subprocess.CompletedProcess(command, 3221226356, '', '')
+                return subprocess.CompletedProcess(
+                    command, 0, '그는 기록을 열고 낡은 단서를 확인했다.', '')
+            actual = module.run_native_with_heap_crash_recovery(
+                llama, model, '한국어로 쓴다', '문 앞에서 조사한다',
+                '128', 120, {}, runner=fake_native, clock=lambda: 0)
+            self.assertIn('단서를', actual)
+            self.assertEqual(len(calls), 2)
+            initial, recovery = calls[0][0], calls[1][0]
+            self.assertEqual(initial[0], recovery[0])
+            self.assertEqual(initial[initial.index('--model') + 1],
+                             recovery[recovery.index('--model') + 1])
+            self.assertNotIn('--no-mmap', initial)
+            self.assertIn('--no-mmap', recovery)
+            self.assertEqual(recovery[recovery.index('--threads') + 1], '1')
+
+    def test_bundled_heap_crash_retry_still_fails_if_same_runner_crashes_again(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            (root / 'llama-completion.exe').touch()
+            calls = []
+            def crash(command, **kwargs):
+                calls.append(command)
+                return subprocess.CompletedProcess(command, -1073740940, '', '')
+            with self.assertRaisesRegex(ValueError, 'model process failed'):
+                module.run_native_with_heap_crash_recovery(
+                    root / 'llama-cli.exe', root / module.MODEL_NAME,
+                    '한국어 작가', '원래 장면', '128', 120, {},
+                    runner=crash, clock=lambda: 0)
+            self.assertEqual(len(calls), 2)
 
 if __name__ == '__main__':
     unittest.main()
