@@ -469,6 +469,12 @@ public static class ANFWin32 {
     if ($hostOobePrivacy) {
       throw 'HOST_OOBE_PRIVACY_BLOCKED: Windows runner privacy screen is foreground. Qt captured but physical user E2E is NOT_VERIFIED.'
     }
+    if ($frontName -eq 'WWAHost') {
+      # The hosted VM may omit a UIAutomation title even while WWAHost
+      # occupies the physical desktop. Do not claim an OOBE diagnosis
+      # without the text match; the independent app-window test still runs.
+      throw 'HOST_WWAHOST_FOREGROUND_BLOCKED: OS host owns desktop; GUI user E2E NOT_VERIFIED.'
+    }
     throw 'Desktop foreground is not our app (possibly Windows 11 first-run privacy dialog). Qt screenshot exists but physical desktop UX is UNVERIFIED.'
   }
   Write-Host 'PASS: Windows 11 desktop foreground shows Qt EXE, 12 native UIA selections and native HWND screenshot.'

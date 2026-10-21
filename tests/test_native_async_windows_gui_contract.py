@@ -93,5 +93,13 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertIn("check('real_bundled_gguf_model_generated_prose_via_gui'", source)
         self.assertIn("ui.session.pending_draft == draft", source)
 
+    def test_windows_host_blocker_is_not_mislabeled_as_oobe_without_evidence(self):
+        ps = (ROOT / 'scripts/ci_windows11_desktop.ps1').read_text(encoding='utf-8')
+        self.assertIn("if ($frontName -eq 'WWAHost')", ps)
+        self.assertIn('HOST_WWAHOST_FOREGROUND_BLOCKED', ps)
+        self.assertIn('HOST_OOBE_PRIVACY_BLOCKED', ps)
+        self.assertIn("if ($front -ne $hwnd)", ps)
+        self.assertNotIn('Stop-Process -Name WWAHost', ps)
+
 if __name__ == '__main__':
     unittest.main()

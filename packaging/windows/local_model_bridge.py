@@ -78,6 +78,12 @@ def validate_clean_manuscript(raw: str) -> str:
         # Never save the screenplay outline as an author-written novel.
         '다음은 첫 회차의 장면입니다.',
         '이어서 쓰는 장면에서 인물의 선택과 행동이 변화하고 주변 환경이 변합니다.',
+        # Verbatim model imitation of bridge continuation prompts occurred
+        # in the actual Windows2022 Qwen 5000-char failure manuscript.
+        '이어서 쓰는 장면에서 인물이 새로운 행동을 취하고 주변이 반응합니다.',
+        '이어서 쓰는 장면에서 인물의 선택이 실제 결과를 낳습니다.',
+        '앞에서 했던 질문이나 대답을 다시 쓰지 않고 다음 사건으로 나아갑니다.',
+        '이어서 쓰는 장면에서 새로 드러난 장애물에 대응하는 행동과',
     )
     if any(fragment in lower for fragment in forbidden):
         raise ValueError('native console output mixed with draft')
@@ -98,7 +104,7 @@ def validate_clean_manuscript(raw: str) -> str:
     # Reject even when followed by otherwise well-formed Korean sentences.
     if re.search(
         r'(?m)^[ \t]*(?:#{1,6}[ \t]*(?:장면[ \t]*[0-9]+'
-        r'|제[ \t]*[0-9]+화|Scene[ \t]*[0-9]+)[^\r\n]{0,80}'
+        r'|첫[ \t]*장|제[ \t]*[0-9]+화|Scene[ \t]*[0-9]+)[^\r\n]{0,80}'
         r'|\*\*[ \t]*\([^()\r\n]{1,80}\)[ \t]*\*\*'
         r'|\*\*[ \t]*[가-힣][가-힣 ]{0,24}:[ \t]*\*\*)[ \t]*$',
         text):
@@ -316,14 +322,14 @@ def repeats_existing_passage(addition: str, manuscript: str) -> bool:
     # A repeated meaningful dialogue line should not escape the prose
     # guard solely because it is shorter than a 90-character paragraph.
     def dialogue_lines(value: str) -> list[str]:
-        quotes = re.findall(r'["“]([^"”\r\n]{18,240})["”]', value)
+        quotes = re.findall(r'["“]([^"”\r\n]{10,240})["”]', value)
         return [re.sub(r'[^가-힣A-Za-z0-9]', '', part).casefold()
                 for part in quotes]
 
     old_quotes = set(dialogue_lines(manuscript))
     seen_quotes = set()
     for quote in dialogue_lines(addition):
-        if len(quote) < 18:
+        if len(quote) < 10:
             continue
         if quote in old_quotes or quote in seen_quotes:
             return True
@@ -356,6 +362,31 @@ def retry_bundled_korean_text(prompt: str, *, first_error: ValueError,
         + '인물은 주변에 있는 사물을 보고 한국어로 말한다. '
         '그 말을 들은 다른 인물이 실제로 움직인다.')
     return invoke(retry_prompt, remaining, '160')
+
+
+
+def retry_bundled_korean_text_once_more(prompt: str, *,
+                                        first_error: ValueError,
+                                        invoke, remaining: float) -> str:
+    """One independent same-GGUF sample after a strictly rejected retry.
+
+    The Windows 2022 bundled 135M GGUF intermittently returned NO_HANGUL
+    even after the existing retry. This uses unchanged public weights and
+    unchanged acceptance rules, under the original bounded deadline.
+    Invalid samples must never be translated, padded, logged or persisted.
+    """
+    if (type(first_error) is not ValueError
+            or str(first_error) not in (
+                'native output lacks Korean novel prose',
+                'native non-Korean script in draft')
+            or remaining < 25):
+        raise first_error
+    retry_prompt = (
+        '한국어로만 창작 소설의 실제 장면을 씁니다. '
+        '서술은 한국어 문장으로 시작하고 인물의 행동 뒤에 결과를 보여 줍니다.\n'
+        + prompt + '\n'
+        '장면의 소설 본문을 새로운 한국어 문단으로 직접 써 주세요.')
+    return invoke(retry_prompt, remaining, '192')
 
 
 def retry_qwen_korean_text(prompt: str, *, first_error: ValueError,
@@ -707,7 +738,19 @@ def main(argv=None) -> int:
                     prompt, first_error=initial_error,
                     invoke=invoke_native, remaining=remaining)
                 stage = 'text_validation'
-                draft = validate_clean_manuscript(raw_draft)
+                try:
+                    draft = validate_clean_manuscript(raw_draft)
+                except ValueError as rejected_retry:
+                    # One final independent SAME-GGUF attempt when the real
+                    # 135M weight still returns a non-Korean sample. Strict
+                    # validation follows and a failure remains a failure.
+                    stage = 'native_inference'
+                    raw_draft = retry_bundled_korean_text_once_more(
+                        prompt, first_error=rejected_retry,
+                        invoke=invoke_native,
+                        remaining=deadline - time.monotonic())
+                    stage = 'text_validation'
+                    draft = validate_clean_manuscript(raw_draft)
             elif (model.name.lower().startswith('qwen2.5-')
                   and str(initial_error) in (
                       'native output lacks Korean novel prose',

@@ -910,5 +910,45 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertEqual(module.bundled_timeout_seconds(arm64_host=True), 300)
         self.assertFalse(module.windows_native_arm64() if os.name != 'nt' else False)
 
+    def test_bundle_final_recovery_is_one_bounded_same_model_generation(self):
+        calls = []
+        def invoke(prompt, timeout, budget):
+            calls.append((prompt, timeout, budget))
+            return '조사자는 기록관으로 향해 현관의 봉인을 직접 풀었다.'
+        raw = module.retry_bundled_korean_text_once_more(
+            '가상의 기록관에서 조사자가 단서를 찾는다',
+            first_error=ValueError('native output lacks Korean novel prose'),
+            invoke=invoke, remaining=50)
+        self.assertEqual(module.validate_clean_manuscript(raw), raw)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][2], '192')
+        self.assertIn('가상의 기록관', calls[0][0])
+        self.assertIn('한국어로만', calls[0][0])
+        for reason, secs in (
+            ('native console output mixed with draft', 50),
+            ('native output lacks Korean novel prose', 20)):
+            with self.subTest(reason=reason, seconds=secs), self.assertRaises(ValueError):
+                module.retry_bundled_korean_text_once_more(
+                    '원본 장면', first_error=ValueError(reason),
+                    invoke=invoke, remaining=secs)
+        self.assertEqual(len(calls), 1)
+
+    def test_actual_qwen_continuation_instruction_and_first_chapter_title_rejected(self):
+        for sample in (
+            '### 첫 장\n그는 도서관으로 들어갔다.',
+            '사서가 문을 열었다. 이어서 쓰는 장면에서 인물이 새로운 행동을 취하고 주변이 반응합니다.',
+            '그는 돌아섰다. 이어서 쓰는 장면에서 인물의 선택이 실제 결과를 낳습니다.',
+        ):
+            with self.subTest(sample=sample), self.assertRaisesRegex(
+                    ValueError, 'mixed with draft'):
+                module.validate_clean_manuscript(sample)
+
+    def test_real_windows2022_short_dialogue_repetition_is_rejected(self):
+        prior = '조사자가 물었다. "그대로 말씀해주십시오." 사서는 고개를 끄덕였다.'
+        addition = '사서가 대답했다. "그대로 말씀해주십시오." 그리고 조사자가 문을 열었다.'
+        self.assertTrue(module.repeats_existing_passage(addition, prior))
+        self.assertFalse(module.repeats_existing_passage(
+            '그녀는 다른 책을 집었다. "괜찮으신가요?" 새로운 단서가 나왔다.', prior))
+
 if __name__ == '__main__':
     unittest.main()
