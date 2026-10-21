@@ -296,7 +296,8 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             'native_timeout', 'native_inference_failure',
             'native_process_crash', 'native_output_rejected',
             'native_no_hangul', 'native_non_korean_script',
-            'native_prompt_echo', 'LocalModelError') else 'UnknownError'
+            'native_prompt_echo', 'native_short_draft',
+            'native_unsupported_target', 'LocalModelError') else 'UnknownError'
         self.status.setAccessibleName('로컬 AI 생성 실패 ' + safe_category)
         if safe_category == 'native_output_rejected':
             self.status.setText('모델 출력 형식 검사 실패: 원고 저장을 차단했습니다.')
@@ -323,6 +324,14 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             self.status.setText(
                 '모델이 원고 대신 실행 지시나 콘솔 문구를 반복했습니다. '
                 '정상 원고로 저장하지 않았습니다.')
+        elif safe_category == 'native_short_draft':
+            self.status.setText(
+                '실제 로컬 모델이 요청한 한국어 원고 분량에 도달하지 못했습니다. '
+                '미완성 원고를 완료로 표시하거나 새 초고로 저장하지 않았습니다.')
+        elif safe_category == 'native_unsupported_target':
+            self.status.setText(
+                '한 장면의 요청 분량이 네이티브 집필 지원 범위를 초과했습니다. '
+                '작품의 전체 회차 분량은 유지하고 장면 분할을 확인하세요.')
         elif safe_category == 'native_process_crash':
             self.status.setText('Windows 로컬 모델 실행기가 비정상 종료되었습니다. 초고 저장 없음.')
         else:

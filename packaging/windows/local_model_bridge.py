@@ -577,6 +577,28 @@ def continue_korean_scene(draft: str, *, original_prompt: str, target_chars: int
     return draft
 
 
+
+def enforce_actual_scene_target(draft: str, requested_target: int | None) -> str:
+    """Reject incomplete real drafts when the author requested 1000-10000 chars.
+
+    This does not pad, rewrite, change a model, or lower any quality target.
+    A short packaging smoke scene (<1000 allocated characters) continues
+    to be subject to its existing separate GUI format/quality controls.
+    """
+    if requested_target is None:
+        return draft
+    if type(requested_target) is not int or requested_target < 1:
+        raise ValueError('invalid scene target length')
+    if requested_target > 10_000:
+        raise ValueError('unsupported scene target length')
+    if requested_target >= 1_000:
+        minimum = (requested_target * 9 + 9) // 10
+        actual = sum(not ch.isspace() for ch in draft)
+        if actual < minimum:
+            raise ValueError('incomplete native scene draft')
+    return draft
+
+
 def requested_scene_target(goal: str, request: dict) -> int | None:
     """Respect an explicit author scene target, else the saved episode share.
 
@@ -858,6 +880,11 @@ def main(argv=None) -> int:
                         continuation_prompt, first_error=first_error,
                         invoke=invoke_native, remaining=seconds),
                 short_retry_limit=10)
+        # A valid partial native sample is not necessarily a completed
+        # user-requested 5000-character scene. Reject the partial as
+        # incomplete; never report or silently persist it as success.
+        stage = 'text_validation'
+        draft = enforce_actual_scene_target(draft, target)
         response = {'protocol': MODEL_PROTO, 'draft': draft}
         stage = 'json_output'
         # Windows frozen console executables may use a legacy code page even
@@ -884,6 +911,8 @@ def main(argv=None) -> int:
                 'native console output mixed with draft': 'CONSOLE_OR_PROMPT_ECHO',
                 'native output lacks Korean novel prose': 'NO_HANGUL',
                 'native non-Korean script in draft': 'NON_KOREAN_SCRIPT',
+                'incomplete native scene draft': 'SHORT_DRAFT',
+                'unsupported scene target length': 'UNSUPPORTED_TARGET',
             }.get(str(exc), 'OTHER')
             reason = ';REASON=' + category
         print('LOCAL_MODEL_GENERATION_FAILED;STAGE=' + stage

@@ -1322,5 +1322,57 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertNotIn('모의 초고', got)
         self.assertTrue(got.startswith(original))
 
+    def test_explicit_5000_scene_length_never_succeeds_with_short_native_text(self):
+        actual = '조사자는 폐허의 도서관 문을 열었다. ' * 18
+        with self.assertRaisesRegex(ValueError, 'incomplete native scene draft'):
+            module.enforce_actual_scene_target(actual, 5000)
+        self.assertEqual(module.enforce_actual_scene_target(actual, None), actual)
+        self.assertEqual(module.enforce_actual_scene_target(actual, 80), actual)
+        self.assertEqual(module.enforce_actual_scene_target('가' * 4500, 5000),
+                         '가' * 4500)
+        with self.assertRaisesRegex(ValueError, 'unsupported scene target'):
+            module.enforce_actual_scene_target(actual, 15000)
+
+    def test_bridge_explicit_target_failure_uses_fixed_safe_error_category(self):
+        from tempfile import TemporaryDirectory
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from contextlib import redirect_stderr
+        import io
+        import json
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            rt = root / 'llama-cli.exe'
+            model = root / 'fiction-approved.gguf'
+            with model.open('wb') as out:
+                out.write(b'GGUF' + (3).to_bytes(4, 'little')
+                          + (10).to_bytes(8, 'little')
+                          + (8).to_bytes(8, 'little'))
+                out.truncate(8_000_001)
+            (root / 'llama-completion.exe').touch()
+            request = dict(novel_bible='가상의 기록관', scene_goal='5000자 작성',
+                           scene_conflict='잠긴 문', scene_location='기록관',
+                           characters=['사서'], target_chars=5000)
+            message = dict(protocol=module.MODEL_PROTO, task='scene_draft',
+                           request=request)
+            sys_input = SimpleNamespace(buffer=io.BytesIO(
+                json.dumps(message, ensure_ascii=False).encode('utf-8')))
+            sys_output = SimpleNamespace(buffer=io.BytesIO())
+            std_err = io.StringIO()
+            def native(command, **kwargs):
+                return subprocess.CompletedProcess(
+                    command, 0, '사서가 낡은 서고에서 편지를 찾았다. ' * 12, '')
+            import sys
+            with patch.object(module, 'bundled_files',
+                              return_value=(rt, root / 'default.gguf')), patch.object(
+                                  module.subprocess, 'run', side_effect=native), patch.object(
+                                  sys, 'stdin', sys_input), patch.object(
+                                  sys, 'stdout', sys_output), redirect_stderr(std_err):
+                result = module.main(['--gguf', str(model)])
+            self.assertEqual(result, 1)
+            self.assertIn('REASON=SHORT_DRAFT', std_err.getvalue())
+            self.assertEqual(sys_output.buffer.getvalue(), b'')
+            self.assertNotIn('서고', std_err.getvalue())
+
 if __name__ == '__main__':
     unittest.main()

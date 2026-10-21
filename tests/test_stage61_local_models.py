@@ -148,6 +148,22 @@ sys.exit(1)
         with self.assertRaisesRegex(LocalModelError, 'native_process_crash'):
             worker.generate(self.request)
 
+    def test_incomplete_native_draft_is_safe_error_not_fake_success(self):
+        provider = self._worker('''import sys
+sys.stderr.write("LOCAL_MODEL_GENERATION_FAILED;STAGE=text_validation;TYPE=ValueError;REASON=SHORT_DRAFT\\n")
+sys.exit(1)
+''')
+        with self.assertRaisesRegex(LocalModelError, 'native_short_draft'):
+            provider.generate(self.request)
+
+    def test_unsupported_native_scene_target_is_a_safe_error(self):
+        provider = self._worker('''import sys
+sys.stderr.write("LOCAL_MODEL_GENERATION_FAILED;STAGE=text_validation;TYPE=ValueError;REASON=UNSUPPORTED_TARGET\\n")
+sys.exit(1)
+''')
+        with self.assertRaisesRegex(LocalModelError, 'native_unsupported_target'):
+            provider.generate(self.request)
+
     def test_explicit_scene_length_matches_windows_bridge(self):
         from ai_novel_factory.local_models import effective_scene_target
         self.assertEqual(effective_scene_target('이 장면 6000자 작성', 2500), 6000)

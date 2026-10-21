@@ -211,6 +211,10 @@ class LocalExecutableProvider:
                         raise LocalModelError('native_non_korean_script')
                     if safe_reason == 'CONSOLE_OR_PROMPT_ECHO':
                         raise LocalModelError('native_prompt_echo')
+                    if safe_reason == 'SHORT_DRAFT':
+                        raise LocalModelError('native_short_draft')
+                    if safe_reason == 'UNSUPPORTED_TARGET':
+                        raise LocalModelError('native_unsupported_target')
                     raise LocalModelError('native_output_rejected')
             raise LocalModelError('local provider rejected')
         if len(completed.stdout) > MAX_DRAFT_CHARS + 5000:

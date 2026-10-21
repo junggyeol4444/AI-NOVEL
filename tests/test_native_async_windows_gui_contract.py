@@ -126,5 +126,16 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertIn("shlex.quote(str(selected))", src)
         self.assertIn('모델 자동 교체·다운로드는 없으며', src)
 
+    def test_short_real_prose_is_never_reported_as_completed_scene(self):
+        source = (ROOT / 'src/ai_novel_factory/desktop/authoring_workflow.py').read_text(
+            encoding='utf-8')
+        self.assertIn("'native_short_draft'", source)
+        self.assertIn('요청한 한국어 원고 분량에 도달하지 못했습니다', source)
+        self.assertIn('이전 미저장 초고는 그대로 유지됩니다', source)
+        bridge = (ROOT / 'packaging/windows/local_model_bridge.py').read_text(
+            encoding='utf-8')
+        self.assertIn('draft = enforce_actual_scene_target(draft, target)', bridge)
+        self.assertIn("'incomplete native scene draft': 'SHORT_DRAFT'", bridge)
+
 if __name__ == '__main__':
     unittest.main()

@@ -103,7 +103,8 @@ def run(out: str) -> int:
             'native_timeout', 'native_inference_failure',
             'native_process_crash', 'native_output_rejected',
             'native_no_hangul', 'native_non_korean_script',
-            'native_prompt_echo', 'LocalModelError', 'UnknownError')
+            'native_prompt_echo', 'native_short_draft',
+            'native_unsupported_target', 'LocalModelError', 'UnknownError')
         report['generation_failure_code'] = next(
             (code for code in allowed_failure_codes
              if accessible == '로컬 AI 생성 실패 ' + code), 'NONE')
