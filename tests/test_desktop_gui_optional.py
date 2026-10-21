@@ -65,5 +65,71 @@ class DesktopGuiTests(unittest.TestCase):
         window.close()
         self.assertIsNotNone(app)
 
+class ModelApprovalGuiTests(unittest.TestCase):
+    """Real Qt widget behavior in disposable offscreen UI, not literary QA."""
+
+    @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
+    def test_approval_invalidated_on_model_edit_and_choosing_other_executable(self):
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        from unittest.mock import patch
+        from PySide6.QtWidgets import QApplication, QFileDialog
+        from ai_novel_factory.desktop.authoring_workflow import AuthoringWorkflowWidget
+        app = QApplication.instance() or QApplication([])
+        ui = AuthoringWorkflowWidget()
+        try:
+            ui._set('executable', '/temporary/first-runtime.exe')
+            ui._set('arguments', "--gguf '/temporary/first-model.gguf'")
+            ui.approved.setChecked(True)
+            ui._set('arguments', "--gguf '/temporary/second-model.gguf'")
+            self.assertFalse(ui.approved.isChecked())
+            ui.approved.setChecked(True)
+            ui._set('executable', '/temporary/modified-runtime.exe')
+            self.assertFalse(ui.approved.isChecked())
+            ui.approved.setChecked(True)
+            with patch.object(QFileDialog, 'getOpenFileName',
+                              return_value=('/temporary/new-runtime.exe', '')):
+                ui._choose_model_executable()
+            self.assertEqual(ui._text('executable'), '/temporary/new-runtime.exe')
+            self.assertEqual(ui._text('arguments'), '')
+            self.assertFalse(ui.approved.isChecked())
+            self.assertIn('이전 모델 인수를 초기화', ui.status.text())
+        finally:
+            ui.close()
+            app.processEvents()
+
+    @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
+    def test_approved_gguf_path_with_spaces_roundtrips_as_one_argument(self):
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        import shlex
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from PySide6.QtWidgets import QApplication, QFileDialog
+        from ai_novel_factory.desktop.authoring_workflow import AuthoringWorkflowWidget
+        app = QApplication.instance() or QApplication([])
+        ui = AuthoringWorkflowWidget()
+        try:
+            with TemporaryDirectory() as folder:
+                root = Path(folder)
+                (root / 'runtime').mkdir()
+                (root / 'ANF_Local_Model.exe').touch()
+                (root / 'runtime' / 'llama-cli.exe').touch()
+                gguf = root / '작가 승인 모델 with spaces.gguf'
+                with gguf.open('wb') as stream:
+                    stream.truncate(8_000_001)
+                with patch.object(sys, 'frozen', True, create=True), patch.object(
+                        sys, 'executable', str(root / 'AI_Novel_Factory.exe')), patch.object(
+                        QFileDialog, 'getOpenFileName', return_value=(str(gguf), '')):
+                    ui.approved.setChecked(True)
+                    ui._choose_gguf_model()
+                self.assertEqual(shlex.split(ui._text('arguments')),
+                                 ['--gguf', str(gguf)])
+                self.assertFalse(ui.approved.isChecked())
+                self.assertEqual(ui._text('executable'),
+                                 str(root / 'ANF_Local_Model.exe'))
+        finally:
+            ui.close()
+            app.processEvents()
+
+
 if __name__ == '__main__':
     unittest.main()
