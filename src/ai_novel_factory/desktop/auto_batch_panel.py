@@ -57,6 +57,7 @@ class AutoBatchPanel(QGroupBox):
         super().__init__('6. 여러 회차 로컬 AI 집필 (검토 전 초고)', parent)
         self.authoring = authoring
         self.worker = None
+        self._approved_project = None
         root = QVBoxLayout(self)
         notice = QLabel(
             '작품의 장르·소재·분위기·목표 회차를 먼저 저장하세요. '
@@ -85,6 +86,7 @@ class AutoBatchPanel(QGroupBox):
         self.consent = QCheckBox(
             '이번 실행에서만 지정한 로컬 모델로 순차 집필하는 것을 승인합니다')
         self.consent.setObjectName('autoBatchExplicitApproval')
+        self.consent.toggled.connect(self._bind_approval)
         root.addWidget(self.consent)
         # Approval is for the CURRENT model, its arguments, and this exact
         # chapter configuration. Editing any of them revokes the earlier
@@ -109,6 +111,14 @@ class AutoBatchPanel(QGroupBox):
         root.addWidget(self.status)
         self.start_button.clicked.connect(self.start_batch)
         self.stop_button.clicked.connect(self.request_stop)
+
+    def _bind_approval(self, checked):
+        # A checked box belongs only to the project that was open then.
+        session = self.authoring.session
+        self._approved_project = (
+            (str(session.path), str(session.project_id))
+            if checked and session.path is not None
+            and session.project_id is not None else None)
 
     def refresh_defaults(self):
         if self.is_running():
@@ -144,7 +154,10 @@ class AutoBatchPanel(QGroupBox):
                 '한 장면은 최대 10,000자까지 지원합니다. '
                 '회차 목표 분량은 유지하고 장면 수를 늘려 주세요.')
             return
-        if not self.consent.isChecked():
+        if (not self.consent.isChecked()
+                or self._approved_project !=
+                (str(session.path), str(session.project_id))):
+            self.consent.setChecked(False)
             self.status.setText('실제 로컬 AI 연속 실행에 대한 이번 회차 승인이 필요합니다.')
             return
         self.consent.setChecked(False)

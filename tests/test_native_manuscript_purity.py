@@ -339,6 +339,11 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             '조사자가 빈 페이지를 발견한다', {'target_chars': 5000}), 5000)
         self.assertEqual(module.requested_scene_target(
             '한국어 원고 6000자 작성', {'target_chars': 2500}), 6000)
+        for target in (50, 500, 999):
+            with self.subTest(allocated_scene_chars=target):
+                self.assertEqual(module.requested_scene_target(
+                    f'목표 분량 {target}자 내외. 플롯: 5000자 문서를 발견',
+                    {'target_chars': target}), target)
         self.assertIsNone(module.requested_scene_target('조사와 추적', {}))
         for bad in (True, -1, '5000', 0, 1000001):
             with self.subTest(bad=bad), self.assertRaises(ValueError):

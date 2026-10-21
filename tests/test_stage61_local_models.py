@@ -167,6 +167,11 @@ sys.exit(1)
     def test_explicit_scene_length_matches_windows_bridge(self):
         from ai_novel_factory.local_models import effective_scene_target
         self.assertEqual(effective_scene_target('이 장면 6000자 작성', 2500), 6000)
+        for target in (50, 500, 999):
+            with self.subTest(allocated_scene_chars=target):
+                self.assertEqual(effective_scene_target(
+                    f'목표 분량 {target}자 내외. 플롯: 5000자 기록을 읽는다',
+                    target), target)
         self.assertEqual(effective_scene_target('서가에서 단서를 찾는다', 2500), 2500)
         self.assertIsNone(effective_scene_target('단서를 찾는다', None))
         for bad in (True, '2500', -1, 0):

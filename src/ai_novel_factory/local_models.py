@@ -73,7 +73,11 @@ def effective_scene_target(goal: str, allocated_chars: int | None) -> int | None
             type(allocated_chars) is not int
             or not 1 <= allocated_chars <= 1_000_000)):
         raise LocalModelError('invalid scene target length')
-    match = re.search(r'(?<!\d)(\d{4,5})\s*자', goal)
+    # Short (50..999) batch scene allocations must win over numbers
+    # quoted later in a model-written episode outline.
+    match = re.match(r'\s*목표 분량\s*(\d{2,5})\s*자', goal)
+    if match is None:
+        match = re.search(r'(?<!\d)(\d{4,5})\s*자', goal)
     return int(match.group(1)) if match else allocated_chars
 
 

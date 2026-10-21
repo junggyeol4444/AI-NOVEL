@@ -283,6 +283,12 @@ class BatchWiringSourceContract(unittest.TestCase):
         self.assertTrue(goal.startswith('목표 분량 1667자'))
         self.assertIn(outline, goal)
         self.assertEqual(effective_scene_target(goal, 1667), 1667)
+        for short_target in (50, 500, 999):
+            with self.subTest(allocated_scene_chars=short_target):
+                short_goal = _native_scene_generation_goal(
+                    7, 2, 3, outline, short_target)
+                self.assertEqual(effective_scene_target(
+                    short_goal, short_target), short_target)
         for bad in (0, 10001, True):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 _native_scene_generation_goal(7, 2, 3, outline, bad)
@@ -335,6 +341,8 @@ class BatchWiringSourceContract(unittest.TestCase):
         self.assertIn('self.target_chars.value() > 10_000 * self.scenes.value()', gui)
         self.assertIn("if self.auto_panel.is_running():", workflow)
         self.assertIn('str(session.project_id) == self.worker.project_id', gui)
+        self.assertIn('self._approved_project', gui)
+        self.assertIn('self.consent.toggled.connect(self._bind_approval)', gui)
 
 
 
