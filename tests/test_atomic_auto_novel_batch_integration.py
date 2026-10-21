@@ -346,6 +346,14 @@ class BatchWiringSourceContract(unittest.TestCase):
 
 
 
+    def test_project_switch_rejects_live_inference_and_revokes_model_consent(self):
+        workflow = WORKFLOW.read_text(encoding='utf-8')
+        self.assertIn("self.fields['db'].textChanged.connect(", workflow)
+        self.assertIn('self._revoke_project_approvals()', workflow)
+        self.assertIn('self.auto_panel.consent.setChecked(False)', workflow)
+        self.assertIn('if self.is_generating():', workflow)
+        self.assertIn("for key in ('plot', 'draft', 'final_text'):", workflow)
+
     def test_real_batch_passes_explicit_scene_allocation_to_native_wire_request(self):
         from ai_novel_factory.local_models import (
             SceneDraftRequest, _message, effective_scene_target)

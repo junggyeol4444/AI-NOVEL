@@ -25,6 +25,9 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             lambda _text: self.approved.setChecked(False))
         self.fields['arguments'].textChanged.connect(
             lambda _text: self.approved.setChecked(False))
+        # Editing the DB path invalidates consent before opening a project.
+        self.fields['db'].textChanged.connect(
+            lambda _text: self._revoke_project_approvals())
         # An empty workspace has no pending AI draft to save.
         self.buttons['save_draft'].setEnabled(False)
         # The optional portable QA bundle includes both the console IPC bridge
@@ -57,9 +60,15 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
         except Exception:
             self.status.setText('작업 실패: 상세 오류는 비공개입니다.')
 
+    def _revoke_project_approvals(self):
+        self.approved.setChecked(False)
+        self.auto_panel.consent.setChecked(False)
+
     def _create(self):
         if self.auto_panel.is_running():
             raise ValueError('로컬 AI 다회차 집필 중에는 다른 작품을 생성할 수 없습니다.')
+        if self.is_generating():
+            raise ValueError('로컬 AI 장면 집필 중에는 다른 작품을 생성할 수 없습니다.')
         extra = {key: self._text(key).strip() for key in
                  ('genre', 'subject', 'target_episodes',
                   'characters_per_episode', 'mood')}
@@ -67,6 +76,7 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             value = extra[key]
             if value and (not value.isdecimal() or not 1 <= int(value) <= 1000000):
                 raise ValueError('분량은 1~1000000 범위의 정수여야 합니다.')
+        self._revoke_project_approvals()
         self.session.create_project(self._text('db'), self._text('title'),
                                     self._text('author'), self._text('premise'),
                                     extra_rules=extra)
@@ -164,6 +174,9 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
     def _open(self):
         if self.auto_panel.is_running():
             raise ValueError('로컬 AI 다회차 집필 중에는 작품을 변경할 수 없습니다.')
+        if self.is_generating():
+            raise ValueError('로컬 AI 장면 집필 중에는 작품을 변경할 수 없습니다.')
+        self._revoke_project_approvals()
         self.session.open_project(self._text('db'))
         db, pid = self.session.required()
         # Older valid Novel Bible databases may not carry the optional
@@ -209,6 +222,12 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             for scene in db.list_scenes(pid, ep.episode):
                 self.scenes.addItem(f'장면 {scene.position}', scene.scene_id)
             self.scenes.setCurrentIndex(self.scenes.findData(self.session.scene_id))
+        else:
+            # Do not display the previous manuscript in a new empty project.
+            for key in ('plot', 'draft', 'final_text'):
+                self._set(key, '')
+            self.final_reviewed.setChecked(False)
+            self.final_quality_ack.setChecked(False)
         self.scenes.blockSignals(False)
         self._sync_scene()
 

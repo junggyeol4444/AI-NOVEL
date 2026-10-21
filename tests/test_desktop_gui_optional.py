@@ -228,5 +228,87 @@ class ModelApprovalGuiTests(unittest.TestCase):
             ui.close()
             app.processEvents()
 
+    @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
+    def test_real_qt_project_switch_revokes_both_approvals_and_stale_editor(self):
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        from tempfile import TemporaryDirectory
+        from PySide6.QtWidgets import QApplication
+        from ai_novel_factory.desktop.authoring_workflow import AuthoringWorkflowWidget
+        app = QApplication.instance() or QApplication([])
+        ui = AuthoringWorkflowWidget()
+        try:
+            with TemporaryDirectory() as folder:
+                first = Path(folder) / 'first.sqlite'
+                second = Path(folder) / 'second.sqlite'
+                ui._set('db', str(first))
+                ui._set('title', '첫 번째 합성 작품')
+                ui._set('premise', '첫 번째 가상 세계 설정')
+                ui.buttons['create'].click()
+                app.processEvents()
+                self.assertEqual(ui.session.path, first)
+                ui.session.create_episode(1, '첫 번째 가상 회차 플롯')
+                ui._sync()
+                ui._set('draft', '첫 작품의 미저장 가상 원고')
+                ui._set('final_text', '첫 작품의 임시 최종본')
+                ui.approved.setChecked(True)
+                ui.auto_panel.consent.setChecked(True)
+                self.assertIsNotNone(ui.auto_panel._approved_project)
+                ui._set('db', str(second))
+                self.assertFalse(ui.approved.isChecked())
+                self.assertFalse(ui.auto_panel.consent.isChecked())
+                self.assertIsNone(ui.auto_panel._approved_project)
+                ui._set('title', '두 번째 합성 작품')
+                ui._set('premise', '두 번째 가상 세계 설정')
+                ui.buttons['create'].click()
+                app.processEvents()
+                self.assertEqual(ui.session.path, second)
+                self.assertIsNone(ui.session.episode_number)
+                for key in ('plot', 'draft', 'final_text'):
+                    self.assertEqual(ui._text(key), '', key)
+                self.assertFalse(ui.buttons['save_draft'].isEnabled())
+                ui.approved.setChecked(True)
+                ui.auto_panel.consent.setChecked(True)
+                ui._set('db', str(first))
+                ui.buttons['open'].click()
+                app.processEvents()
+                self.assertEqual(ui.session.path, first)
+                self.assertEqual(ui.session.episode_number, 1)
+                self.assertFalse(ui.approved.isChecked())
+                self.assertFalse(ui.auto_panel.consent.isChecked())
+        finally:
+            ui.close()
+            app.processEvents()
+
+    @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
+    def test_real_qt_cannot_switch_project_during_scene_inference(self):
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from PySide6.QtWidgets import QApplication
+        from ai_novel_factory.desktop.authoring_workflow import AuthoringWorkflowWidget
+        app = QApplication.instance() or QApplication([])
+        ui = AuthoringWorkflowWidget()
+        try:
+            with TemporaryDirectory() as folder:
+                first = Path(folder) / 'first.sqlite'
+                second = Path(folder) / 'second.sqlite'
+                ui._set('db', str(first))
+                ui._set('title', '첫 합성 작품')
+                ui._set('premise', '완전 가상 배경')
+                ui.buttons['create'].click()
+                app.processEvents()
+                original = ui.session.store
+                ui._set('db', str(second))
+                with patch.object(ui, 'is_generating', return_value=True):
+                    ui.buttons['open'].click()
+                    self.assertIs(ui.session.store, original)
+                    ui.buttons['create'].click()
+                    self.assertFalse(second.exists())
+                    self.assertIs(ui.session.store, original)
+                self.assertIn('장면 집필 중', ui.status.text())
+        finally:
+            ui.close()
+            app.processEvents()
+
 if __name__ == '__main__':
     unittest.main()
