@@ -1198,5 +1198,23 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             self.assertNotIn('--no-mmap', cmds[0])
             self.assertIn('--no-mmap', cmds[1])
 
+    def test_explicit_gguf_named_like_default_still_uses_approved_writer_profile(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'llama-completion.exe').touch()
+            cli = root / 'llama-cli.exe'
+            model = root / module.MODEL_NAME
+            smoke = module.build_native_command(
+                cli, model, '한국어 소설', '장면', '384',
+                bundled_fixture=True)
+            approved = module.build_native_command(
+                cli, model, '한국어 소설', '장면', '768',
+                bundled_fixture=False)
+            self.assertEqual(smoke[smoke.index('--threads') + 1], '1')
+            self.assertEqual(approved[approved.index('--threads') + 1], '4')
+            self.assertEqual(approved[approved.index('--predict') + 1], '768')
+            self.assertEqual(approved[approved.index('--repeat-penalty') + 1], '1.08')
+
 if __name__ == '__main__':
     unittest.main()

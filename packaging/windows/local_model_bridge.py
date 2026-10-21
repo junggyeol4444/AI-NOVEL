@@ -180,7 +180,8 @@ def native_script_failure_category(raw: str) -> str:
 
 def build_native_command(llama: Path, model: Path, system_prompt: str,
                          prompt: str, prediction_budget: str, *,
-                         qwen_crash_recovery: bool = False) -> list[str]:
+                         qwen_crash_recovery: bool = False,
+                         bundled_fixture: bool | None = None) -> list[str]:
     """Use noninteractive GGUF completion for all explicitly selected local models.
 
     The separate completion executable avoids llama-cli's chat shell. It
@@ -189,7 +190,8 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
     Its argument set excludes CLI-only --no-show-timings. Only verbosity 0
     keeps response tokens while hiding informational messages.
     """
-    bundled_qa = model.name == MODEL_NAME
+    bundled_qa = (model.name == MODEL_NAME
+                  if bundled_fixture is None else bundled_fixture)
     # A user's approved GGUF must not be treated as the tiny bundled
     # 135M smoke model merely because its filename is not "qwen2.5-*".
     # Model weights and author data are never changed by this selection.
@@ -235,7 +237,7 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
 def run_native_with_heap_crash_recovery(
         llama: Path, model: Path, system_prompt: str, scene_prompt: str,
         budget: str, deadline: float, env: dict[str, str], *,
-        runner=None, clock=None) -> str:
+        runner=None, clock=None, bundled_fixture: bool | None = None) -> str:
     """One bounded same-model retry after observed Windows heap corruption.
 
     No fallback model, alternate executable, weaker validation, console echo,
@@ -253,11 +255,12 @@ def run_native_with_heap_crash_recovery(
             text=True, encoding='utf-8', errors='replace',
             timeout=max(1, remaining), check=False)
     command = build_native_command(
-        llama, model, system_prompt, scene_prompt, budget)
+        llama, model, system_prompt, scene_prompt, budget,
+        bundled_fixture=bundled_fixture)
     proc = call(command)
-    qwen = (model.suffix.lower() == '.gguf'
-            and model.name != MODEL_NAME)
-    bundled = (model.name == MODEL_NAME)
+    bundled = (model.name == MODEL_NAME
+               if bundled_fixture is None else bundled_fixture)
+    qwen = (model.suffix.lower() == '.gguf' and not bundled)
     # Real Windows 2022 repeat-GGUF test 39526404872 found the very same
     # pinned runtime heap exit even with the bundled 135M model. Both
     # approved models may retry ONCE with no mmap, never swap weights.
@@ -266,7 +269,7 @@ def run_native_with_heap_crash_recovery(
             and deadline - clock() >= 30):
         safe_command = build_native_command(
             llama, model, system_prompt, scene_prompt, budget,
-            qwen_crash_recovery=True)
+            qwen_crash_recovery=True, bundled_fixture=bundled_fixture)
         proc = call(safe_command)
     if proc.returncode != 0:
         # Numeric exit only; never log model output, private prompt or stderr.
@@ -721,7 +724,10 @@ def main(argv=None) -> int:
         # user's chosen novel-writing model. Every explicitly selected GGUF
         # gets the SAME longer real-writing CPU deadline and continuation
         # logic, independent of brand or filename. No new default GGUF.
-        is_bundled_qa_model = model.name == MODEL_NAME
+        # Only the packaged DEFAULT is a smoke fixture. A model explicitly
+        # chosen by the author remains their selected writing model even if
+        # its filename happens to match the fixture basename.
+        is_bundled_qa_model = (not args and model.name == MODEL_NAME)
         is_selected_longform_model = not is_bundled_qa_model
         prediction_budget = '384' if is_bundled_qa_model else '768'
         native_timeout = (
@@ -741,7 +747,8 @@ def main(argv=None) -> int:
             return run_native_with_heap_crash_recovery(
                 llama, model, system_prompt, scene_prompt,
                 budget_override if budget_override is not None else prediction_budget,
-                bounded_deadline, env)
+                bounded_deadline, env,
+                bundled_fixture=is_bundled_qa_model)
         stage = 'native_inference'
         try:
             raw_draft = invoke_native(prompt, deadline - time.monotonic())

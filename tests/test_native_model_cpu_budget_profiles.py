@@ -8,7 +8,7 @@ SOURCE = (Path(__file__).resolve().parents[1] / 'packaging/windows/local_model_b
 class NativeProfileBudgetTests(unittest.TestCase):
     def test_smoke_and_korean_profiles_have_distinct_bounded_timeouts(self):
         self.assertIn("prediction_budget = '384' if is_bundled_qa_model else '768'", SOURCE)
-        self.assertIn("prediction_budget = '768'", SOURCE)
+        self.assertIn("prediction_budget = '384' if is_bundled_qa_model else '768'", SOURCE)
         self.assertIn("is_selected_longform_model = not is_bundled_qa_model", SOURCE)
         self.assertIn("if is_bundled_qa_model else 1400", SOURCE)
         self.assertIn('bundled_timeout_seconds(arm64_host=windows_native_arm64())', SOURCE)
