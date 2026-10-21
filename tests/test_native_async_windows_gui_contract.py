@@ -68,5 +68,22 @@ class AsyncNativeGuiSourceRegression(unittest.TestCase):
         self.assertIn('Desktop foreground is not our app', s)
         self.assertNotIn('Stop-Process -Name WWAHost', s)
 
+    def test_windows_runner_oobe_is_diagnosed_and_never_auto_approved(self):
+        script = (ROOT / 'scripts/ci_windows11_desktop.ps1').read_text(
+            encoding='utf-8')
+        self.assertIn('Choose privacy settings for your device', script)
+        self.assertIn('HostSetupPrivacyOobe', script)
+        self.assertIn('HOST_OOBE_PRIVACY_BLOCKED', script)
+        self.assertIn('if ($front -ne $hwnd)', script)
+        self.assertNotIn('Stop-Process -Name WWAHost', script)
+
+    def test_portable_real_gui_reports_sanitized_native_failure_code(self):
+        source = (ROOT / 'src/ai_novel_factory/desktop/ci_portable_gui.py').read_text(
+            encoding='utf-8')
+        self.assertIn("report['generation_failure_code']", source)
+        self.assertIn('allowed_failure_codes', source)
+        self.assertNotIn("report['failed_model_text']", source)
+        self.assertIn("ui.status.accessibleName()", source)
+
 if __name__ == '__main__':
     unittest.main()

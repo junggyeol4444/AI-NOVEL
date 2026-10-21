@@ -428,6 +428,32 @@ public static class ANFWin32 {
     $frontName = if ($frontProcess) { $frontProcess.ProcessName } else { 'unavailable' }
     Write-Host ("ForegroundBlockerProcess={0}; ForegroundBlockerPid={1}" -f $frontName, $frontPid)
   }
+  # A GitHub-hosted Windows 11 ARM runner can boot to Microsoft's OOBE
+  # privacy page in WWAHost. Record an exact host blocker without touching
+  # privacy choices, killing OS processes, or treating an HWND-only image
+  # as actual desktop foreground acceptance.
+  $hostOobePrivacy = $false
+  if ($front -ne $hwnd -and $front -ne [IntPtr]::Zero) {
+    try {
+      $foregroundRoot = [System.Windows.Automation.AutomationElement]::FromHandle($front)
+      if ($null -ne $foregroundRoot) {
+        $oobeTitle = 'Choose privacy settings for your device'
+        if ($foregroundRoot.Current.Name -eq $oobeTitle) {
+          $hostOobePrivacy = $true
+        } else {
+          $oobeCondition = [System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            $oobeTitle)
+          $hostOobePrivacy = $null -ne $foregroundRoot.FindFirst(
+            [System.Windows.Automation.TreeScope]::Descendants, $oobeCondition)
+        }
+      }
+    } catch {
+      # A locked host desktop might not expose UIAutomation; fail closed.
+      Write-Host 'HostSetupPrivacyUiAutomationUnavailable=True'
+    }
+  }
+  Write-Host ("HostSetupPrivacyOobe={0}" -f $hostOobePrivacy)
   $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
   if ($bounds.Width -lt 800 -or $bounds.Height -lt 600) { throw 'No usable interactive display' }
   $bitmap = [System.Drawing.Bitmap]::new($bounds.Width, $bounds.Height)
@@ -440,6 +466,9 @@ public static class ANFWin32 {
                  [System.Drawing.Imaging.ImageFormat]::Png)
   } finally { $bitmap.Dispose() }
   if ($front -ne $hwnd) {
+    if ($hostOobePrivacy) {
+      throw 'HOST_OOBE_PRIVACY_BLOCKED: Windows runner privacy screen is foreground. Qt captured but physical user E2E is NOT_VERIFIED.'
+    }
     throw 'Desktop foreground is not our app (possibly Windows 11 first-run privacy dialog). Qt screenshot exists but physical desktop UX is UNVERIFIED.'
   }
   Write-Host 'PASS: Windows 11 desktop foreground shows Qt EXE, 12 native UIA selections and native HWND screenshot.'

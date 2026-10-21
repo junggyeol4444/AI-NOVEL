@@ -159,7 +159,8 @@ def native_script_failure_category(raw: str) -> str:
 
 
 def build_native_command(llama: Path, model: Path, system_prompt: str,
-                         prompt: str, prediction_budget: str) -> list[str]:
+                         prompt: str, prediction_budget: str, *,
+                         qwen_crash_recovery: bool = False) -> list[str]:
     """Use the bundled completion executable for the existing Qwen QA model.
 
     The separate completion executable avoids llama-cli's chat shell. It
@@ -171,7 +172,10 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
     qwen = model.name.lower().startswith('qwen2.5-') and model.suffix.lower() == '.gguf'
     # The Windows 2022/11 native 48-token diagnostic verified four Qwen CPU
     # threads are faster than one. Preserve the bundled 135M smoke path.
-    threads = '4' if qwen else '1'
+    # The same pinned Qwen GGUF occasionally exits with Windows heap
+    # corruption (0xC0000374). A single-thread attempt is only made after
+    # that precise native crash; the normal four-thread path is unchanged.
+    threads = '1' if qwen_crash_recovery else ('4' if qwen else '1')
     common = [
         '--model', str(model), '--predict', prediction_budget,
         '--ctx-size', '4096', '--threads', threads, '--threads-batch', threads,
@@ -202,6 +206,47 @@ def build_native_command(llama: Path, model: Path, system_prompt: str,
     return [str(llama), *common, '--log-disable', '--no-show-timings',
             '--system-prompt', system_prompt, '--prompt', prompt,
             '--single-turn']
+
+
+
+def run_native_with_heap_crash_recovery(
+        llama: Path, model: Path, system_prompt: str, scene_prompt: str,
+        budget: str, deadline: float, env: dict[str, str], *,
+        runner=None, clock=None) -> str:
+    """One bounded same-model retry after observed Windows heap corruption.
+
+    No fallback model, alternate executable, weaker validation, console echo,
+    or artificial manuscript. A retry is not a PASS and the caller still
+    applies the original strict Korean prose validator.
+    """
+    runner = subprocess.run if runner is None else runner
+    clock = time.monotonic if clock is None else clock
+    def call(command):
+        remaining = deadline - clock()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(command, 0)
+        return runner(
+            command, cwd=llama.parent, env=env, capture_output=True,
+            text=True, encoding='utf-8', errors='replace',
+            timeout=max(1, remaining), check=False)
+    command = build_native_command(
+        llama, model, system_prompt, scene_prompt, budget)
+    proc = call(command)
+    qwen = (model.suffix.lower() == '.gguf'
+            and model.name.lower().startswith('qwen2.5-'))
+    # 0xC0000374 is STATUS_HEAP_CORRUPTION in Windows process exit codes.
+    # Python may report the unsigned code or its signed representation.
+    if (qwen and proc.returncode in (3221226356, -1073740940)
+            and deadline - clock() >= 30):
+        safe_command = build_native_command(
+            llama, model, system_prompt, scene_prompt, budget,
+            qwen_crash_recovery=True)
+        proc = call(safe_command)
+    if proc.returncode != 0:
+        # Numeric exit only; never log model output, private prompt or stderr.
+        print('LLAMA_NATIVE_EXIT=' + str(proc.returncode), file=sys.stderr)
+        raise ValueError('model process failed')
+    return proc.stdout
 
 
 def repeats_existing_passage(addition: str, manuscript: str) -> bool:
@@ -606,18 +651,13 @@ def main(argv=None) -> int:
         deadline = time.monotonic() + native_timeout
         def invoke_native(scene_prompt: str, timeout: float,
                           budget_override: str | None = None) -> str:
-            live_command = build_native_command(
+            # Every attempt shares the existing scene deadline. Qwen's
+            # heap-corruption-only recovery reuses these EXACT model weights.
+            bounded_deadline = min(deadline, time.monotonic() + max(1, timeout))
+            return run_native_with_heap_crash_recovery(
                 llama, model, system_prompt, scene_prompt,
-                budget_override if budget_override is not None else prediction_budget)
-            proc = subprocess.run(live_command, cwd=llama.parent, env=env,
-                                  capture_output=True, text=True, encoding='utf-8',
-                                  errors='replace', timeout=max(1, timeout),
-                                  check=False)
-            if proc.returncode != 0:
-                # Numeric exit only; never reveal user text or native stderr.
-                print('LLAMA_NATIVE_EXIT=' + str(proc.returncode), file=sys.stderr)
-                raise ValueError('model process failed')
-            return proc.stdout
+                budget_override if budget_override is not None else prediction_budget,
+                bounded_deadline, env)
         stage = 'native_inference'
         try:
             raw_draft = invoke_native(prompt, deadline - time.monotonic())

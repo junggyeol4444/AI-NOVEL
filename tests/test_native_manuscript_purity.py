@@ -855,5 +855,53 @@ class NativeManuscriptPurityTests(unittest.TestCase):
         self.assertIn('작가가 정한 가상 서고의 사건', calls[0][0])
         self.assertNotIn('translate', calls[0][0].lower())
 
+    def test_heap_corruption_retries_same_qwen_gguf_single_thread_once(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as td:
+            parent = Path(td)
+            (parent / 'llama-completion.exe').touch()
+            llama = parent / 'llama-cli.exe'
+            model = parent / 'qwen2.5-1.5b-instruct-q4_k_m.gguf'
+            calls = []
+            def runner(command, **kwargs):
+                calls.append((command, kwargs))
+                if len(calls) == 1:
+                    return subprocess.CompletedProcess(command, 3221226356, '', '')
+                return subprocess.CompletedProcess(
+                    command, 0, '조사자는 도서관에서 증거를 찾았다.', '')
+            result = module.run_native_with_heap_crash_recovery(
+                llama, model, '한국어 작가', '서가의 실종 사건', '128', 500,
+                {}, runner=runner, clock=lambda: 0)
+            self.assertIn('도서관', result)
+            self.assertEqual(len(calls), 2)
+            first, second = calls[0][0], calls[1][0]
+            self.assertEqual(first[first.index('--threads') + 1], '4')
+            self.assertEqual(second[second.index('--threads') + 1], '1')
+            self.assertEqual(first[first.index('--model') + 1],
+                             second[second.index('--model') + 1])
+            self.assertEqual(first[first.index('--prompt') + 1],
+                             second[second.index('--prompt') + 1])
+            self.assertEqual(second[second.index('--threads-batch') + 1], '1')
+
+    def test_qwen_noncrash_failure_and_other_model_do_not_retry(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            (root / 'llama-completion.exe').touch()
+            llama = root / 'llama-cli.exe'
+            qwen = root / 'qwen2.5-1.5b-instruct-q4_k_m.gguf'
+            smol = root / 'SmolLM2-135M-Instruct-Q4_K_M.gguf'
+            for model, exit_code in ((qwen, 1), (smol, 3221226356)):
+                calls = []
+                def runner(command, **kwargs):
+                    calls.append(command)
+                    return subprocess.CompletedProcess(command, exit_code, '', '')
+                with self.subTest(model=model.name), self.assertRaisesRegex(
+                        ValueError, 'model process failed'):
+                    module.run_native_with_heap_crash_recovery(
+                        llama, model, '작가', '장면', '128', 500, {},
+                        runner=runner, clock=lambda: 0)
+                self.assertEqual(len(calls), 1)
+
 if __name__ == '__main__':
     unittest.main()

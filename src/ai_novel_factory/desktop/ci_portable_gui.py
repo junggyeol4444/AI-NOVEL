@@ -93,6 +93,20 @@ def run(out: str) -> int:
         app.processEvents()
         check('real_gguf_worker_completed_off_gui_thread', not ui.is_generating())
         draft = ui._text('draft')
+        # Only stable failure categories and booleans; never upload model
+        # prose, scene prompts, private filenames or user preferences.
+        accessible = ui.status.accessibleName()
+        allowed_failure_codes = (
+            'native_timeout', 'native_inference_failure',
+            'native_process_crash', 'native_output_rejected',
+            'native_no_hangul', 'native_non_korean_script',
+            'native_prompt_echo', 'LocalModelError', 'UnknownError')
+        report['generation_failure_code'] = next(
+            (code for code in allowed_failure_codes
+             if accessible == '로컬 AI 생성 실패 ' + code), 'NONE')
+        report['generated_nonempty_draft'] = bool(draft.strip())
+        report['pending_matches_visible_draft'] = bool(
+            draft.strip() and ui.session.pending_draft == draft)
         check('real_bundled_gguf_model_generated_prose_via_gui',
               bool(draft.strip())
               and ui.session.pending_draft == draft
