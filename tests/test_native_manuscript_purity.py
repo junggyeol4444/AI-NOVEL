@@ -1216,5 +1216,50 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             self.assertEqual(approved[approved.index('--predict') + 1], '768')
             self.assertEqual(approved[approved.index('--repeat-penalty') + 1], '1.08')
 
+    def test_access_violation_recovery_uses_same_selected_gguf_once(self):
+        # An actual Windows native crash may use signed NTSTATUS.
+        # This is a process-control fixture, not a fake literary PASS.
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as td:
+            folder = Path(td)
+            (folder / 'llama-completion.exe').touch()
+            cli = folder / 'llama-cli.exe'
+            gguf = folder / 'Korean-local-author-model.gguf'
+            commands = []
+            def run_native(command, **kwargs):
+                commands.append(command)
+                status = -1073741819 if len(commands) == 1 else 0
+                return subprocess.CompletedProcess(
+                    command, status,
+                    '사서는 낡은 서류를 열고 조사자에게 새로운 사실을 밝혔다.' if status == 0 else '',
+                    '')
+            out = module.run_native_with_heap_crash_recovery(
+                cli, gguf, '한국어 소설을 쓴다', '사서가 기록을 살핀다',
+                '768', 120, {}, runner=run_native, clock=lambda: 0,
+                bundled_fixture=False)
+            self.assertIn('새로운 사실', out)
+            self.assertEqual(len(commands), 2)
+            self.assertEqual(commands[0][commands[0].index('--model') + 1],
+                             commands[1][commands[1].index('--model') + 1])
+            self.assertNotIn('--no-mmap', commands[0])
+            self.assertIn('--no-mmap', commands[1])
+            self.assertEqual(commands[1][commands[1].index('--threads') + 1], '1')
+
+    def test_access_violation_second_crash_remains_hard_failure(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as td:
+            folder = Path(td)
+            (folder / 'llama-completion.exe').touch()
+            commands = []
+            def crash(command, **kwargs):
+                commands.append(command)
+                return subprocess.CompletedProcess(command, 3221225477, '', '')
+            with self.assertRaisesRegex(ValueError, 'model process failed'):
+                module.run_native_with_heap_crash_recovery(
+                    folder / 'llama-cli.exe', folder / 'author-chosen.gguf',
+                    '한국어 소설', '장면', '768', 100, {}, runner=crash,
+                    clock=lambda: 0, bundled_fixture=False)
+            self.assertEqual(len(commands), 2)
+
 if __name__ == '__main__':
     unittest.main()

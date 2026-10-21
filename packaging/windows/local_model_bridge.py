@@ -238,7 +238,7 @@ def run_native_with_heap_crash_recovery(
         llama: Path, model: Path, system_prompt: str, scene_prompt: str,
         budget: str, deadline: float, env: dict[str, str], *,
         runner=None, clock=None, bundled_fixture: bool | None = None) -> str:
-    """One bounded same-model retry after observed Windows heap corruption.
+    """One bounded same-model retry after Windows heap/access violation.
 
     No fallback model, alternate executable, weaker validation, console echo,
     or artificial manuscript. A retry is not a PASS and the caller still
@@ -264,8 +264,17 @@ def run_native_with_heap_crash_recovery(
     # Real Windows 2022 repeat-GGUF test 39526404872 found the very same
     # pinned runtime heap exit even with the bundled 135M model. Both
     # approved models may retry ONCE with no mmap, never swap weights.
-    # 0xC0000374 is STATUS_HEAP_CORRUPTION. Signed and unsigned handled.
-    if ((qwen or bundled) and proc.returncode in (3221226356, -1073740940)
+    # Windows native GGUF runtimes can also raise STATUS_ACCESS_VIOLATION
+    # (0xC0000005), independent of model brand. On exactly these two
+    # observed native-crash classes, run ONE last attempt using the same
+    # executable/weights and --no-mmap / one CPU thread. Never retry
+    # arbitrary nonzero exits or weaken Korean/literary validation.
+    # Windows may report these NTSTATUS values as signed or unsigned.
+    retryable_crash = proc.returncode in (
+        3221226356, -1073740940,  # STATUS_HEAP_CORRUPTION
+        3221225477, -1073741819,  # STATUS_ACCESS_VIOLATION
+    )
+    if ((qwen or bundled) and retryable_crash
             and deadline - clock() >= 30):
         safe_command = build_native_command(
             llama, model, system_prompt, scene_prompt, budget,
