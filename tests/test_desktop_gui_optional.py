@@ -115,6 +115,7 @@ class ModelApprovalGuiTests(unittest.TestCase):
                 (root / 'runtime' / 'llama-cli.exe').touch()
                 gguf = root / '작가 승인 모델 with spaces.gguf'
                 with gguf.open('wb') as stream:
+                    stream.write(b'GGUF' + (3).to_bytes(4, 'little'))
                     stream.truncate(8_000_001)
                 with patch.object(sys, 'frozen', True, create=True), patch.object(
                         sys, 'executable', str(root / 'AI_Novel_Factory.exe')), patch.object(
@@ -130,6 +131,36 @@ class ModelApprovalGuiTests(unittest.TestCase):
             ui.close()
             app.processEvents()
 
+
+    @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'PySide6 not installed')
+    def test_gui_rejects_renamed_non_gguf_before_model_approval(self):
+        os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from PySide6.QtWidgets import QApplication, QFileDialog
+        from ai_novel_factory.desktop.authoring_workflow import AuthoringWorkflowWidget
+        app = QApplication.instance() or QApplication([])
+        ui = AuthoringWorkflowWidget()
+        try:
+            with TemporaryDirectory() as folder:
+                root = Path(folder)
+                (root / 'runtime').mkdir()
+                (root / 'ANF_Local_Model.exe').touch()
+                (root / 'runtime' / 'llama-cli.exe').touch()
+                fake = root / 'broken-custom-model.gguf'
+                with fake.open('wb') as stream:
+                    stream.write(b'NOT!' + (3).to_bytes(4, 'little'))
+                    stream.truncate(8_000_001)
+                with patch.object(sys, 'frozen', True, create=True), patch.object(
+                        sys, 'executable', str(root / 'AI_Novel_Factory.exe')), patch.object(
+                        QFileDialog, 'getOpenFileName', return_value=(str(fake), '')):
+                    ui._choose_gguf_model()
+                self.assertNotIn(str(fake), ui._text('arguments'))
+                self.assertFalse(ui.approved.isChecked())
+                self.assertIn('헤더가 올바르지', ui.status.text())
+        finally:
+            ui.close()
+            app.processEvents()
 
 if __name__ == '__main__':
     unittest.main()

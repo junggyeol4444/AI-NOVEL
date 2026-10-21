@@ -1261,5 +1261,26 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                     clock=lambda: 0, bundled_fixture=False)
             self.assertEqual(len(commands), 2)
 
+    def test_native_bridge_rejects_corrupted_selected_gguf_header_before_runtime(self):
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as td:
+            base = Path(td)
+            bad = base / 'broken-model.gguf'
+            with bad.open('wb') as stream:
+                stream.write(b'FAKE' + (3).to_bytes(4, 'little'))
+                stream.truncate(8_000_001)
+            # No executable launch and no user model text in status.
+            with patch.object(module, 'bundled_files',
+                              return_value=(base / 'unavailable-runtime.exe',
+                                            base / 'unavailable-default.gguf')):
+                from io import StringIO
+                from contextlib import redirect_stderr
+                stderr = StringIO()
+                with redirect_stderr(stderr):
+                    exit_code = module.main(['--gguf', str(bad)])
+                self.assertEqual(exit_code, 2)
+                self.assertIn('INVALID_LOCAL_GGUF_SELECTION', stderr.getvalue())
+                self.assertNotIn(str(bad), stderr.getvalue())
+
 if __name__ == '__main__':
     unittest.main()

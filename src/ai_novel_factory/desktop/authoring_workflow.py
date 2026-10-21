@@ -120,8 +120,16 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
                     or selected.suffix.lower() != '.gguf'
                     or not 8_000_000 <= selected.stat().st_size <= 32_000_000_000):
                 raise ValueError('model invalid')
+            # Do not enqueue a full native Windows GGUF inference for a
+            # damaged/renamed file: verify the on-disk GGUF binary header.
+            # GGUF is little-endian: magic GGUF + 32-bit format version.
+            with selected.open('rb') as stream:
+                header = stream.read(8)
+            if (len(header) != 8 or header[:4] != b'GGUF'
+                    or int.from_bytes(header[4:], 'little') not in (2, 3)):
+                raise ValueError('not GGUF')
         except (OSError, ValueError):
-            self.status.setText('GGUF 모델 경로 또는 파일 크기가 올바르지 않습니다.')
+            self.status.setText('GGUF 모델 파일의 경로·크기·헤더가 올바르지 않습니다.')
             return
         self._set('executable', str(bridge))
         # Quote paths with spaces or literal double quotes using the
