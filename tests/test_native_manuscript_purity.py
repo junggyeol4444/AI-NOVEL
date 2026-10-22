@@ -829,6 +829,8 @@ class NativeManuscriptPurityTests(unittest.TestCase):
             payload = {
                 'protocol': module.MODEL_PROTO, 'task': 'scene_draft',
                 'request': {
+                    'project_id': 'native-qa-scene',
+                    'episode_number': 1, 'scene_number': 1,
                     'novel_bible': '가상 도서관의 기록',
                     'scene_goal': '서고의 열쇠를 찾는다',
                     'scene_conflict': '열쇠가 사라졌다',
@@ -1356,7 +1358,9 @@ class NativeManuscriptPurityTests(unittest.TestCase):
                           + (8).to_bytes(8, 'little'))
                 out.truncate(8_000_001)
             (root / 'llama-completion.exe').touch()
-            request = dict(novel_bible='가상의 기록관', scene_goal='5000자 작성',
+            request = dict(project_id='native-qa-target',
+                           episode_number=1, scene_number=1,
+                           novel_bible='가상의 기록관', scene_goal='5000자 작성',
                            scene_conflict='잠긴 문', scene_location='기록관',
                            characters=['사서'], target_chars=5000)
             message = dict(protocol=module.MODEL_PROTO, task='scene_draft',
