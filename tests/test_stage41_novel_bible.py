@@ -7,6 +7,7 @@ from io import StringIO
 import json
 import os
 from pathlib import Path
+from uuid import UUID
 import sqlite3
 import tempfile
 import unittest
@@ -135,6 +136,28 @@ class BibleTests(unittest.TestCase):
     def test_project_listing(self):
         self.store.create_project("추가")
         self.assertEqual(len(self.store.list_projects()), 2)
+
+    def test_project_listing_preserves_creation_order_on_timestamp_tie(self):
+        # Windows clocks can assign identical timestamps to sequential saves.
+        # The user-visible project list must keep creation order, not random UUID order.
+        with patch("ai_novel_factory.database.novel_bible.uuid4",
+                   side_effect=(UUID("f" * 32), UUID("0" * 32))):
+            first = self.store.create_project("먼저 만든 작품")
+            second = self.store.create_project("나중에 만든 작품")
+        with closing(sqlite3.connect(self.path)) as connection:
+            with connection:
+                connection.execute(
+                    "UPDATE bible_projects SET created_at=? WHERE project_id IN (?, ?)",
+                    ("2026-10-22T00:00:00.000000+00:00",
+                     first.project_id, second.project_id))
+        listing = self.store.list_projects()
+        chosen = [item.project_id for item in listing
+                  if item.project_id in {first.project_id, second.project_id}]
+        self.assertEqual(chosen, [first.project_id, second.project_id])
+        with NovelBibleStore(self.path) as reopened:
+            chosen_after_restart = [item.project_id for item in reopened.list_projects()
+                                    if item.project_id in {first.project_id, second.project_id}]
+        self.assertEqual(chosen_after_restart, chosen)
 
     def test_rule_order_stable(self):
         self.store.save_rule(self.project.project_id, "zeta", "끝")

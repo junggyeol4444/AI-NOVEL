@@ -206,7 +206,7 @@ class NovelBibleStore:
 
     def list_projects(self) -> tuple[BibleProject, ...]:
         return tuple(_project(row) for row in self._db.execute(
-            "SELECT * FROM bible_projects ORDER BY created_at, project_id"))
+            "SELECT * FROM bible_projects ORDER BY created_at, rowid"))
 
     def delete_project(self, project_id: str) -> None:
         project_id = _id(project_id)
