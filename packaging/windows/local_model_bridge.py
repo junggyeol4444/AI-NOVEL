@@ -599,6 +599,25 @@ def enforce_actual_scene_target(draft: str, requested_target: int | None) -> str
     return draft
 
 
+def request_scene_identity(request: dict) -> dict:
+    """Bind native draft to the author's requested project and scene.
+
+    This is transport integrity metadata; it does not save or approve prose.
+    """
+    if type(request) is not dict:
+        raise ValueError('invalid scene identity')
+    project_id = request.get('project_id')
+    episode = request.get('episode_number')
+    scene = request.get('scene_number')
+    if (type(project_id) is not str or not project_id.strip()
+            or len(project_id) > 128 or chr(0) in project_id
+            or type(episode) is not int or episode < 1
+            or type(scene) is not int or scene < 1):
+        raise ValueError('invalid scene identity')
+    return {'project_id': project_id,
+            'episode_number': episode, 'scene_number': scene}
+
+
 def requested_scene_target(goal: str, request: dict) -> int | None:
     """Respect an explicit author scene target, else the saved episode share.
 
@@ -740,6 +759,7 @@ def main(argv=None) -> int:
         req = payload.get('request')
         if type(req) is not dict:
             raise ValueError('invalid request')
+        scene_identity = request_scene_identity(req)
         for key in ('novel_bible', 'scene_goal', 'scene_conflict',
                     'scene_location', 'characters'):
             if key not in req:
@@ -889,7 +909,8 @@ def main(argv=None) -> int:
         # incomplete; never report or silently persist it as success.
         stage = 'text_validation'
         draft = enforce_actual_scene_target(draft, target)
-        response = {'protocol': MODEL_PROTO, 'draft': draft}
+        response = {'protocol': MODEL_PROTO, 'draft': draft,
+                    **scene_identity}
         stage = 'json_output'
         # Windows frozen console executables may use a legacy code page even
         # though the local model returns UTF-8 Korean text. IPC is UTF-8 bytes.

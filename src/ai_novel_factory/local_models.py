@@ -229,6 +229,18 @@ class LocalExecutableProvider:
             raise LocalModelError('invalid local provider JSON') from None
         if type(response) is not dict or response.get('protocol') != PROTOCOL_VERSION:
             raise LocalModelError('incompatible local provider protocol')
+        # The native Windows bridge binds draft transport to its source scene.
+        # Older v1 providers may omit this optional metadata, but incomplete
+        # or mismatching metadata must never be accepted as the wrong scene.
+        identity_keys = ('project_id', 'episode_number', 'scene_number')
+        if any(key in response for key in identity_keys):
+            if (type(response.get('project_id')) is not str
+                    or type(response.get('episode_number')) is not int
+                    or type(response.get('scene_number')) is not int
+                    or response['project_id'] != request.project_id
+                    or response['episode_number'] != request.episode_number
+                    or response['scene_number'] != request.scene_number):
+                raise LocalModelError('local provider scene identity mismatch')
         return _clean(response.get('draft'), label='draft', maximum=MAX_DRAFT_CHARS)
 
 
