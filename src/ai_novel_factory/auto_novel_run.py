@@ -43,13 +43,12 @@ class AutoNovelRunReport:
 
 def _continuity_context(canon: str, existing: dict[int, object],
                         next_episode: int) -> str:
-    """Read-only, bounded context of actual SAVED prior chapters.
+    """Preserve real stored first/last chapter events without promoting drafts.
 
-    Previously the recent-history string was placed after up to 14,000
-    characters of canon. The pinned Qwen bridge consumes only the first
-    12,000 characters of this field; a long Bible erased all recent
-    chapter continuity. Place unapproved progress first, but explicitly
-    preserve author-owned Bible supremacy. Nothing is written to SQLite.
+    This read-only history is sent to the already-approved local model.
+    Actual human-reviewed final text wins over unreviewed drafts; an AI
+    summary is a labeled fallback only if no saved prose exists. The first
+    chapter and recent 25-chapter checkpoints remain visible at chapter 250.
     """
     if next_episode <= 1:
         return canon[:20000]
@@ -59,31 +58,42 @@ def _continuity_context(canon: str, existing: dict[int, object],
         if index >= next_episode:
             continue
         episode = existing[index]
-        # Every 25th actual saved chapter is a bounded long-range reminder.
-        # These are generated plan summaries, never certified story facts.
         if (index == 1 or index % 25 == 0) and index < next_episode - 3:
+            final = getattr(episode, 'final_text', '') or ''
+            draft = getattr(episode, 'draft', '') or ''
             summary = getattr(episode, 'summary', '') or ''
-            if summary.strip():
-                checkpoints.append(f'{index}화 미확정 진행 요약: {summary[:140]}')
+            if final.strip() or draft.strip():
+                passage = final if final.strip() else draft
+                state = '검수본' if final.strip() else '미검수 초고'
+                checkpoints.append(f'{index}화 {state} 저장 본문 마지막 사건: '
+                                   + passage[-140:])
+            elif summary.strip():
+                checkpoints.append(f'{index}화 미확정 AI 요약(저장 본문 없음): '
+                                   + summary[:140])
     for index in range(max(1, next_episode - 3), next_episode):
         episode = existing.get(index)
         if episode is None:
             continue
+        final = getattr(episode, 'final_text', '') or ''
+        draft = getattr(episode, 'draft', '') or ''
         summary = getattr(episode, 'summary', '') or ''
-        original_draft = getattr(episode, 'draft', '') or ''
-        # Include the actual LAST event, not only an early model outline.
-        # Private text is passed only to the already user-approved LOCAL model.
-        if summary.strip():
-            recent.append(f'{index}화 미확정 진행 요약: {summary[:320]}')
-        if original_draft.strip():
-            recent.append(f'{index}화 실제 저장 초고 마지막 사건(미검수): '
-                          + original_draft[-500:])
-    reminders = '\n'.join(checkpoints[-12:])[-1200:]
+        if final.strip() or draft.strip():
+            passage = final if final.strip() else draft
+            state = '검수본' if final.strip() else '미검수 초고'
+            recent.append(f'{index}화 {state} 실제 저장 본문 마지막 사건: '
+                          + passage[-500:])
+        elif summary.strip():
+            recent.append(f'{index}화 미확정 AI 요약(저장 본문 없음): '
+                          + summary[:320])
+    if len(checkpoints) > 5:
+        omitted = len(checkpoints) - 5
+        checkpoints = [checkpoints[0],
+                       f'중간 장기 사건 체크포인트 {omitted}개 생략(미검증)',
+                       *checkpoints[-4:]]
+    reminders = '\n'.join(checkpoints)[-1200:]
     immediate = '\n'.join(recent)[-2600:]
-    # Even a very long Bible cannot hide the recent saved episode evidence;
-    # the author's actual Novel Bible is NEVER modified or auto-approved.
     return (
-        '최근 회차의 미확정 집필 기록 (아래 사용자의 Novel Bible 설정이 우선):\n'
+        '최근 회차의 저장 집필 기록 (미검수 초고·AI 요약은 미확정, 사용자 Novel Bible 우선):\n'
         + reminders + '\n' + immediate
         + '\n사용자가 저장한 Novel Bible 설정 (충돌 시 우선):\n' + canon
     )[:20000]
@@ -107,8 +117,38 @@ def _character_bible_context(characters: tuple[BibleCharacter, ...]) -> str:
             + (f' | 비밀 설정: {character.secret[:160]}'
                if character.secret.strip() else '')
         )
-    return ('사용자가 직접 저장한 인물 Novel Bible (미검수 AI 제안과 구분):\n'
-            + '\n'.join(details))[:6500]
+    header = '사용자가 직접 저장한 인물 Novel Bible (미검수 AI 제안과 구분):\n'
+    full = header + '\n'.join(details)
+    if len(full) <= 6500:
+        return full
+    # The former [:6500] truncated the LAST character's speech and secrets.
+    # Budget each saved character fairly; keep every name and field marker.
+    selected = characters[:8]
+    per_character = (6500 - len(header) - len(selected) + 1) // len(selected)
+    balanced = []
+    for character in selected:
+        head = '인물 ' + character.name[:100]
+        fields = [(' | 성격: ', character.personality[:200]),
+                  (' | 목표: ', character.goal[:200]),
+                  (' | 말투: ', character.speech_style[:180])]
+        if character.secret.strip():
+            fields.append((' | 비밀 설정: ', character.secret[:160]))
+        capacity = max(0, per_character - len(head) -
+                       sum(len(label) for label, _ in fields))
+        sizes = [0] * len(fields)
+        # Equal round-robin allocation prevents late fields from disappearing.
+        while capacity > 0:
+            changed = False
+            for pos, (_, value) in enumerate(fields):
+                if sizes[pos] < len(value) and capacity:
+                    sizes[pos] += 1
+                    capacity -= 1
+                    changed = True
+            if not changed:
+                break
+        balanced.append(head + ''.join(label + value[:sizes[i]]
+                                       for i, (label, value) in enumerate(fields)))
+    return (header + '\n'.join(balanced))[:6500]
 
 
 def _scene_char_targets(episode_target: int, scene_count: int) -> tuple[int, ...]:
@@ -137,6 +177,31 @@ def _scene_char_targets(episode_target: int, scene_count: int) -> tuple[int, ...
 
 
 
+def _plot_endpoints(plot: str, limit: int) -> str:
+    """Keep the start and ending of a long *unapproved* plot for model context.
+
+    This is only a temporary model excerpt. The full generated plot and any
+    author-written plot remain unchanged in SQLite and on disk.
+    """
+    marker = '\n[중간 미확정 플롯 생략]\n'
+    if type(plot) is not str or type(limit) is not int or limit <= len(marker) + 2:
+        raise AutoNovelRunError('플롯 문맥의 형식 또는 길이가 올바르지 않습니다.')
+    if len(plot) <= limit:
+        return plot
+    remaining = limit - len(marker)
+    front = remaining // 2
+    back = remaining - front
+    return plot[:front] + marker + plot[-back:]
+
+
+def _native_scene_revision_goal(target: int) -> str:
+    """Keep the real allocated scene target FIRST on the native retry path."""
+    if type(target) is not int or not 1 <= target <= 10_000:
+        raise AutoNovelRunError('장면 재작성 목표 분량이 올바르지 않습니다.')
+    return (f'목표 분량 {target}자 내외의 독창적 소설 본문을 작성. '
+            '위 장면을 설정에 맞추어 더 길고 구체적인 새로운 소설 문장으로 다시 써줘.')
+
+
 def _native_scene_generation_goal(episode: int, scene: int, total_scenes: int,
                                   outline: str, target: int) -> str:
     """Put the allocated target before untrusted model-authored plot text.
@@ -153,30 +218,34 @@ def _native_scene_generation_goal(episode: int, scene: int, total_scenes: int,
     return (
         f'목표 분량 {target}자 내외의 독창적 소설 본문을 작성. '
         f'{episode}화 {scene}/{total_scenes}장면. '
-        f'회차 플롯: {outline[:1500]}. '
+        f'회차 플롯: {_plot_endpoints(outline, 1500)}. '
         '기존 참고작의 문장·고유명사 복제 금지.'
     )
 
 
 def _cross_episode_sources(existing: dict[int, object], episode: int
                            ) -> tuple[tuple[str, ...], int, int]:
-    """Bound the checked window to 250 SAVED prior drafts, without approval.
+    """Check the actual saved final or draft of up to 250 earlier episodes.
 
-    For episodes 252..1000 the older history is explicitly unexamined.
-    Missing/empty chapters inside the window are also not silently cleared.
-    This is evidence selection only: it never changes an author's chapters.
+    Previously a human-reviewed final was ignored whenever a legacy episode
+    lacked a draft. The resulting missing-prior count could conceal prose.
+    Comparison is exact-sentence evidence only, never literary certification.
     """
     if type(episode) is not int or not 1 <= episode <= 1000:
         raise AutoNovelRunError('비교할 회차 번호가 올바르지 않습니다.')
     first_checked = max(1, episode - 250)
-    prior_drafts = tuple(
-        existing[p].draft for p in range(first_checked, episode)
-        if p in existing and existing[p].draft.strip())
-    missing_prior = sum(
-        p not in existing or not existing[p].draft.strip()
-        for p in range(first_checked, episode))
+    prior_drafts = []
+    missing_prior = 0
+    for number in range(first_checked, episode):
+        item = existing.get(number)
+        final = (getattr(item, 'final_text', '') or '') if item else ''
+        draft = (getattr(item, 'draft', '') or '') if item else ''
+        if final.strip() or draft.strip():
+            prior_drafts.append(final if final.strip() else draft)
+        else:
+            missing_prior += 1
     older_unexamined = first_checked - 1
-    return prior_drafts, missing_prior, older_unexamined
+    return tuple(prior_drafts), missing_prior, older_unexamined
 
 
 def _scene_generation_context(context: str, outline: str,
@@ -190,7 +259,7 @@ def _scene_generation_context(context: str, outline: str,
     if not all(type(value) is str
                for value in (context, outline, preceding_scene)):
         raise AutoNovelRunError('장면 연결 문맥 형식이 올바르지 않습니다.')
-    lead = '이번 회차의 미확정 플롯:\n' + outline[:1200] + '\n'
+    lead = '이번 회차의 미확정 플롯:\n' + _plot_endpoints(outline, 1200) + '\n'
     if preceding_scene.strip():
         lead += ('바로 앞 장면의 실제 초고(미검수):\n'
                  + preceding_scene[-1200:] + '\n')
@@ -213,6 +282,44 @@ def _scene_revision_context(scene_context: str, rejected_scene: str) -> str:
         raise AutoNovelRunError('장면 재작성 문맥 형식이 올바르지 않습니다.')
     return ('재작성할 미검수 초고:\n' + rejected_scene[-1800:] + '\n'
             + scene_context)[:12000]
+
+
+def _existing_episode_needs_review(episode: object, *,
+                                   scenes: tuple[object, ...],
+                                   checks: tuple[object, ...]) -> bool:
+    """Treat a saved human-reviewed final as prose even if its draft is empty.
+
+    Presence of evidence is not a claim that any quality gate has passed.
+    Existing records are never changed or automatically approved.
+    """
+    draft = getattr(episode, 'draft', '') or ''
+    final = getattr(episode, 'final_text', '') or ''
+    return not (draft.strip() or final.strip()) or not scenes or not checks
+
+
+def _auto_author_source_stamp(store, database_path, project_id, before_episode):
+    """Read-only check for author edits across a long local-model call.
+
+    Rules and character facts include revisions; saved earlier episode
+    revisions include scene/final edits. The snapshot is local, never logged,
+    sent to an external API, stored, or promoted to literary approval.
+    """
+    rule_state = tuple(sorted(
+        (item.key, item.value, item.revision)
+        for item in store.list_rules(project_id)))
+    with CharacterStore(database_path) as book:
+        character_state = tuple(
+            (item.character_id, item.revision, item.name, item.personality,
+             item.goal, item.speech_style, item.secret)
+            for item in book.list_characters(project_id))
+    previous_state = tuple(sorted(
+        (item.episode, item.revision)
+        for item in store.list_episodes(project_id)
+        if item.episode < before_episode))
+    # Project title changes do not necessarily appear in Bible rule revisions.
+    # Never include project.revision here: legitimate chapter saves bump it.
+    project_title = store.get_project(project_id).title
+    return (project_title, rule_state), character_state, previous_state
 
 
 def run_auto_novel(
@@ -328,6 +435,7 @@ def run_auto_novel(
             canon = (canon + '\n전체 스토리 AI 계획 초안(미확정·검수 전): '
                      + story_preview[:3500])[:19000]
 
+        expected_author_state = None
         for n in range(1, through_episode + 1):
             if n in existing:
                 # Never overwrite user-owned episodes or earlier batch data.
@@ -335,15 +443,26 @@ def run_auto_novel(
                 # make them visible as requiring review instead of treating
                 # the chapter as a completed long-form generation.
                 skipped.append(n)
-                if (not existing[n].draft.strip()
-                        or not db.list_scenes(project_id, n)
-                        or not db.list_checks(project_id, n)):
+                if _existing_episode_needs_review(
+                        existing[n], scenes=db.list_scenes(project_id, n),
+                        checks=db.list_checks(project_id, n)):
                     review.append(n)
                     emit(n, '기존 미완료 회차: 사용자 검토 필요, 덮어쓰기 없음')
                 continue
             if should_stop is not None and should_stop():
                 stopped = True
                 break
+            # The author can edit the Bible or an earlier chapter while a
+            # long-running model is active. Never silently continue against
+            # the old snapshot into another episode.
+            with EpisodeStore(database_path) as current_source:
+                started_source_state = _auto_author_source_stamp(
+                    current_source, database_path, project_id, n)
+            if expected_author_state is None:
+                expected_author_state = started_source_state[:2]
+            elif started_source_state[:2] != expected_author_state:
+                raise AutoNovelRunError(
+                    '작가가 저장한 설정/인물이 변경되어 자동 집필을 중단했습니다.')
             plan = plans[n]
             arc = by_arc[plan.arc_number]
             slots = plan_scenes(plan, scenes_per_episode)
@@ -387,7 +506,7 @@ def run_auto_novel(
                         revised = model(
                             n, slot.scene_number,
                             _scene_revision_context(scene_context, scene),
-                            '위 장면을 설정에 맞추어 더 길고 구체적인 새로운 소설 문장으로 다시 써줘.',
+                            _native_scene_revision_goal(per_scene),
                             '반복 표현을 줄이고 사건·동기·행동을 구체화',
                             f'{genre} 작품의 장면',
                             allocated_scene_chars=per_scene)
@@ -468,7 +587,18 @@ def run_auto_novel(
             # app stopped between create_episode and add_check. One SQLite
             # transaction now inserts the draft, scenes and all QC records.
             # The database uniqueness constraint protects concurrent editors.
+            # Recheck cancellation AFTER slow generation and QC. An explicit
+            # stop before persistence must not create one more chapter.
+            if should_stop is not None and should_stop():
+                stopped = True
+                break
             with EpisodeStore(database_path) as safe:
+                if (_auto_author_source_stamp(
+                        safe, database_path, project_id, n)
+                        != started_source_state):
+                    raise AutoNovelRunError(
+                        '집필 중 Novel Bible 또는 이전 저장 회차가 변경되어 '
+                        '오래된 AI 결과를 저장하지 않았습니다.')
                 current = safe.create_unapproved_batch_episode(
                     project_id, n, plot=outline,
                     draft=full_draft,

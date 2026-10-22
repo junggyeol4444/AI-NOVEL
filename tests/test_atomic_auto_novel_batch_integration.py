@@ -20,6 +20,148 @@ WORKFLOW = ROOT / 'src/ai_novel_factory/desktop/authoring_workflow.py'
 
 
 class AtomicBatchEpisodeRegression(unittest.TestCase):
+    def test_real_stored_250_episode_checkpoints_preserve_first_and_latest(self):
+        from types import SimpleNamespace
+        from ai_novel_factory.auto_novel_run import _continuity_context
+        source = {n: SimpleNamespace(draft=f'{n}화 원본 사건 완료',
+                                      final_text='', summary='잘못된 AI 요약')
+                  for n in range(1, 250)}
+        source[1] = SimpleNamespace(draft='1화 원고 속 첫 번째 열쇠',
+                                    final_text='', summary='가짜 요약')
+        context = _continuity_context('작가 설정의 핵심', source, 250)
+        self.assertIn('1화 원고 속 첫 번째 열쇠', context)
+        self.assertIn('225화 미검수 초고 저장 본문 마지막 사건', context)
+        self.assertIn('중간 장기 사건 체크포인트', context)
+        self.assertNotIn('1화 미확정 AI 요약', context)
+        self.assertIn('작가 설정의 핵심', context)
+        self.assertEqual(source[1].summary, '가짜 요약')
+
+    def test_recent_reviewed_final_and_legacy_final_only_used_for_crosscheck(self):
+        from types import SimpleNamespace
+        from ai_novel_factory.auto_novel_run import (_continuity_context,
+                                                      _cross_episode_sources)
+        existing = {
+            1: SimpleNamespace(draft='', final_text='검수본에서 문이 열렸다', summary=''),
+            2: SimpleNamespace(draft='미검수 초안에서 문이 닫혔다',
+                               final_text='검수본에서 문이 열렸고 발걸음이 이어졌다',
+                               summary='낡은 요약'),
+        }
+        context = _continuity_context('작가 원칙', existing, 3)
+        self.assertIn('검수본에서 문이 열렸다', context)
+        self.assertIn('검수본에서 문이 열렸고 발걸음이 이어졌다', context)
+        self.assertNotIn('미검수 초안에서 문이 닫혔다', context)
+        text, missing, older = _cross_episode_sources(existing, 3)
+        self.assertEqual(text, (existing[1].final_text, existing[2].final_text))
+        self.assertEqual((missing, older), (0, 0))
+
+    def test_auto_source_stamp_detects_rule_character_and_prior_episode_edits(self):
+        from ai_novel_factory.auto_novel_run import _auto_author_source_stamp
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        class FakeCharacters:
+            def __init__(self, path): self.path = path
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def list_characters(self, pid): return tuple(characters)
+        class FakeEpisodes:
+            def get_project(self, pid): return SimpleNamespace(title='검증용 작품')
+            def list_rules(self, pid): return tuple(rules)
+            def list_episodes(self, pid): return tuple(chapters)
+        rules = [SimpleNamespace(key='genre', value='판타지', revision=1)]
+        characters = [SimpleNamespace(character_id='abc',name='주인공', personality='신중함', goal='목표',speech_style='말투',secret='',revision=1)]
+        chapters = [SimpleNamespace(episode=1, revision=1),
+                    SimpleNamespace(episode=250, revision=1)]
+        with patch('ai_novel_factory.auto_novel_run.CharacterStore', FakeCharacters):
+            before = _auto_author_source_stamp(FakeEpisodes(), 'local.sqlite', 'book', 250)
+            self.assertEqual(before, _auto_author_source_stamp(FakeEpisodes(), 'local.sqlite', 'book', 250))
+            chapters[0].revision = 2
+            self.assertNotEqual(before, _auto_author_source_stamp(FakeEpisodes(), 'local.sqlite', 'book', 250))
+            chapters[0].revision = 1
+            characters[0].personality = '적극적'
+            self.assertNotEqual(before, _auto_author_source_stamp(FakeEpisodes(), 'local.sqlite', 'book', 250))
+            characters[0].personality = '신중함'
+            rules[0].revision = 2
+            self.assertNotEqual(before, _auto_author_source_stamp(FakeEpisodes(), 'local.sqlite', 'book', 250))
+            self.assertEqual(before[2], ((1, 1),))
+
+    def test_auto_source_stamp_never_mutates_author_records(self):
+        from ai_novel_factory.auto_novel_run import _auto_author_source_stamp
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        class FakeCharacters:
+            def __init__(self, path): pass
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def list_characters(self, pid): return (character,)
+        class FakeEpisodes:
+            def get_project(self, pid): return SimpleNamespace(title='검증용 작품')
+            def list_rules(self, pid): return (rule,)
+            def list_episodes(self, pid): return (episode,)
+        character = SimpleNamespace(character_id='abc',name='인물', personality='성격', goal='목표',speech_style='말투',secret='',revision=1)
+        rule = SimpleNamespace(key='mood', value='차분함', revision=1)
+        episode = SimpleNamespace(episode=1, revision=12)
+        with patch('ai_novel_factory.auto_novel_run.CharacterStore', FakeCharacters):
+            stamp = _auto_author_source_stamp(FakeEpisodes(), 'local.sqlite', 'book', 2)
+        self.assertEqual(stamp[2], ((1, 12),))
+        self.assertEqual((character.name, rule.value, episode.revision), ('인물', '차분함', 12))
+
+    def test_auto_batch_rechecks_stop_and_snapshot_before_sqlite_write(self):
+        from pathlib import Path
+        source = Path(__file__).parents[1] / 'src/ai_novel_factory/auto_novel_run.py'
+        code = source.read_text(encoding='utf-8')
+        write = code.index('current = safe.create_unapproved_batch_episode(')
+        stop = code.rfind('if should_stop is not None and should_stop():', 0, write)
+        compare = code.rfind('started_source_state', 0, write)
+        self.assertGreater(stop, 0)
+        self.assertGreater(compare, stop)
+        self.assertLess(compare, write)
+
+    def test_long_episode_plot_preserves_early_clue_and_late_resolution(self):
+        from ai_novel_factory.auto_novel_run import (
+            _plot_endpoints, _native_scene_generation_goal,
+            _scene_generation_context)
+        original = '첫 장면의 복선은 푸른 열쇠다. ' + '중간 전개' * 2000 + ' 마지막 결말은 문을 잠근다.'
+        before = original
+        excerpt = _plot_endpoints(original, 1200)
+        self.assertEqual(len(excerpt), 1200)
+        self.assertIn('푸른 열쇠', excerpt)
+        self.assertIn('문을 잠근다', excerpt)
+        self.assertIn('중간 미확정 플롯 생략', excerpt)
+        goal = _native_scene_generation_goal(250, 2, 3, original, 1667)
+        self.assertTrue(goal.startswith('목표 분량 1667자'))
+        self.assertIn('푸른 열쇠', goal)
+        self.assertIn('문을 잠근다', goal)
+        context = _scene_generation_context('작가 저장 원칙', original, '앞 장면 원고')
+        self.assertLessEqual(len(context), 12000)
+        self.assertIn('푸른 열쇠', context)
+        self.assertIn('문을 잠근다', context)
+        self.assertIn('앞 장면 원고', context)
+        self.assertEqual(original, before)
+
+    def test_revision_goal_preserves_scene_allocation_on_retry(self):
+        from ai_novel_factory.auto_novel_run import _native_scene_revision_goal
+        self.assertTrue(_native_scene_revision_goal(1667).startswith('목표 분량 1667자'))
+        self.assertTrue(_native_scene_revision_goal(1666).startswith('목표 분량 1666자'))
+        with self.assertRaises(ValueError):
+            _native_scene_revision_goal(10001)
+        self.assertIn('_native_scene_revision_goal(per_scene)',
+                      BATCH.read_text(encoding='utf-8'))
+
+    def test_existing_reviewed_final_only_is_not_misclassified_as_empty(self):
+        from types import SimpleNamespace
+        from ai_novel_factory.auto_novel_run import _existing_episode_needs_review
+        reviewed = SimpleNamespace(draft='', final_text='작가가 검수한 원고')
+        self.assertFalse(_existing_episode_needs_review(
+            reviewed, scenes=(object(),), checks=(object(),)))
+        self.assertTrue(_existing_episode_needs_review(
+            reviewed, scenes=(), checks=(object(),)))
+        self.assertTrue(_existing_episode_needs_review(
+            reviewed, scenes=(object(),), checks=()))
+        empty = SimpleNamespace(draft='', final_text='')
+        self.assertTrue(_existing_episode_needs_review(
+            empty, scenes=(object(),), checks=(object(),)))
+        self.assertEqual(reviewed.final_text, '작가가 검수한 원고')
+
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)

@@ -253,9 +253,13 @@ def _sentence_matches(manuscript: str, references: tuple[ReferenceMaterial, ...]
 def _scene_matches(manuscript: str, draft_scenes: tuple[TextSpan, ...],
                    references: tuple[ReferenceMaterial, ...], unexamined: set[str],
                    add_evidence) -> int:
-    if not draft_scenes or any(not ref.scenes for ref in references):
+    if not draft_scenes:
         unexamined.add('scene_annotations_missing')
         return 0
+    # Missing annotations in ONE reference must not erase matching evidence
+    # from other references. The missing coverage still fails closed.
+    if any(not ref.scenes for ref in references):
+        unexamined.add('scene_annotations_missing')
     sources = []
     for number, ref in enumerate(references, 1):
         for scene in ref.scenes:
@@ -300,11 +304,17 @@ def _structure_matches(draft_beats: tuple[str, ...],
                        references: tuple[ReferenceMaterial, ...],
                        unexamined: set[str], add_evidence) -> int:
     from difflib import SequenceMatcher
-    if len(draft_beats) < 4 or any(len(ref.beats) < 4 for ref in references):
+    if len(draft_beats) < 4:
         unexamined.add('structure_annotations_missing')
         return 0
+    # Evaluate available, manually annotated references independently;
+    # a different reference without beats must never suppress a match.
+    if any(len(ref.beats) < 4 for ref in references):
+        unexamined.add('structure_annotations_missing')
     count = 0
     for number, ref in enumerate(references, 1):
+        if len(ref.beats) < 4:
+            continue
         ratio = SequenceMatcher(None, draft_beats, ref.beats, autojunk=False).ratio()
         if ratio >= STRUCTURE_RATIO:
             count += 1
