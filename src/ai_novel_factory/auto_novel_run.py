@@ -413,6 +413,12 @@ def run_auto_novel(
         missing = any(n not in existing for n in range(1, through_episode + 1))
         story_preview = rules.get('ai_story_outline_preview', '')
         if missing and not story_preview.strip():
+            # The whole-story draft takes a long model call. Capture the
+            # author's original Bible and ALL previously saved chapters
+            # before generation; never persist a preview based on stale facts.
+            with EpisodeStore(database_path) as preview_source:
+                preview_source_state = _auto_author_source_stamp(
+                    preview_source, database_path, project_id, total + 1)
             emit(0, '전체 스토리 기획 초안 로컬 AI 생성')
             try:
                 story_preview = model(
@@ -425,7 +431,18 @@ def run_auto_novel(
             except InterruptedError:
                 return AutoNovelRunReport(
                     through_episode, (), (), (), True, calls)
+            # Stop requested while the blocking model was generating:
+            # even an *unapproved* synopsis must not be saved after stop.
+            if should_stop is not None and should_stop():
+                return AutoNovelRunReport(
+                    through_episode, (), (), (), True, calls)
             with EpisodeStore(database_path) as safe:
+                if (_auto_author_source_stamp(
+                        safe, database_path, project_id, total + 1)
+                        != preview_source_state):
+                    raise AutoNovelRunError(
+                        '전체 줄거리 생성 중 작가 설정이나 저장 회차가 변경되어 '
+                        '오래된 초안을 저장하지 않았습니다.')
                 if any(rule.key == 'ai_story_outline_preview'
                        for rule in safe.list_rules(project_id)):
                     raise AutoNovelRunError('다른 창에서 전체 스토리 초안을 저장했습니다. 재확인하세요.')
