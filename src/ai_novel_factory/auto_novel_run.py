@@ -15,6 +15,7 @@ from typing import Callable
 
 from .database.episodes import EpisodeStore
 from .database.characters import CharacterStore, BibleCharacter
+from .author_canon_context import read_saved_author_context
 from .local_models import LocalExecutableProvider, SceneDraftRequest, draft_scene
 from .planning import PlanningInput, draft_premise
 from .story_arcs import plan_story_arcs, validate_arc_coverage
@@ -319,7 +320,11 @@ def _auto_author_source_stamp(store, database_path, project_id, before_episode):
     # Project title changes do not necessarily appear in Bible rule revisions.
     # Never include project.revision here: legitimate chapter saves bump it.
     project_title = store.get_project(project_id).title
-    return (project_title, rule_state), character_state, previous_state
+    # Include all saved author canon, not only characters and basic rules.
+    # Use the same full-project stamp for every chapter of this batch.
+    saved_stamp = read_saved_author_context(
+        database_path, project_id, 1_000_000).source_stamp
+    return (project_title, rule_state), character_state, previous_state, saved_stamp
 
 
 def run_auto_novel(
@@ -383,7 +388,13 @@ def run_auto_novel(
         # below. Do not accidentally duplicate it as a saved canon rule.
         canon_rules = ['%s: %s' % (k, v) for k, v in rules.items()
                        if k not in {'author', 'ai_story_outline_preview'} and v.strip()]
-        canon = (character_bible + '\n' + '\n'.join(canon_rules)).strip()[:14000]
+        canon_base = (character_bible[:6500] + '\n' +
+                      '\n'.join(canon_rules)[:1000]).strip()
+        saved_context = read_saved_author_context(database_path, project_id, 1)
+        canon = (canon_base + '\n' + saved_context.memory).strip()[:14000]
+        # Separate native author-notes field retains time-scoped facts even
+        # when the 12k Novel Bible field is shortened for a long scene.
+        active_style_bible = (saved_context.style + '\n' + saved_context.memory)[:5000]
         if not canon:
             raise AutoNovelRunError('Novel Bible 입력이 비어 있습니다.')
 
@@ -400,6 +411,7 @@ def run_auto_novel(
             request = SceneDraftRequest(
                 project_id, episode_num, scene_num, context[:22000],
                 goal[:2000], conflict[:2000], place[:1000], character_names,
+                style_bible=active_style_bible,
                 target_chars=allocated_scene_chars)
             calls += 1
             draft = draft_scene(request, provider).draft
@@ -475,11 +487,14 @@ def run_auto_novel(
             with EpisodeStore(database_path) as current_source:
                 started_source_state = _auto_author_source_stamp(
                     current_source, database_path, project_id, n)
+            current_author_lease = (started_source_state[0],
+                                    started_source_state[1],
+                                    started_source_state[3])
             if expected_author_state is None:
-                expected_author_state = started_source_state[:2]
-            elif started_source_state[:2] != expected_author_state:
+                expected_author_state = current_author_lease
+            elif current_author_lease != expected_author_state:
                 raise AutoNovelRunError(
-                    '작가가 저장한 설정/인물이 변경되어 자동 집필을 중단했습니다.')
+                    '작가가 저장한 설정/인물/세계관/문체/사건이 변경되어 자동 집필을 중단했습니다.')
             plan = plans[n]
             arc = by_arc[plan.arc_number]
             slots = plan_scenes(plan, scenes_per_episode)
@@ -487,7 +502,15 @@ def run_auto_novel(
                 raise AutoNovelRunError('장면 계획 연속성이 깨졌습니다.')
             # Only previously saved *draft summaries*, explicitly marked as
             # unapproved, are used as context; they never overwrite canon.
-            context = _continuity_context(canon, existing, n)
+            # Only saved facts effective at this chapter enter its local
+            # model context. Future relationship/knowledge changes stay hidden.
+            saved_context = read_saved_author_context(database_path, project_id, n)
+            active_style_bible = (saved_context.style + '\n' + saved_context.memory)[:5000]
+            chapter_canon = (canon_base + '\n' + saved_context.memory).strip()
+            if story_preview.strip():
+                chapter_canon += ('\n전체 스토리 AI 계획 초안(미확정·검수 전): '
+                                  + story_preview[:1500])
+            context = _continuity_context(chapter_canon[:14000], existing, n)
             emit(n, '회차 플롯 로컬 AI 생성')
             try:
                 outline = model(
