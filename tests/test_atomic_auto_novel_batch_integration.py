@@ -311,9 +311,12 @@ class AtomicBatchEpisodeRegression(unittest.TestCase):
         original = {e.episode: e for e in self.db.list_episodes(self.pid)}
         long_bible = '사용자 원본 세계관 ' * 1400
         ctx = _continuity_context(long_bible, original, 51)
-        self.assertIn('첫 회차 계획', ctx)
-        self.assertIn('25화 반전 계획', ctx)
-        self.assertIn('50화 기록', ctx)
+        # Real saved events, rather than unreviewed AI summaries, must
+        # survive the long-Bible context budget.
+        self.assertIn('첫 사건의 실제 장면을 저장했다.', ctx)
+        self.assertIn('주인공이 새로운 문서를 찾았다.', ctx)
+        self.assertIn('그는 사건의 날짜가 뒤바뀌었다', ctx)
+        self.assertNotIn('첫 회차 계획', ctx)
         self.assertIn('날짜가 뒤바뀌었다', ctx)
         self.assertIn('사용자가 저장한 Novel Bible', ctx)
         self.assertTrue(ctx.endswith(long_bible))

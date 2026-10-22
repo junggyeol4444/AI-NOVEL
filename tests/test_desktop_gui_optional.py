@@ -246,15 +246,15 @@ class ModelApprovalGuiTests(unittest.TestCase):
                 ui.session.create_episode(1, '가상 사건')
                 ui.session.add_scene('가상의 첫 장면')
                 episode, scene = ui.session.episode(), ui.session.scene()
-                request = SceneDraftRequest(
-                    pid, 1, scene.position, '가상 설정', '사건 진행',
-                    '문이 잠긴다', '서재', ('주인공',))
-                rules = tuple(sorted((rule.key, rule.value, rule.revision)
-                                     for rule in ui.session.store.list_rules(pid)))
+                # Use the real request snapshot, including its approved
+                # local provider and generation token. Do not bypass stale
+                # draft protection merely to test a legacy database.
+                request, provider, identity = ui.session.prepare_generation(
+                    sys.executable, (), True, '사건 진행', '문이 잠긴다',
+                    '서재', ('주인공',))
+                self.assertEqual(provider.provider_id, 'local-executable-v1')
                 ui._draft_request = request
-                ui._draft_identity = (
-                    str(path), pid, 1, scene.scene_id, episode.revision,
-                    scene.text, rules)
+                ui._draft_identity = identity
                 draft = '주인공이 문을 열었다. 복도에서 낯선 소리가 들렸다. ' * 100
                 result = SceneDraftResult(pid, 1, scene.position, draft,
                                           'local-executable-v1')
