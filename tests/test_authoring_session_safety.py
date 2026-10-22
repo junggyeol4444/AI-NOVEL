@@ -579,6 +579,31 @@ class AuthoringCreationSafetyTests(TestCase):
         self.assertTrue(report.contains_cover)
         self.assertIn('표지와 함께 보존할 검수 원고', txt.read_text(encoding='utf-8'))
         self.assertEqual(cover.read_bytes(), before)
+    def test_draft_epub_cover_must_not_disappear_without_notice(self):
+        from ai_novel_factory.epub3 import EpubError, create_epub as real_create_epub
+        self.create()
+        self.session.create_episode(1, '표지가 있는 미검수 초고')
+        self.session.add_scene('첫 장면')
+        self._accept_synthetic_draft('검수되지 않은 가상 원고')
+        cover = Path(__file__).resolve().parents[1] / 'docs/stage91_demo/cover.jpg'
+        before = cover.read_bytes()
+        output = Path(self.temp.name) / 'draft-epub'
+        output.mkdir()
+
+        # Simulate an EPUB writer silently dropping the selected cover.
+        # The real validator must catch this and delete only new output,
+        # never the author's saved database or original cover.
+        def broken_cover_writer(metadata, chapters, target, *, cover_path=None):
+            return real_create_epub(metadata, chapters, target, cover_path=None)
+
+        with patch('ai_novel_factory.desktop.authoring_session.create_epub',
+                   side_effect=broken_cover_writer):
+            with self.assertRaises(EpubError):
+                self.session.export(output, '0', cover_path=cover)
+        self.assertFalse((output / 'book.epub').exists())
+        self.assertFalse((output / 'draft.txt').exists())
+        self.assertEqual(cover.read_bytes(), before)
+
     def test_saved_episode_and_manual_scene_override_remain_distinct(self):
         from ai_novel_factory.local_models import effective_scene_target
         self.session.create_project(

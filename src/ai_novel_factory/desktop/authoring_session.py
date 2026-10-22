@@ -606,6 +606,7 @@ class AuthoringSession:
                 f.flush()
                 os.fsync(f.fileno())
             verify_epub(result.path, expected_chapters=len(chapters),
+                        expect_cover=cover_path is not None,
                         expected_sha256=result.sha256)
         except BaseException:
             txt.unlink(missing_ok=True)
