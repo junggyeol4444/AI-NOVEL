@@ -12,9 +12,13 @@ from threading import Event
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QFormLayout, QGroupBox, QLabel, QPushButton, QSpinBox, QVBoxLayout,
+    QFileDialog, QListWidget,
 )
 from ai_novel_factory.auto_novel_run import run_auto_novel, AutoNovelRunError
 from ai_novel_factory.local_models import LocalExecutableProvider, LocalModelError
+from ai_novel_factory.reference_batch_context import ReferenceBatchError
+from .reference_selection import REFERENCE_FILE_FILTER, display_filename
+from .reference_profile_browser import default_local_catalog_path
 
 
 class AutoBatchWorker(QThread):
@@ -23,7 +27,7 @@ class AutoBatchWorker(QThread):
     failed = Signal(str)
 
     def __init__(self, database_path, project_id, provider, target, chars,
-                 scenes, parent=None):
+                 scenes, parent=None, *, reference_paths=(), catalog_path=None):
         super().__init__(parent)
         self.database_path = Path(database_path)
         self.project_id = project_id
@@ -31,6 +35,8 @@ class AutoBatchWorker(QThread):
         self.target = target
         self.chars = chars
         self.scenes = scenes
+        self.reference_paths = tuple(reference_paths)
+        self.catalog_path = catalog_path
         self.stop_requested = Event()
 
     def run(self):
@@ -40,9 +46,11 @@ class AutoBatchWorker(QThread):
                 through_episode=self.target, target_chars=self.chars,
                 scenes_per_episode=self.scenes,
                 progress=lambda n, step: self.progress_changed.emit(n, step),
-                should_stop=self.stop_requested.is_set)
+                should_stop=self.stop_requested.is_set,
+                reference_paths=self.reference_paths,
+                reference_catalog_path=self.catalog_path)
             self.finished_report.emit(result)
-        except (AutoNovelRunError, LocalModelError) as exc:
+        except (AutoNovelRunError, LocalModelError, ReferenceBatchError) as exc:
             # These are explicitly sanitized, finite application messages.
             self.failed.emit(str(exc)[:160])
         except (OSError, ValueError):
@@ -83,6 +91,22 @@ class AutoBatchPanel(QGroupBox):
         self.scenes.setRange(1, 20)
         self.scenes.setValue(3)
         form.addRow('회차별 장면 수', self.scenes)
+        self.reference_paths = ()
+        self.reference_choose = QPushButton('참고작 TXT/MD/EPUB/DOCX/PDF 직접 선택')
+        self.reference_choose.setObjectName('autoBatchChooseReferences')
+        self.reference_choose.clicked.connect(self.choose_reference_files)
+        form.addRow(self.reference_choose)
+        self.reference_clear = QPushButton('이번 실행의 참고작 선택 해제')
+        self.reference_clear.setObjectName('autoBatchClearReferences')
+        self.reference_clear.clicked.connect(self.clear_reference_files)
+        form.addRow(self.reference_clear)
+        self.reference_list = QListWidget()
+        self.reference_list.setObjectName('autoBatchSelectedReferenceNames')
+        self.reference_list.setMaximumHeight(90)
+        form.addRow('이번 실행 참고작', self.reference_list)
+        self.reference_notice = QLabel('참고작 미선택: 전수 유사성 검사 NOT_RUN')
+        self.reference_notice.setWordWrap(True)
+        form.addRow(self.reference_notice)
         self.consent = QCheckBox(
             '이번 실행에서만 지정한 로컬 모델로 순차 집필하는 것을 승인합니다')
         self.consent.setObjectName('autoBatchExplicitApproval')
@@ -111,6 +135,35 @@ class AutoBatchPanel(QGroupBox):
         root.addWidget(self.status)
         self.start_button.clicked.connect(self.start_batch)
         self.stop_button.clicked.connect(self.request_stop)
+
+    def choose_reference_files(self):
+        if self.is_running():
+            return
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, '이번 자동 집필에 사용할 참고작 선택', '', REFERENCE_FILE_FILTER)
+        if not paths:
+            return
+        selected = list(self.reference_paths)
+        for path in paths:
+            if path not in selected:
+                selected.append(path)
+        if len(selected) > 100:
+            self.reference_notice.setText('참고작은 한 번에 최대 100개까지 선택할 수 있습니다.')
+            return
+        self.reference_paths = tuple(selected)
+        self.reference_list.clear()
+        self.reference_list.addItems([display_filename(path) for path in self.reference_paths])
+        self.reference_notice.setText(
+            f'참고작 {len(selected)}개 선택 · 승인 후 로컬 분석/직접 비교 · 원문 AI 입력 없음')
+        self.consent.setChecked(False)
+
+    def clear_reference_files(self):
+        if self.is_running():
+            return
+        self.reference_paths = ()
+        self.reference_list.clear()
+        self.reference_notice.setText('참고작 미선택: 전수 유사성 검사 NOT_RUN')
+        self.consent.setChecked(False)
 
     def _bind_approval(self, checked):
         # A checked box belongs only to the project that was open then.
@@ -182,7 +235,8 @@ class AutoBatchPanel(QGroupBox):
         self.worker = AutoBatchWorker(
             str(session.path), str(session.project_id), provider,
             self.through.value(), self.target_chars.value(), self.scenes.value(),
-            self)
+            self, reference_paths=self.reference_paths,
+            catalog_path=(default_local_catalog_path() if self.reference_paths else None))
         self.worker.progress_changed.connect(
             lambda num, stage: self.status.setText(f'{num}화: {stage}'))
         self.worker.finished_report.connect(self._finished)

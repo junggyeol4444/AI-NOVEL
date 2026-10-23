@@ -16,6 +16,9 @@ from typing import Callable
 from .database.episodes import EpisodeStore
 from .database.characters import CharacterStore, BibleCharacter
 from .author_canon_context import read_saved_author_context
+from .reference_batch_context import (
+    prepare_reference_batch, verify_reference_batch, review_batch_draft,
+)
 from .local_models import LocalExecutableProvider, SceneDraftRequest, draft_scene
 from .planning import PlanningInput, draft_premise
 from .story_arcs import plan_story_arcs, validate_arc_coverage
@@ -332,6 +335,8 @@ def run_auto_novel(
     through_episode: int, target_chars: int, scenes_per_episode: int = 2,
     progress: Callable[[int, str], None] | None = None,
     should_stop: Callable[[], bool] | None = None,
+    reference_paths: tuple[str, ...] = (),
+    reference_catalog_path: str | Path | None = None,
 ) -> AutoNovelRunReport:
     """Generate *unapproved drafts* on a dedicated existing SQLite project.
 
@@ -351,6 +356,17 @@ def run_auto_novel(
         raise AutoNovelRunError('진행 알림 형식이 올바르지 않습니다.')
     if should_stop is not None and not callable(should_stop):
         raise AutoNovelRunError('중단 신호 형식이 올바르지 않습니다.')
+    if type(reference_paths) is not tuple:
+        raise AutoNovelRunError('참고작 선택 자료 형식이 올바르지 않습니다.')
+    reference_batch = None
+    if reference_paths:
+        if reference_catalog_path is None:
+            raise AutoNovelRunError('참고작 분석용 별도 로컬 DB가 필요합니다.')
+        # The user explicitly selects all reference paths for THIS batch.
+        # Metadata/profile persistence is separate from manuscript SQLite.
+        reference_batch = prepare_reference_batch(
+            reference_paths, catalog_path=reference_catalog_path,
+            manuscript_database_path=database_path)
 
     created, skipped, review = [], [], []
     calls, stopped = 0, False
@@ -390,8 +406,12 @@ def run_auto_novel(
                        if k not in {'author', 'ai_story_outline_preview'} and v.strip()]
         canon_base = (character_bible[:6500] + '\n' +
                       '\n'.join(canon_rules)[:1000]).strip()
+        # The local writer sees numerical patterns only, NEVER reference prose.
+        reference_statistics = (reference_batch.aggregate_context
+                                if reference_batch is not None else '')
         saved_context = read_saved_author_context(database_path, project_id, 1)
-        canon = (canon_base + '\n' + saved_context.memory).strip()[:14000]
+        canon = (canon_base + '\n' + saved_context.memory + '\n' +
+                 reference_statistics).strip()[:14000]
         # Separate native author-notes field retains time-scoped facts even
         # when the 12k Novel Bible field is shortened for a long scene.
         active_style_bible = (saved_context.style + '\n' + saved_context.memory)[:5000]
@@ -448,6 +468,8 @@ def run_auto_novel(
             if should_stop is not None and should_stop():
                 return AutoNovelRunReport(
                     through_episode, (), (), (), True, calls)
+            if reference_batch is not None:
+                verify_reference_batch(reference_batch)
             with EpisodeStore(database_path) as safe:
                 if (_auto_author_source_stamp(
                         safe, database_path, project_id, total + 1)
@@ -458,6 +480,8 @@ def run_auto_novel(
                 if any(rule.key == 'ai_story_outline_preview'
                        for rule in safe.list_rules(project_id)):
                     raise AutoNovelRunError('다른 창에서 전체 스토리 초안을 저장했습니다. 재확인하세요.')
+                if reference_batch is not None:
+                    verify_reference_batch(reference_batch)
                 safe.save_rule(project_id, 'ai_story_outline_preview',
                                story_preview[:3500])
         if story_preview.strip():
@@ -506,7 +530,8 @@ def run_auto_novel(
             # model context. Future relationship/knowledge changes stay hidden.
             saved_context = read_saved_author_context(database_path, project_id, n)
             active_style_bible = (saved_context.style + '\n' + saved_context.memory)[:5000]
-            chapter_canon = (canon_base + '\n' + saved_context.memory).strip()
+            chapter_canon = (canon_base + '\n' + saved_context.memory + '\n' +
+                             reference_statistics).strip()
             if story_preview.strip():
                 chapter_canon += ('\n전체 스토리 AI 계획 초안(미확정·검수 전): '
                                   + story_preview[:1500])
@@ -573,6 +598,13 @@ def run_auto_novel(
                 stopped = True
                 break
             full_draft = '\n\n'.join(drafts)
+            reference_review = None
+            if reference_batch is not None:
+                reference_review = review_batch_draft(
+                    reference_batch, project_id, n, full_draft, tuple(drafts))
+                if reference_review.blocked:
+                    raise AutoNovelRunError(
+                        '선택 참고작과 직접 중복 위험이 있어 이 회차 초고를 저장하지 않았습니다.')
             repetition = check_repetition(project_id, n, full_draft)
             # Empty spaces and formatting do not count toward the agreed
             # manuscript quota. Use the original model text unchanged.
@@ -618,11 +650,16 @@ def run_auto_novel(
                  f'affected_chapters={cross.affected_prior_episodes};'
                  'scope_only=true;literary_approved=false'),
             ]
+            if reference_review is None:
+                checks.append(('reference_similarity', 'NOT_RUN',
+                               '참고작 미선택·원문 전수 검사 NOT_RUN'))
+            else:
+                checks.append(('reference_similarity', reference_review.check_status,
+                               reference_review.detail))
             checks.extend((category, 'NOT_RUN',
                            '전체 증거가 없어 자동 승인하지 않음')
-                          for category in ('reference_similarity', 'continuity',
-                                           'logic', 'timeline', 'foreshadowing',
-                                           'reader_simulation'))
+                          for category in ('continuity', 'logic', 'timeline',
+                                           'foreshadowing', 'reader_simulation'))
             # Existing staged writes could strand an empty chapter when the
             # app stopped between create_episode and add_check. One SQLite
             # transaction now inserts the draft, scenes and all QC records.
@@ -639,6 +676,8 @@ def run_auto_novel(
                     raise AutoNovelRunError(
                         '집필 중 Novel Bible 또는 이전 저장 회차가 변경되어 '
                         '오래된 AI 결과를 저장하지 않았습니다.')
+                if reference_batch is not None:
+                    verify_reference_batch(reference_batch)
                 current = safe.create_unapproved_batch_episode(
                     project_id, n, plot=outline,
                     draft=full_draft,
