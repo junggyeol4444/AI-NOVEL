@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Callable
 
 from .database.episodes import EpisodeStore
+from .continuity_memory_window import extend_scene_context
 from .database.characters import CharacterStore, BibleCharacter
 from .author_canon_context import read_saved_author_context
 from .reference_batch_context import (
@@ -535,7 +536,11 @@ def run_auto_novel(
             if story_preview.strip():
                 chapter_canon += ('\n전체 스토리 AI 계획 초안(미확정·검수 전): '
                                   + story_preview[:1500])
-            context = _continuity_context(chapter_canon[:14000], existing, n)
+            # Only saved earlier chapter records may extend the existing
+            # Novel Bible/canon context; never invent absent chapters.
+            context = extend_scene_context(
+                _continuity_context(chapter_canon[:14000], existing, n),
+                existing, n)
             emit(n, '회차 플롯 로컬 AI 생성')
             try:
                 outline = model(
