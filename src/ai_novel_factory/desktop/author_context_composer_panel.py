@@ -9,6 +9,8 @@ from pathlib import Path
 from PySide6.QtWidgets import (QCheckBox, QFormLayout, QGroupBox, QLabel,
                                QPushButton, QSpinBox, QPlainTextEdit,
                                QFileDialog, QVBoxLayout)
+from ..author_memory_delta import (AuthorMemoryDeltaError, list_author_memory_deltas,
+                                   memory_delta_fingerprint)
 from ..author_context_envelope import (AuthorContextSources, AuthorContextEnvelopeError,
                                        capture_author_context_sources,
                                        compose_author_context,
@@ -19,6 +21,7 @@ class AuthorContextComposerPanel(QGroupBox):
     _SOURCE_NAMES = (
         ('arc', '장편 아크'), ('scene', '회차별 장면 설계표'),
         ('fact', '과거 저장 원고 기반 작가 사실'), ('language', '고유명사·말투 규칙'),
+        ('memory', '작가 직접 기록한 기억 변화'),
     )
 
     def __init__(self, authoring, parent=None):
@@ -82,12 +85,28 @@ class AuthorContextComposerPanel(QGroupBox):
             self._reset_consent()
             self.folder_labels[key].setText('선택됨 · 로컬 원본 변경 없음')
 
+    def accept_existing_memory_folder(self, folder: Path) -> None:
+        """A direct click in the existing memory editor selects, never approves."""
+        store, project_id = self.authoring.session.required()
+        path = Path(folder)
+        if not path.is_absolute() or path.is_symlink() or not path.is_dir():
+            raise AuthorMemoryDeltaError('기존 로컬 기억 기록 폴더를 직접 선택하세요.')
+        if not any(not row.retracted for row in
+                   list_author_memory_deltas(path, str(project_id))):
+            raise AuthorMemoryDeltaError('현재 작품에 활성 작가 기억 기록이 없습니다.')
+        memory_delta_fingerprint(path)
+        self.folders['memory'] = path
+        self._reset_consent()
+        self.folder_labels['memory'].setText('작가가 기존 기억 화면에서 직접 선택함')
+        self.status.setText('기억 폴더만 선택했습니다. 미리보기와 AI 문맥 동의는 별도로 진행하세요.')
+
     def _capture(self) -> AuthorContextSources:
         store, project_id = self.authoring.session.required()
         return capture_author_context_sources(
             store, str(project_id), arc_folder=self.folders.get('arc'),
             scene_folder=self.folders.get('scene'), fact_folder=self.folders.get('fact'),
-            language_folder=self.folders.get('language'))
+            language_folder=self.folders.get('language'),
+            memory_folder=self.folders.get('memory'))
 
     def refresh(self):
         self._reset_consent()

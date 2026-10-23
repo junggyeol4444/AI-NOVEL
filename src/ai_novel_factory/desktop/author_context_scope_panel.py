@@ -49,7 +49,8 @@ class AuthorContextScopePanel(QGroupBox):
                 store, str(project_id), arc_folder=composer.folders.get('arc'),
                 scene_folder=composer.folders.get('scene'),
                 fact_folder=composer.folders.get('fact'),
-                language_folder=composer.folders.get('language'))
+                language_folder=composer.folders.get('language'),
+                memory_folder=composer.folders.get('memory'))
             plan = plan_author_context_scope(store, str(project_id),
                                              through_episode=int(self.range.currentData()),
                                              scenes_per_episode=self.scenes.value(),

@@ -25,6 +25,9 @@ class AuthorMemoryPanel(QGroupBox):
         self.choose = QPushButton('기존 로컬 기억 기록 폴더 선택')
         self.choose.clicked.connect(self.choose_folder)
         root.addWidget(self.choose)
+        self.to_context = QPushButton('선택한 기억 폴더를 기존 통합 집필 문맥 화면에 인계')
+        self.to_context.clicked.connect(self.open_in_context_composer)
+        root.addWidget(self.to_context)
         form = QFormLayout(); root.addLayout(form)
         self.source = QSpinBox(); self.source.setRange(1, 999)
         self.start = QSpinBox(); self.start.setRange(2, 1000)
@@ -93,6 +96,25 @@ class AuthorMemoryPanel(QGroupBox):
             self.save_agree.setChecked(False)
             self.retract_agree.setChecked(False)
             self.refresh()
+
+    def open_in_context_composer(self):
+        """Explicit selection handoff only; no model call or batch consent."""
+        try:
+            _store, project_id = self.authoring.session.required()
+            if self.folder is None:
+                raise AuthorMemoryDeltaError('기존 기억 폴더를 먼저 선택하세요.')
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            identity = (str(self.authoring.session.path), str(project_id))
+            if hub is None or not hub.open_feature(
+                    'author_context_composer_panel', project_identity=identity):
+                raise AuthorMemoryDeltaError('기존 통합 집필 문맥 화면을 열지 못했습니다.')
+            composer = getattr(self.authoring, 'author_context_composer_panel', None)
+            if composer is None:
+                raise AuthorMemoryDeltaError('통합 문맥 화면을 다시 열어 주세요.')
+            composer.accept_existing_memory_folder(self.folder)
+            self.status.setText('기억 기록 폴더를 통합 문맥에 선택했습니다. 집필 사용 동의는 별도입니다.')
+        except (AuthorMemoryDeltaError, ValueError, OSError):
+            self.status.setText('현재 작품·기억 기록을 다시 선택하세요. 원고/DB는 변경하지 않았습니다.')
 
     def refresh(self):
         self._clear_approval()
