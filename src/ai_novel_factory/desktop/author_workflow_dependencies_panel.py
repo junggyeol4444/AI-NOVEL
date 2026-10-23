@@ -32,6 +32,7 @@ _QUICK_TOOLS = (
     ('SQLite 별도 복원 사본', 'project_restore_panel'),
     ('편집 이슈·인계 보류', 'editorial_handoff_panel'),
     ('비공개 EPUB3 다권 생성', 'epub_volume_panel'),
+    ('EPUB3 메타데이터·목차·표지 직접 대조·인계', 'author_epub_materials_panel'),
     ('비공개 EPUB3 원고 대조', 'epub_source_alignment_panel'),
     ('비공개 EPUB3 여러 권 Reader', 'private_volume_reader_panel'),
     ('EPUB3 검색·책갈피', 'epub_private_bookmarks_panel'),

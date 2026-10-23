@@ -110,6 +110,29 @@ class EpubVolumePanel(QGroupBox):
             '각 권은 기존의 별도 출력 폴더를 직접 선택해야 합니다. '
             '생성 결과는 비공개 미검수 EPUB이며 출판 승인이 아닙니다.')
 
+    def accept_author_materials(self, lease, project_identity):
+        """작가가 직접 대조한 파일 선택만 수신하고 기존 생성 동의는 철회."""
+        from ai_novel_factory.author_epub_materials_lease import (
+            EpubMaterialsLease, require_current_epub_materials,
+        )
+        from .author_batch_scope_bridge import _current_author_state
+        if type(lease) is not EpubMaterialsLease:
+            raise ValueError('EPUB 자료 인계가 올바르지 않습니다.')
+        session, current = _current_author_state(self.authoring)
+        if current != project_identity or current[1] != lease.project_id:
+            raise ValueError('현재 작품이 변경됐습니다.')
+        require_current_epub_materials(lease, session.store, current[1])
+        if lease.missing_final or lease.oversized_final:
+            raise ValueError('원고 누락·크기 초과로 인계할 수 없습니다.')
+        self.invalidate()
+        self.through.setValue(lease.through_episode)
+        self.metadata.setText(lease.metadata_file)
+        self.toc.setText(lease.toc_file)
+        self.cover.setText(lease.cover_file)
+        self.output.clear()
+        self._revoke_consent()
+        self.status.setText('파일 선택만 입력했습니다. 권별 계획·출력 폴더·한 권 생성 승인을 다시 직접 선택하세요.')
+
     def create_volume(self):
         session = self.authoring.session
         stamp = self._stamp
