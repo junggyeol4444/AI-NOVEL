@@ -101,6 +101,7 @@ _EPISODE_FIELDS = {
     'author_recovery_matrix_panel': 'through',
     'author_continuity_coverage_panel': 'through',
     'author_manuscript_language_queue_panel': 'through',
+    'author_scene_final_alignment_panel': 'through',
 }
 
 
