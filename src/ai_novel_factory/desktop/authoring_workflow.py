@@ -62,6 +62,8 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
 
     def _revoke_project_approvals(self):
         self.approved.setChecked(False)
+        if hasattr(self, 'feature_workspace_hub'):
+            self.feature_workspace_hub.invalidate_all()
         self.auto_panel.consent.setChecked(False)
 
     def _create(self):

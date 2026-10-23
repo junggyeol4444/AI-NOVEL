@@ -47,6 +47,20 @@ FEATURE_ENTRIES: tuple[FeatureEntry, ...] = (
     FeatureEntry('비공개 출력', 'EPUB3 원고 대조', 'epub_source_alignment_panel', 'EpubSourceAlignmentPanel', 'epub_source_alignment_panel'),
     FeatureEntry('비공개 출력', 'TXT·MD 비공개 교정본', 'local_manuscript_proof_panel', 'LocalManuscriptProofPanel', 'local_manuscript_proof_panel'),
     FeatureEntry('비공개 출력', '출판 상태 스냅샷', 'release_snapshot_panel', 'ReleaseSnapshotPanel', 'release_snapshot_panel'),
+    FeatureEntry('장편 연속성', '작가 장편 아크 직접 작성', 'author_arc_panel', 'AuthorArcPanel', 'author_arc_panel'),
+    FeatureEntry('장편 연속성', '회차별 장편 아크 문맥 확인', 'author_arc_context_panel', 'AuthorArcContextPanel', 'author_arc_context_panel'),
+    FeatureEntry('장편 집필', '작가 회차별 장면 설계표', 'author_scene_plan_panel', 'AuthorScenePlanPanel', 'author_scene_plan_panel'),
+    FeatureEntry('장편 집필', '장면 설계표 회차별 문맥 확인', 'author_scene_context_panel', 'AuthorSceneContextPanel', 'author_scene_context_panel'),
+    FeatureEntry('장편 집필', '저장된 회차 원고 오프라인 검색', 'manuscript_local_search_panel', 'ManuscriptLocalSearchPanel', 'manuscript_local_search_panel'),
+    FeatureEntry('비공개 출력', 'EPUB3 오프라인 검색·책갈피', 'epub_private_bookmarks_panel', 'EpubPrivateBookmarksPanel', 'epub_private_bookmarks_panel'),
+    FeatureEntry('장편 연속성', '작가 고유명사·호칭·말투 규칙 직접 기록', 'author_language_panel', 'AuthorLanguagePanel', 'author_language_panel'),
+    FeatureEntry('장편 연속성', '회차별 작가 언어 문맥·표기 검토 후보', 'author_language_review_panel', 'AuthorLanguageReviewPanel', 'author_language_review_panel'),
+    FeatureEntry('장편 집필', '작가 아크·장면·사실·언어 통합 문맥', 'author_context_composer_panel', 'AuthorContextComposerPanel', 'author_context_composer_panel'),
+    FeatureEntry('장편 집필', '30·100·250화 문맥 준비 범위', 'author_context_scope_panel', 'AuthorContextScopePanel', 'author_context_scope_panel'),
+    FeatureEntry('장편 연속성', '작가 직접 기억 변화 기록', 'author_memory_panel', 'AuthorMemoryPanel', 'author_memory_panel'),
+    FeatureEntry('장편 연속성', '기억 변화 30·100·250화 범위', 'author_memory_scope_panel', 'AuthorMemoryScopePanel', 'author_memory_scope_panel'),
+    FeatureEntry('장편 집필', '회차별 실제 남은 작가 작업', 'author_workflow_dependencies_panel', 'AuthorWorkflowDependenciesPanel', 'author_workflow_dependencies_panel'),
+    FeatureEntry('장편 집필', '30·100·250·1000화 저장 기록 현황', 'author_workflow_milestones_panel', 'AuthorWorkflowMilestonesPanel', 'author_workflow_milestones_panel'),
 )
 
 
