@@ -15,6 +15,8 @@ from typing import Callable
 
 from .database.episodes import EpisodeStore
 from .continuity_memory_window import extend_scene_context
+from .scene_resume_binding import SceneResumeScope
+from .scene_checkpoint_store import SceneCheckpointError
 from .database.characters import CharacterStore, BibleCharacter
 from .author_canon_context import read_saved_author_context
 from .reference_batch_context import (
@@ -338,6 +340,8 @@ def run_auto_novel(
     should_stop: Callable[[], bool] | None = None,
     reference_paths: tuple[str, ...] = (),
     reference_catalog_path: str | Path | None = None,
+    scene_checkpoint_root: str | Path | None = None,
+    scene_checkpoint_lease: str | None = None,
 ) -> AutoNovelRunReport:
     """Generate *unapproved drafts* on a dedicated existing SQLite project.
 
@@ -357,6 +361,11 @@ def run_auto_novel(
         raise AutoNovelRunError('진행 알림 형식이 올바르지 않습니다.')
     if should_stop is not None and not callable(should_stop):
         raise AutoNovelRunError('중단 신호 형식이 올바르지 않습니다.')
+    if (scene_checkpoint_root is None) != (scene_checkpoint_lease is None):
+        raise AutoNovelRunError('장면별 임시 저장/재개는 별도 사용 동의가 필요합니다.')
+    if scene_checkpoint_lease is not None and (
+            type(scene_checkpoint_lease) is not str or len(scene_checkpoint_lease) != 64):
+        raise AutoNovelRunError('장면별 임시 기록에 사용할 승인 지문이 올바르지 않습니다.')
     if type(reference_paths) is not tuple:
         raise AutoNovelRunError('참고작 선택 자료 형식이 올바르지 않습니다.')
     reference_batch = None
@@ -525,6 +534,25 @@ def run_auto_novel(
             slots = plan_scenes(plan, scenes_per_episode)
             if not validate_scene_plans(plan, slots):
                 raise AutoNovelRunError('장면 계획 연속성이 깨졌습니다.')
+            # Explicitly opted-in stage cache; not a final text or validation.
+            checkpoint = None
+            if scene_checkpoint_root is not None:
+                checkpoint = SceneResumeScope(
+                    Path(database_path), project_id, n, Path(scene_checkpoint_root),
+                    scene_checkpoint_lease, started_source_state,
+                    (plan, slots, scene_targets), scenes_per_episode).open_store()
+
+            def record_unapproved_stage(stage: int, body: str) -> None:
+                if checkpoint is None:
+                    return
+                with EpisodeStore(database_path) as snapshot:
+                    if _auto_author_source_stamp(
+                            snapshot, database_path, project_id, n) != started_source_state:
+                        raise AutoNovelRunError(
+                            '집필 중 작가 원본이 변경되어 임시 장면 저장을 보류했습니다.')
+                if reference_batch is not None:
+                    verify_reference_batch(reference_batch)
+                checkpoint.save_stage(stage, body)
             # Only previously saved *draft summaries*, explicitly marked as
             # unapproved, are used as context; they never overwrite canon.
             # Only saved facts effective at this chapter enter its local
@@ -543,15 +571,25 @@ def run_auto_novel(
                 existing, n)
             emit(n, '회차 플롯 로컬 AI 생성')
             try:
-                outline = model(
-                    n, 1, context,
-                    f'{project.title}: {subject}. {n}/{total}화의 구체적인 독창적 사건과 갈등을 설계. '
-                    f'현재 ARC {arc.number} ({arc.start_episode}~{arc.end_episode}화). '
-                    'Novel Bible을 지키고 전 회차의 결과를 이어 새로운 회차 플롯을 작성.',
-                    f'{mood} 분위기의 갈등과 연속성 유지',
-                    f'작품 세계관 ({genre})')
+                outline = checkpoint.load_stage(0) if checkpoint is not None else None
+                if outline is None:
+                    outline = model(
+                        n, 1, context,
+                        f'{project.title}: {subject}. {n}/{total}화의 구체적인 독창적 사건과 갈등을 설계. '
+                        f'현재 ARC {arc.number} ({arc.start_episode}~{arc.end_episode}화). '
+                        'Novel Bible을 지키고 전 회차의 결과를 이어 새로운 회차 플롯을 작성.',
+                        f'{mood} 분위기의 갈등과 연속성 유지',
+                        f'작품 세계관 ({genre})')
+                    record_unapproved_stage(0, outline)
+                else:
+                    emit(n, '동일한 이번 실행 승인과 일치한 미검수 플롯 임시 기록 재사용')
                 drafts = []
                 for scene_index, slot in enumerate(slots):
+                    cached = checkpoint.load_stage(slot.scene_number) if checkpoint else None
+                    if cached is not None:
+                        drafts.append(cached)
+                        emit(n, f'장면 {slot.scene_number} 미검수 임시 기록 재사용')
+                        continue
                     per_scene = scene_targets[scene_index]
                     emit(n, f'장면 {slot.scene_number}/{scenes_per_episode} 로컬 AI 집필')
                     scene_goal = _native_scene_generation_goal(
@@ -598,6 +636,7 @@ def run_auto_novel(
                             and not revised_repeat.findings)
                         if better_format or better_partial:
                             scene = revised
+                    record_unapproved_stage(slot.scene_number, scene)
                     drafts.append(scene)
             except InterruptedError:
                 stopped = True

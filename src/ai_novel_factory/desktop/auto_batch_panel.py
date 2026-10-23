@@ -24,6 +24,8 @@ from ai_novel_factory.batch_session_journal import (
     BatchJournalError, begin_session, end_session,
 )
 from .batch_recovery_panel import default_batch_journal_directory
+from .scene_checkpoint_panel import default_scene_checkpoint_directory
+from ai_novel_factory.scene_checkpoint_store import SceneCheckpointError
 from .reference_selection import REFERENCE_FILE_FILTER, display_filename
 from .reference_profile_browser import default_local_catalog_path
 
@@ -34,7 +36,8 @@ class AutoBatchWorker(QThread):
     failed = Signal(str)
 
     def __init__(self, database_path, project_id, provider, target, chars,
-                 scenes, parent=None, *, reference_paths=(), catalog_path=None, batch_receipt=None):
+                 scenes, parent=None, *, reference_paths=(), catalog_path=None, batch_receipt=None,
+                 scene_checkpoint_root=None, scene_checkpoint_lease=None):
         super().__init__(parent)
         self.database_path = Path(database_path)
         self.project_id = project_id
@@ -45,6 +48,8 @@ class AutoBatchWorker(QThread):
         self.reference_paths = tuple(reference_paths)
         self.catalog_path = catalog_path
         self.batch_receipt = batch_receipt
+        self.scene_checkpoint_root = scene_checkpoint_root
+        self.scene_checkpoint_lease = scene_checkpoint_lease
         self.stop_requested = Event()
 
     def run(self):
@@ -57,7 +62,9 @@ class AutoBatchWorker(QThread):
                 progress=lambda n, step: self.progress_changed.emit(n, step),
                 should_stop=self.stop_requested.is_set,
                 reference_paths=self.reference_paths,
-                reference_catalog_path=self.catalog_path)
+                reference_catalog_path=self.catalog_path,
+                scene_checkpoint_root=self.scene_checkpoint_root,
+                scene_checkpoint_lease=self.scene_checkpoint_lease)
             journal_state = 'STOPPED' if result.stopped else 'FINISHED'
             self.finished_report.emit(result)
         except (AutoNovelRunError, LocalModelError, ReferenceBatchError) as exc:
@@ -111,6 +118,12 @@ class AutoBatchPanel(QGroupBox):
         self.scenes.setRange(1, 20)
         self.scenes.setValue(3)
         form.addRow('회차별 장면 수', self.scenes)
+        self.scene_checkpoint_opt_in = QCheckBox(
+            '이번 실행의 AI 미검수 장면을 로컬에 임시 저장하고 동일 승인 설정에서만 재개')
+        self.scene_checkpoint_opt_in.setObjectName('autoBatchSceneCheckpointOptIn')
+        self.scene_checkpoint_opt_in.toggled.connect(
+            lambda _checked: self.consent.setChecked(False))
+        form.addRow(self.scene_checkpoint_opt_in)
         self.reference_paths = ()
         self.reference_choose = QPushButton('참고작 TXT/MD/EPUB/DOCX/PDF 직접 선택')
         self.reference_choose.setObjectName('autoBatchChooseReferences')
@@ -263,6 +276,10 @@ class AutoBatchPanel(QGroupBox):
             self.consent.setChecked(False)
             self.status.setText('승인 이후 파일·작품·모델 설정이 바뀌었습니다. 다시 승인하세요.')
             return
+        # Bind stage reuse only to the freshly verified, one-run author approval.
+        checkpoint_fingerprint = (
+            self._launch_lease.fingerprint
+            if self.scene_checkpoint_opt_in.isChecked() else None)
         # Consume the consent before model initialization or worker creation.
         self.consent.setChecked(False)
         try:
@@ -283,6 +300,12 @@ class AutoBatchPanel(QGroupBox):
             # Raw exceptions can contain user-owned paths or launch options.
             self.status.setText('로컬 실행 파일 또는 인수 설정을 확인하세요.')
             return
+        try:
+            checkpoint_root = (default_scene_checkpoint_directory()
+                               if checkpoint_fingerprint is not None else None)
+        except (SceneCheckpointError, OSError, ValueError):
+            self.status.setText('장면 임시 기록의 로컬 폴더를 확인할 수 없습니다.')
+            return
         # A new local receipt is created only after this explicit launch action.
         # No source text, model arguments or consent are stored in the receipt.
         try:
@@ -301,7 +324,9 @@ class AutoBatchPanel(QGroupBox):
             self.through.value(), self.target_chars.value(), self.scenes.value(),
             self, reference_paths=self.reference_paths,
             catalog_path=(default_local_catalog_path() if self.reference_paths else None),
-            batch_receipt=receipt)
+            batch_receipt=receipt,
+            scene_checkpoint_root=checkpoint_root,
+            scene_checkpoint_lease=checkpoint_fingerprint)
         self.worker.progress_changed.connect(
             lambda num, stage: self.status.setText(f'{num}화: {stage}'))
         self.worker.finished_report.connect(self._finished)
@@ -339,6 +364,8 @@ class AutoBatchPanel(QGroupBox):
                 selector.blockSignals(False)
         if hasattr(self.authoring, 'feature_workspace_hub'):
             self.authoring.feature_workspace_hub.refresh_visible()
+        if hasattr(self.authoring, 'scene_checkpoint_panel'):
+            self.authoring.scene_checkpoint_panel.refresh()
 
     def _failed(self, message):
         self.status.setText('집필 실패/보류: ' + message)
