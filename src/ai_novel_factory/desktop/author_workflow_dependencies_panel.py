@@ -41,6 +41,7 @@ _QUICK_TOOLS = (
     ('고유명사·말투 검토', 'author_language_review_panel'),
     ('아크·장면·사실·언어 통합 문맥', 'author_context_composer_panel'),
     ('회차별 집필 중단·재개', 'scene_checkpoint_panel'),
+    ('장면·배치 중단 기록 합동 검토', 'author_recovery_matrix_panel'),
     ('참고작 5종 직접 선택·등록', 'reference_intake_panel'),
     ('참고작 회차별 검사 범위', 'reference_coverage_panel'),
     ('최종 원고 참고작 전수 비교', 'final_reference_audit_panel'),

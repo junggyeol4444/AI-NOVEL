@@ -97,6 +97,7 @@ _EPISODE_FIELDS = {
     'author_workflow_milestones_panel': 'through',
     'author_volume_review_matrix_panel': 'through',
     'author_editorial_readiness_panel': 'through',
+    'author_recovery_matrix_panel': 'through',
 }
 
 
