@@ -73,5 +73,6 @@ class ManualRewritePanel(QGroupBox):
             self.lease = None
             return
         self.lease = None
+        self.authoring._invalidate_author_review_snapshots()
         self.authoring._sync()
         self.status.setText(f'{lease.episode}화 초고 revision {revision} 저장 · 검수/검사 재실행 필요')

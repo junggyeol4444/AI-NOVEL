@@ -159,6 +159,36 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             '모델 파일은 업로드되지 않으며 실행 시 별도 승인이 필요합니다. '
             '실제 한국어 글 품질은 모델 성능에 따라 달라집니다.')
 
+    def _invalidate_author_review_snapshots(self):
+        """Discard prior author approvals after a direct manuscript/review change.
+
+        This only changes in-memory GUI selections; nothing is approved,
+        published or automatically exported by a refresh.
+        """
+        self.auto_panel.consent.setChecked(False)
+        for key in (
+            'publication_approval_panel', 'private_epub_panel',
+            'epub_toc_panel', 'epub_volume_panel', 'release_snapshot_panel',
+            'final_reference_audit_panel', 'evidence_review_panel',
+            'manual_rewrite_panel', 'author_fact_review_panel',
+            'longform_revision_impact_panel', 'epub_source_alignment_panel',
+        ):
+            panel = getattr(self, key, None)
+            if panel is not None:
+                action = getattr(panel, 'invalidate', None)
+                if not callable(action):
+                    action = getattr(panel, '_invalidate', None)
+                if callable(action):
+                    action()
+        for key in ('review_worklist', 'editorial_issue_panel',
+                    'editorial_handoff_panel', 'review_dashboard_panel',
+                    'reference_coverage_panel'):
+            panel = getattr(self, key, None)
+            if panel is not None:
+                action = getattr(panel, 'refresh', None)
+                if callable(action):
+                    action()
+
     def _save_final(self):
         self.session.save_final_text(
             self._text('final_text'),
@@ -166,6 +196,7 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             incomplete_qc_acknowledged=self.final_quality_ack.isChecked())
         self.final_reviewed.setChecked(False)
         self.final_quality_ack.setChecked(False)
+        self._invalidate_author_review_snapshots()
 
     def _choose_export_directory(self):
         path = QFileDialog.getExistingDirectory(

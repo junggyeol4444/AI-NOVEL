@@ -116,6 +116,7 @@ class ReviewWorklistWidget(QGroupBox):
         self.qc_understood.setChecked(False)
         self.manual_status.setText(
             f'{result.episode}화 검수 사실 기록: {result.status}. 출판 승인이 아닙니다.')
+        self.authoring._invalidate_author_review_snapshots()
         self.refresh()
 
     def revoke_selected_review(self):
@@ -134,6 +135,7 @@ class ReviewWorklistWidget(QGroupBox):
             return
         self.revoke_checkbox.setChecked(False)
         self.manual_status.setText(f'{result.episode}화 검수 기록 철회됨. 출판 승인 없음.')
+        self.authoring._invalidate_author_review_snapshots()
         self.refresh()
 
     def show_readiness(self):
