@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QStackedWidget, QWidget,
 )
 from ai_novel_factory.feature_workspace_registry import FEATURE_ENTRIES, get_feature_entry
+from .author_navigation_contract import prefill_existing_feature
 
 
 class FeatureWorkspaceHub(QGroupBox):
@@ -117,6 +118,32 @@ class FeatureWorkspaceHub(QGroupBox):
             return
         self._open(attr)
 
+    def open_feature(self, attr, *, episode_number=None, project_identity=None):
+        """작가가 직접 선택한 현재 작품의 허용 화면만 연다. 실행하지 않는다."""
+        current = self._signature()
+        if project_identity is not None and tuple(project_identity) != current:
+            self.status.setText('작품이 변경됐습니다. 작업 목록을 다시 조회하세요.')
+            return False
+        if current != self._project_signature:
+            # 이전 작품에서 연 패널의 선택/승인 지문을 새 작품에 재사용 금지.
+            self.invalidate_all()
+        if getattr(self.authoring.session, 'store', None) is None:
+            self.status.setText('먼저 기존 작품을 열어 주세요.')
+            return False
+        try:
+            get_feature_entry(attr)
+        except KeyError:
+            self.status.setText('등록되지 않은 기능은 열 수 없습니다.')
+            return False
+        if not self._open(attr):
+            return False
+        if episode_number is not None:
+            widget = self._opened.get(attr)
+            if widget is not None and prefill_existing_feature(widget, attr, episode_number):
+                self.status.setText(
+                    f'{episode_number}화 범위를 입력했습니다. 조회·검수·승인은 직접 실행하세요.')
+        return True
+
     def _open(self, attr):
         entry = get_feature_entry(attr)
         self._project_signature = self._signature()
@@ -132,10 +159,10 @@ class FeatureWorkspaceHub(QGroupBox):
                     obj = widget_class(self.authoring, self.authoring)
                 except (ImportError, AttributeError, ValueError, OSError):
                     self.status.setText('선택한 기능의 코드가 아직 기존 main에 설치되지 않았습니다.')
-                    return
+                    return False
                 except Exception:
                     self.status.setText('선택한 기능을 열지 못했습니다. 원고는 변경되지 않았습니다.')
-                    return
+                    return False
                 setattr(self.authoring, attr, obj)
                 self.pages.addWidget(obj)
                 self._mounted.add(attr)
@@ -149,6 +176,7 @@ class FeatureWorkspaceHub(QGroupBox):
             obj.setFocus()
             self.status.setText(entry.caption + ': 기존 화면에 이미 열려 있습니다. 아래 해당 패널에서 직접 사용하세요.')
         self.refresh_visible()
+        return True
 
     def refresh_visible(self):
         obj = self._opened.get(self._active_attribute)
