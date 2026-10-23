@@ -17,6 +17,13 @@ from PySide6.QtWidgets import (
 from ai_novel_factory.auto_novel_run import run_auto_novel, AutoNovelRunError
 from ai_novel_factory.local_models import LocalExecutableProvider, LocalModelError
 from ai_novel_factory.reference_batch_context import ReferenceBatchError
+from ai_novel_factory.launch_consent_lease import (
+    LaunchLeaseError, capture_launch_lease, verify_launch_lease,
+)
+from ai_novel_factory.batch_session_journal import (
+    BatchJournalError, begin_session, end_session,
+)
+from .batch_recovery_panel import default_batch_journal_directory
 from .reference_selection import REFERENCE_FILE_FILTER, display_filename
 from .reference_profile_browser import default_local_catalog_path
 
@@ -27,7 +34,7 @@ class AutoBatchWorker(QThread):
     failed = Signal(str)
 
     def __init__(self, database_path, project_id, provider, target, chars,
-                 scenes, parent=None, *, reference_paths=(), catalog_path=None):
+                 scenes, parent=None, *, reference_paths=(), catalog_path=None, batch_receipt=None):
         super().__init__(parent)
         self.database_path = Path(database_path)
         self.project_id = project_id
@@ -37,9 +44,11 @@ class AutoBatchWorker(QThread):
         self.scenes = scenes
         self.reference_paths = tuple(reference_paths)
         self.catalog_path = catalog_path
+        self.batch_receipt = batch_receipt
         self.stop_requested = Event()
 
     def run(self):
+        journal_state = 'FAILED'
         try:
             result = run_auto_novel(
                 self.database_path, self.project_id, self.provider,
@@ -49,6 +58,7 @@ class AutoBatchWorker(QThread):
                 should_stop=self.stop_requested.is_set,
                 reference_paths=self.reference_paths,
                 reference_catalog_path=self.catalog_path)
+            journal_state = 'STOPPED' if result.stopped else 'FINISHED'
             self.finished_report.emit(result)
         except (AutoNovelRunError, LocalModelError, ReferenceBatchError) as exc:
             # These are explicitly sanitized, finite application messages.
@@ -58,6 +68,15 @@ class AutoBatchWorker(QThread):
             self.failed.emit('로컬 집필 중 파일 접근·검증 오류가 발생했습니다.')
         except BaseException:
             self.failed.emit('자동 집필이 중단되었습니다. 작업 상태를 확인하세요.')
+        finally:
+            # Separate local receipt, not approval or proof of manuscript quality.
+            if self.batch_receipt is not None:
+                try:
+                    end_session(self.batch_receipt.path,
+                                self.batch_receipt.session_id,
+                                state=journal_state)
+                except (BatchJournalError, OSError, ValueError):
+                    self.failed.emit('로컬 집필 종료 기록에 문제가 있습니다. 현재 SQLite 원고를 확인하세요.')
 
 
 class AutoBatchPanel(QGroupBox):
@@ -66,6 +85,7 @@ class AutoBatchPanel(QGroupBox):
         self.authoring = authoring
         self.worker = None
         self._approved_project = None
+        self._launch_lease = None
         root = QVBoxLayout(self)
         notice = QLabel(
             '작품의 장르·소재·분위기·목표 회차를 먼저 저장하세요. '
@@ -166,12 +186,35 @@ class AutoBatchPanel(QGroupBox):
         self.consent.setChecked(False)
 
     def _bind_approval(self, checked):
-        # A checked box belongs only to the project that was open then.
+        # Bind the author-initiated consent to the exact existing project,
+        # local executable, selected references, and target parameters.
         session = self.authoring.session
         self._approved_project = (
             (str(session.path), str(session.project_id))
             if checked and session.path is not None
             and session.project_id is not None else None)
+        self._launch_lease = None
+        if checked:
+            try:
+                self._launch_lease = capture_launch_lease(
+                    **self._launch_configuration())
+            except (LaunchLeaseError, OSError, ValueError):
+                self.consent.setChecked(False)
+                self.status.setText(
+                    '승인 대상 모델·작품·참고작을 확인할 수 없습니다. 다시 선택하세요.')
+
+    def _launch_configuration(self):
+        session = self.authoring.session
+        return {
+            'database_path': str(session.path) if session.path is not None else '',
+            'project_id': str(session.project_id) if session.project_id is not None else '',
+            'executable': self.authoring._text('executable').strip(),
+            'arguments': self.authoring._text('arguments'),
+            'through_episode': self.through.value(),
+            'target_chars': self.target_chars.value(),
+            'scenes_per_episode': self.scenes.value(),
+            'reference_paths': self.reference_paths,
+        }
 
     def refresh_defaults(self):
         if self.is_running():
@@ -213,6 +256,14 @@ class AutoBatchPanel(QGroupBox):
             self.consent.setChecked(False)
             self.status.setText('실제 로컬 AI 연속 실행에 대한 이번 회차 승인이 필요합니다.')
             return
+        try:
+            verify_launch_lease(self._launch_lease,
+                                **self._launch_configuration())
+        except (LaunchLeaseError, OSError, ValueError):
+            self.consent.setChecked(False)
+            self.status.setText('승인 이후 파일·작품·모델 설정이 바뀌었습니다. 다시 승인하세요.')
+            return
+        # Consume the consent before model initialization or worker creation.
         self.consent.setChecked(False)
         try:
             executable = self.authoring._text('executable').strip()
@@ -232,11 +283,25 @@ class AutoBatchPanel(QGroupBox):
             # Raw exceptions can contain user-owned paths or launch options.
             self.status.setText('로컬 실행 파일 또는 인수 설정을 확인하세요.')
             return
+        # A new local receipt is created only after this explicit launch action.
+        # No source text, model arguments or consent are stored in the receipt.
+        try:
+            receipt = begin_session(
+                default_batch_journal_directory(),
+                database_path=session.path, project_id=str(session.project_id),
+                through_episode=self.through.value(),
+                target_chars=self.target_chars.value(),
+                scenes_per_episode=self.scenes.value(),
+                reference_paths=self.reference_paths)
+        except (BatchJournalError, OSError, ValueError):
+            self.status.setText('작업 시작 기록을 생성할 수 없어 실행하지 않았습니다.')
+            return
         self.worker = AutoBatchWorker(
             str(session.path), str(session.project_id), provider,
             self.through.value(), self.target_chars.value(), self.scenes.value(),
             self, reference_paths=self.reference_paths,
-            catalog_path=(default_local_catalog_path() if self.reference_paths else None))
+            catalog_path=(default_local_catalog_path() if self.reference_paths else None),
+            batch_receipt=receipt)
         self.worker.progress_changed.connect(
             lambda num, stage: self.status.setText(f'{num}화: {stage}'))
         self.worker.finished_report.connect(self._finished)
@@ -272,9 +337,13 @@ class AutoBatchPanel(QGroupBox):
                 selector.setCurrentIndex(index if index >= 0 else -1)
             finally:
                 selector.blockSignals(False)
+        if hasattr(self.authoring, 'feature_workspace_hub'):
+            self.authoring.feature_workspace_hub.refresh_visible()
 
     def _failed(self, message):
         self.status.setText('집필 실패/보류: ' + message)
+        if hasattr(self.authoring, 'feature_workspace_hub'):
+            self.authoring.feature_workspace_hub.refresh_visible()
 
     def _cleanup(self):
         self.start_button.setEnabled(True)
