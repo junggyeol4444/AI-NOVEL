@@ -190,6 +190,11 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
                     'characters_per_episode', 'mood'):
             self._set(key, metadata.get(key, ''))
 
+    def _show_author_progress(self):
+        from .authoring_progress_panel import AuthoringProgressDialog
+        window = AuthoringProgressDialog(self, self)
+        window.exec()
+
     def _sync(self):
         if not self.session.store:
             return

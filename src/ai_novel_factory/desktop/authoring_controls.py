@@ -36,6 +36,8 @@ class AuthoringControls:
         self._field('mood', '분위기')
         self._button('create', '새 작품 생성', self._create, 'createProjectButton')
         self._button('open', '기존 작품 열기', self._open, 'openAuthoringProjectButton')
+        self._button('author_progress', '장편 회차별 현황 열기 (읽기 전용)',
+                     self._show_author_progress, 'authoringProgressOpen')
         self._section('2. Novel Bible')
         self._field('bible', '설정', multiline=True)
         self._button('save_bible', '설정 저장',
