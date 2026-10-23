@@ -95,6 +95,7 @@ _EPISODE_FIELDS = {
     'epub_volume_panel': 'through',
     'author_workflow_dependencies_panel': 'through',
     'author_workflow_milestones_panel': 'through',
+    'author_volume_review_matrix_panel': 'through',
 }
 
 

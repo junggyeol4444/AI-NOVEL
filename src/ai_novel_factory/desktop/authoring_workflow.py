@@ -174,6 +174,7 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
             'longform_revision_impact_panel', 'epub_source_alignment_panel',
             'author_workflow_dependencies_panel', 'author_workflow_milestones_panel',
             'manuscript_local_search_panel', 'epub_private_bookmarks_panel',
+            'author_volume_review_matrix_panel',
         ):
             panel = getattr(self, key, None)
             if panel is not None:

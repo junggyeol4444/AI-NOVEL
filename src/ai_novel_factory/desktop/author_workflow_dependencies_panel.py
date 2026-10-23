@@ -45,6 +45,7 @@ _QUICK_TOOLS = (
     ('참고작 회차별 검사 범위', 'reference_coverage_panel'),
     ('최종 원고 참고작 전수 비교', 'final_reference_audit_panel'),
     ('30·100·250화 저장 기록 현황', 'author_workflow_milestones_panel'),
+    ('장편 권별 원고·검수·EPUB3 현황', 'author_volume_review_matrix_panel'),
 )
 
 _ACTION_LABELS = {
