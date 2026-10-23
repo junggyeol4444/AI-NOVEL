@@ -26,6 +26,7 @@ from ai_novel_factory.batch_session_journal import (
 from .batch_recovery_panel import default_batch_journal_directory
 from .scene_checkpoint_panel import default_scene_checkpoint_directory
 from ai_novel_factory.scene_checkpoint_store import SceneCheckpointError
+from ai_novel_factory.author_context_envelope import AuthorContextEnvelopeError
 from .reference_selection import REFERENCE_FILE_FILTER, display_filename
 from .reference_profile_browser import default_local_catalog_path
 
@@ -37,7 +38,8 @@ class AutoBatchWorker(QThread):
 
     def __init__(self, database_path, project_id, provider, target, chars,
                  scenes, parent=None, *, reference_paths=(), catalog_path=None, batch_receipt=None,
-                 scene_checkpoint_root=None, scene_checkpoint_lease=None):
+                 scene_checkpoint_root=None, scene_checkpoint_lease=None,
+                 context_sources=None):
         super().__init__(parent)
         self.database_path = Path(database_path)
         self.project_id = project_id
@@ -50,6 +52,7 @@ class AutoBatchWorker(QThread):
         self.batch_receipt = batch_receipt
         self.scene_checkpoint_root = scene_checkpoint_root
         self.scene_checkpoint_lease = scene_checkpoint_lease
+        self.context_sources = context_sources
         self.stop_requested = Event()
 
     def run(self):
@@ -64,7 +67,8 @@ class AutoBatchWorker(QThread):
                 reference_paths=self.reference_paths,
                 reference_catalog_path=self.catalog_path,
                 scene_checkpoint_root=self.scene_checkpoint_root,
-                scene_checkpoint_lease=self.scene_checkpoint_lease)
+                scene_checkpoint_lease=self.scene_checkpoint_lease,
+                context_sources=self.context_sources)
             journal_state = 'STOPPED' if result.stopped else 'FINISHED'
             self.finished_report.emit(result)
         except (AutoNovelRunError, LocalModelError, ReferenceBatchError) as exc:
@@ -306,6 +310,19 @@ class AutoBatchPanel(QGroupBox):
         except (SceneCheckpointError, OSError, ValueError):
             self.status.setText('장면 임시 기록의 로컬 폴더를 확인할 수 없습니다.')
             return
+        # Optional four-source context is consumed only after the author
+        # separately approved its selection in the desktop feature hub.
+        composer = getattr(self.authoring, 'author_context_composer_panel', None)
+        try:
+            selected_context_sources = (
+                composer.consume_batch_sources() if composer is not None else None)
+            if (selected_context_sources is not None
+                    and composer.episode.value() != self.through.value()):
+                raise AuthorContextEnvelopeError(
+                    '장편 문맥 미리보기 회차와 현재 배치 마지막 회차가 다릅니다.')
+        except (AuthorContextEnvelopeError, OSError, ValueError):
+            self.status.setText('통합 작가 문맥 선택이나 지문이 바뀌었습니다. 다시 확인·승인하세요.')
+            return
         # A new local receipt is created only after this explicit launch action.
         # No source text, model arguments or consent are stored in the receipt.
         try:
@@ -326,7 +343,8 @@ class AutoBatchPanel(QGroupBox):
             catalog_path=(default_local_catalog_path() if self.reference_paths else None),
             batch_receipt=receipt,
             scene_checkpoint_root=checkpoint_root,
-            scene_checkpoint_lease=checkpoint_fingerprint)
+            scene_checkpoint_lease=checkpoint_fingerprint,
+            context_sources=selected_context_sources)
         self.worker.progress_changed.connect(
             lambda num, stage: self.status.setText(f'{num}화: {stage}'))
         self.worker.finished_report.connect(self._finished)

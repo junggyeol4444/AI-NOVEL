@@ -17,6 +17,9 @@ from .database.episodes import EpisodeStore
 from .continuity_memory_window import extend_scene_context
 from .scene_resume_binding import SceneResumeScope
 from .scene_checkpoint_store import SceneCheckpointError
+from .author_context_envelope import (
+    AuthorContextSources, compose_author_context, require_unchanged_author_sources,
+)
 from .database.characters import CharacterStore, BibleCharacter
 from .author_canon_context import read_saved_author_context
 from .reference_batch_context import (
@@ -342,6 +345,7 @@ def run_auto_novel(
     reference_catalog_path: str | Path | None = None,
     scene_checkpoint_root: str | Path | None = None,
     scene_checkpoint_lease: str | None = None,
+    context_sources: AuthorContextSources | None = None,
 ) -> AutoNovelRunReport:
     """Generate *unapproved drafts* on a dedicated existing SQLite project.
 
@@ -382,6 +386,8 @@ def run_auto_novel(
     calls, stopped = 0, False
     with EpisodeStore(database_path) as db:
         project = db.get_project(project_id)
+        if context_sources is not None:
+            require_unchanged_author_sources(db, project_id, context_sources)
         rules = {r.key: r.value for r in db.list_rules(project_id)}
         genre, subject, mood = (rules.get(k, '').strip() for k in
                                 ('genre', 'subject', 'mood'))
@@ -438,6 +444,8 @@ def run_auto_novel(
             nonlocal calls
             if should_stop is not None and should_stop():
                 raise InterruptedError()
+            if context_sources is not None:
+                require_unchanged_author_sources(db, project_id, context_sources)
             request = SceneDraftRequest(
                 project_id, episode_num, scene_num, context[:22000],
                 goal[:2000], conflict[:2000], place[:1000], character_names,
@@ -500,6 +508,8 @@ def run_auto_novel(
 
         expected_author_state = None
         for n in range(1, through_episode + 1):
+            if context_sources is not None:
+                require_unchanged_author_sources(db, project_id, context_sources)
             if n in existing:
                 # Never overwrite user-owned episodes or earlier batch data.
                 # A legacy interrupted write may have left plot-only records:
@@ -569,6 +579,18 @@ def run_auto_novel(
             context = extend_scene_context(
                 _continuity_context(chapter_canon[:14000], existing, n),
                 existing, n)
+            # Four author-selected local ledgers form ONE optional envelope.
+            # Do not auto-load unselected sources or trim author-written facts.
+            approved_context = None
+            if context_sources is not None:
+                approved_context = compose_author_context(
+                    db, project_id, episode=n,
+                    scene_count=scenes_per_episode, sources=context_sources)
+                merged = approved_context.outline + '\n' + context
+                if len(merged) > 22000:
+                    raise AutoNovelRunError(
+                        '통합 작가 문맥이 실제 모델 입력 길이를 초과했습니다. 임의 축약하지 않습니다.')
+                context = merged
             emit(n, '회차 플롯 로컬 AI 생성')
             try:
                 outline = checkpoint.load_stage(0) if checkpoint is not None else None
@@ -597,6 +619,13 @@ def run_auto_novel(
                         outline, per_scene)
                     scene_context = _scene_generation_context(
                         context, outline, drafts[-1] if drafts else '')
+                    if approved_context is not None:
+                        extra_scene = approved_context.scenes[scene_index]
+                        scene_context = (extra_scene + '\n' + scene_context
+                                         if extra_scene else scene_context)
+                        if len(scene_context) > 22000:
+                            raise AutoNovelRunError(
+                                '승인된 작가 장면 지시가 모델 문맥 한도를 초과했습니다.')
                     scene = model(n, slot.scene_number, scene_context,
                                   scene_goal, '새로운 갈등과 해결의 인과관계',
                                   f'{genre} 작품의 장면',
@@ -722,6 +751,8 @@ def run_auto_novel(
                         '오래된 AI 결과를 저장하지 않았습니다.')
                 if reference_batch is not None:
                     verify_reference_batch(reference_batch)
+                if context_sources is not None:
+                    require_unchanged_author_sources(safe, project_id, context_sources)
                 current = safe.create_unapproved_batch_episode(
                     project_id, n, plot=outline,
                     draft=full_draft,
