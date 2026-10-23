@@ -66,6 +66,7 @@ FEATURE_ENTRIES: tuple[FeatureEntry, ...] = (
     FeatureEntry('비공개 출력', '장편 권별 원고·검수·EPUB3 작업 현황', 'author_volume_review_matrix_panel', 'AuthorVolumeReviewMatrixPanel', 'author_volume_review_matrix_panel'),
     FeatureEntry('비공개 출력', 'EPUB3 메타데이터·목차·표지 직접 대조·인계', 'author_epub_materials_panel', 'AuthorEpubMaterialsPanel', 'author_epub_materials_panel'),
     FeatureEntry('작가 검수', '장편 편집 이슈·QC·검수 연결 현황', 'author_editorial_readiness_panel', 'AuthorEditorialReadinessPanel', 'author_editorial_readiness_panel'),
+    FeatureEntry('작가 검수', '저장 최종본 한국어·5000자·반복 표현 직접 검토', 'author_manuscript_language_queue_panel', 'AuthorManuscriptLanguageQueuePanel', 'author_manuscript_language_queue_panel'),
 )
 
 

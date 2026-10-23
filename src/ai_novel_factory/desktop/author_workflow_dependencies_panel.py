@@ -53,6 +53,7 @@ _QUICK_TOOLS = (
     ('30·100·250화 저장 기록 현황', 'author_workflow_milestones_panel'),
     ('장편 권별 원고·검수·EPUB3 현황', 'author_volume_review_matrix_panel'),
     ('장편 편집 이슈·QC·검수 연결 현황', 'author_editorial_readiness_panel'),
+    ('저장 최종본 한국어·5000자·반복 표현 직접 검토', 'author_manuscript_language_queue_panel'),
 )
 
 _ACTION_LABELS = {
