@@ -38,6 +38,7 @@ _QUICK_TOOLS = (
     ('작가 장편 아크 문맥', 'author_arc_context_panel'),
     ('회차별 장면 설계 문맥', 'author_scene_context_panel'),
     ('인물·복선·시간선 검토표', 'author_fact_review_panel'),
+    ('수정 후속 회차·QC·참고작 영향 검토', 'longform_revision_impact_panel'),
     ('고유명사·말투 검토', 'author_language_review_panel'),
     ('아크·장면·사실·언어 통합 문맥', 'author_context_composer_panel'),
     ('회차별 집필 중단·재개', 'scene_checkpoint_panel'),

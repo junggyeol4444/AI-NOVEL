@@ -91,6 +91,7 @@ _EPISODE_FIELDS = {
     'author_language_review_panel': 'episode',
     'author_context_composer_panel': 'episode',
     'author_fact_review_panel': 'through',
+    'longform_revision_impact_panel': 'source',
     'final_reference_audit_panel': 'through',
     'epub_volume_panel': 'through',
     'author_workflow_dependencies_panel': 'through',
@@ -109,5 +110,9 @@ def prefill_existing_feature(widget, attribute: str, episode: int) -> bool:
     control = getattr(widget, field, None)
     if control is None or not callable(getattr(control, 'setValue', None)):
         return False
+    if attribute == 'longform_revision_impact_panel':
+        through = getattr(widget, 'through', None)
+        if through is not None and through.value() < episode:
+            through.setValue(episode)
     control.setValue(episode)
     return True
