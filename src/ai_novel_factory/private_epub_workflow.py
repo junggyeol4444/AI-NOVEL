@@ -73,6 +73,7 @@ def create_private_epub_from_saved_finals(
     metadata_file: str | Path, output_directory: str | Path,
     cover_file: str | Path | None, expected_source_sha256: str,
     explicit_private_preview: bool,
+    toc_manifest_file: str | Path | None = None,
 ) -> EpubOutput:
     """Create a local *unpublished* EPUB only after a new explicit user click.
 
@@ -90,8 +91,24 @@ def create_private_epub_from_saved_finals(
     metadata = load_metadata(metadata_file)
     if metadata.project_id != project_id:
         raise PrivateEpubWorkflowError('다른 작품의 EPUB 메타데이터입니다.')
+    if toc_manifest_file is not None:
+        # Author-selected local sidecar, never inferred or silently generated.
+        from .epub_toc_authoring import load_current_epub_toc_manifest, EpubTocError
+        try:
+            toc = load_current_epub_toc_manifest(
+                toc_manifest_file, store, project_id,
+                through_episode=through_episode)
+        except (EpubTocError, ValueError, OSError) as exc:
+            raise PrivateEpubWorkflowError(
+                '선택한 EPUB 목차 JSON이 현재 최종 원고와 일치하지 않습니다.') from None
+        if toc.source_sha256 != before.source_sha256:
+            raise PrivateEpubWorkflowError('EPUB 목차 작성 이후 원고가 변경됐습니다.')
+        chapter_titles = toc.titles
+    else:
+        chapter_titles = tuple(f'{number}화' for number in range(1, through_episode + 1))
     chapters = tuple(
-        Chapter(f'{number}화', store.get_episode(project_id, number).final_text)
+        Chapter(chapter_titles[number - 1],
+                store.get_episode(project_id, number).final_text)
         for number in range(1, through_episode + 1))
     # Re-read source revisions/digests after gathering text, before file write.
     after = plan_private_epub(store, project_id, through_episode=through_episode)

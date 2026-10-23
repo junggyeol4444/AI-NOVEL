@@ -33,6 +33,9 @@ class PrivateEpubPanel(QGroupBox):
         self.metadata = QLineEdit()
         self.metadata.setObjectName('privateEpubMetadataPath')
         self.metadata.setReadOnly(True)
+        self.toc = QLineEdit()
+        self.toc.setObjectName('privateEpubTocManifest')
+        self.toc.setReadOnly(True)
         self.cover = QLineEdit()
         self.cover.setObjectName('privateEpubCoverPath')
         self.cover.setReadOnly(True)
@@ -41,6 +44,7 @@ class PrivateEpubPanel(QGroupBox):
         self.output.setReadOnly(True)
         for label, edit, handler in (
             ('기존 로컬 메타데이터 JSON', self.metadata, self._choose_metadata),
+            ('작가가 저장한 EPUB 목차 JSON (선택)', self.toc, self._choose_toc),
             ('작가가 선택한 JPEG 표지 (선택)', self.cover, self._choose_cover),
             ('기존 로컬 출력 폴더', self.output, self._choose_output)):
             row = QHBoxLayout()
@@ -76,6 +80,13 @@ class PrivateEpubPanel(QGroupBox):
             self, '기존 로컬 EPUB 메타데이터', '', 'JSON (*.json)')
         if filename:
             self.metadata.setText(filename)
+            self._invalidate()
+
+    def _choose_toc(self):
+        filename, _ = QFileDialog.getOpenFileName(
+            self, '기존 로컬 EPUB 목차 JSON', '', 'JSON (*.json)')
+        if filename:
+            self.toc.setText(filename)
             self._invalidate()
 
     def _choose_cover(self):
@@ -125,7 +136,8 @@ class PrivateEpubPanel(QGroupBox):
                 metadata_file=self.metadata.text(),
                 output_directory=self.output.text(),
                 cover_file=self.cover.text() or None,
-                expected_source_sha256=stamp[1], explicit_private_preview=True)
+                expected_source_sha256=stamp[1], explicit_private_preview=True,
+                toc_manifest_file=self.toc.text() or None)
         except (PrivateEpubWorkflowError, ValueError, OSError):
             self.status.setText('EPUB3 생성 실패 · 기존 파일을 덮어쓰지 않았습니다.')
             self._source_stamp = None
