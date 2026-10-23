@@ -8,6 +8,10 @@ from PySide6.QtWidgets import (
 from ai_novel_factory.project_restore_copy import (
     ProjectRestoreError, create_restore_copy, plan_restore_copy,
 )
+from ai_novel_factory.project_local_handoff import (
+    BackupHandoff, LocalHandoffError, prepare_new_copy_handoff,
+    require_backup_handoff, require_idle_authoring,
+)
 
 
 class ProjectRestorePanel(QGroupBox):
@@ -19,6 +23,8 @@ class ProjectRestorePanel(QGroupBox):
         self._destination = ''
         self._plan = None
         self._receipt = None
+        self._copy_project_id = None
+        self._backup_handoff = None
         layout = QVBoxLayout(self)
         description = QLabel('기존 로컬 백업과 SHA 기록을 확인한 뒤 다른 폴더에 새 파일만 생성합니다. '
                              '기존 작품 DB·백업은 수정하지 않으며 자동으로 열지 않습니다.')
@@ -43,6 +49,10 @@ class ProjectRestorePanel(QGroupBox):
         save.setObjectName('restoreCopyExplicit')
         save.clicked.connect(self.copy)
         layout.addWidget(save)
+        handoff = QPushButton('생성한 새 사본을 기존 SQLite 재열기에 인계 (자동 열기 없음)')
+        handoff.setObjectName('restoreCopyToReopenHandoff')
+        handoff.clicked.connect(self.handoff_copy_to_reopen)
+        layout.addWidget(handoff)
         self.status = QLabel('백업 파일·기록을 직접 선택하세요. 출판·자동 복원 없음.')
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
@@ -50,6 +60,8 @@ class ProjectRestorePanel(QGroupBox):
     def invalidate(self, *_args):
         self._plan = None
         self._receipt = None
+        self._copy_project_id = None
+        self._backup_handoff = None
         self.approved.setChecked(False)
         self.status.setText('작품 또는 파일 선택이 변경되어 이전 승인과 계획을 폐기했습니다.')
 
@@ -81,13 +93,21 @@ class ProjectRestorePanel(QGroupBox):
         return str(session.project_id)
 
     def preview(self):
-        self.invalidate()
+        self._plan = None
+        self._receipt = None
+        self._copy_project_id = None
+        self.approved.setChecked(False)
         try:
             project_id = self._idle_project()
+            require_idle_authoring(self.authoring, project_id)
+            if self._backup_handoff is not None:
+                require_backup_handoff(self._backup_handoff)
+                if self._backup_handoff.project_id != project_id:
+                    raise LocalHandoffError('작품이 변경됐습니다.')
             self._plan = plan_restore_copy(self._backup, self._manifest, project_id)
             self.status.setText(f'백업에 작품 {self._plan.project_count}개 확인. '
                                 '새 저장 폴더 선택과 별도 1회 승인이 필요합니다.')
-        except (ProjectRestoreError, OSError, ValueError):
+        except (ProjectRestoreError, LocalHandoffError, OSError, ValueError):
             self.status.setText('현재 작품과 일치하는 백업을 확인하지 못했습니다.')
 
     def copy(self):
@@ -101,10 +121,48 @@ class ProjectRestorePanel(QGroupBox):
         try:
             if self._idle_project() != plan.project_id:
                 raise ProjectRestoreError('작품이 변경되었습니다.')
+            require_idle_authoring(self.authoring, plan.project_id)
+            if self._backup_handoff is not None:
+                require_backup_handoff(self._backup_handoff)
             self._receipt = create_restore_copy(
                 plan, self._destination, explicit_author_copy=True)
+            self._copy_project_id = plan.project_id
             self.status.setText('새 로컬 SQLite 사본과 SHA 기록을 생성했습니다. '
                                 '기존 작품 변경 없음 · 자동 열기/복원/출판 없음. '
                                 '열려면 기존 SQLite 재열기에서 직접 선택하세요.')
         except (ProjectRestoreError, OSError, ValueError):
             self.status.setText('새 사본 생성을 완료하지 못했습니다. 기존 작품은 변경하지 않았습니다.')
+
+    def accept_backup_handoff(self, handoff: BackupHandoff) -> bool:
+        try:
+            require_backup_handoff(handoff)
+            require_idle_authoring(self.authoring, handoff.project_id)
+            self.invalidate()
+            self._backup = str(handoff.backup)
+            self._manifest = str(handoff.manifest)
+            self._backup_handoff = handoff
+            self.status.setText('백업 경로만 인계했습니다. 읽기 전용 확인→저장 폴더 선택→별도 1회 승인을 직접 진행하세요.')
+            return True
+        except (LocalHandoffError, OSError, ValueError):
+            self.invalidate()
+            return False
+
+    def handoff_copy_to_reopen(self):
+        receipt, project_id = self._receipt, self._copy_project_id
+        if receipt is None or project_id is None:
+            self.status.setText('이 화면에서 생성한 새 사본이 없습니다.')
+            return
+        try:
+            require_idle_authoring(self.authoring, project_id)
+            lease = prepare_new_copy_handoff(receipt, project_id)
+            session = self.authoring.session
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            identity = (str(session.path), str(session.project_id))
+            if hub is None or not hub.open_feature('sqlite_reopen_panel', project_identity=identity):
+                raise LocalHandoffError('기존 재열기 화면을 열지 못했습니다.')
+            panel = getattr(self.authoring, 'sqlite_reopen_panel', None)
+            if panel is None or not panel.accept_new_copy_handoff(lease):
+                raise LocalHandoffError('새 사본 인계가 취소됐습니다.')
+            self.status.setText('새 사본 선택만 기존 재열기 화면에 인계했습니다. 실제 열기는 별도 클릭해야 합니다.')
+        except (LocalHandoffError, OSError, ValueError):
+            self.status.setText('사본 SHA·작품·원고 상태가 변경됐습니다. 다시 확인하세요.')

@@ -9,6 +9,9 @@ from ai_novel_factory.project_backup_snapshot import (
     ProjectBackupError, create_project_backup, plan_project_backup,
     preview_project_backup,
 )
+from ai_novel_factory.project_local_handoff import (
+    LocalHandoffError, prepare_backup_handoff, require_idle_authoring,
+)
 
 
 class ProjectBackupPanel(QGroupBox):
@@ -41,6 +44,10 @@ class ProjectBackupPanel(QGroupBox):
         verify.setObjectName('projectBackupPreview')
         verify.clicked.connect(self.preview_backup)
         root.addWidget(verify)
+        handoff = QPushButton('확인한 백업을 기존 새 사본 화면에 인계 (복사 실행 안 함)')
+        handoff.setObjectName('projectBackupToRestoreHandoff')
+        handoff.clicked.connect(self.handoff_to_restore)
+        root.addWidget(handoff)
         self.status = QLabel('백업 계획 조회 전 · 자동 백업/복원/외부 전송 없음')
         self.status.setWordWrap(True)
         root.addWidget(self.status)
@@ -113,3 +120,23 @@ class ProjectBackupPanel(QGroupBox):
         self.status.setText(
             f'백업 파일 SHA 일치 · 작품 {result.project_count}개 읽기 전용 확인. '
             '실제 Windows 재열기·전체 검증·자동 복원·출판 승인 아님.')
+
+    def handoff_to_restore(self):
+        receipt = self._receipt
+        if receipt is None:
+            self.status.setText('이 화면에서 생성한 백업이 없습니다. 먼저 백업을 직접 생성하세요.')
+            return
+        try:
+            require_idle_authoring(self.authoring, receipt.project_id)
+            lease = prepare_backup_handoff(receipt, receipt.project_id)
+            session = self.authoring.session
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            identity = (str(session.path), str(session.project_id))
+            if hub is None or not hub.open_feature('project_restore_panel', project_identity=identity):
+                raise LocalHandoffError('기존 새 사본 화면을 열지 못했습니다.')
+            panel = getattr(self.authoring, 'project_restore_panel', None)
+            if panel is None or not panel.accept_backup_handoff(lease):
+                raise LocalHandoffError('백업 인계가 취소됐습니다.')
+            self.status.setText('백업 선택만 새 사본 화면에 전달했습니다. 새 사본 생성은 별도 확인과 승인이 필요합니다.')
+        except (LocalHandoffError, ProjectBackupError, OSError, ValueError):
+            self.status.setText('백업 또는 현재 원고 상태가 변경됐습니다. 다시 확인한 뒤 인계하세요.')
