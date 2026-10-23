@@ -53,14 +53,20 @@ class PrivateVolumeReaderPanel(QGroupBox):
     def choose_volumes(self):
         paths, _ = QFileDialog.getOpenFileNames(
             self, '읽을 EPUB3 권들을 순서대로 선택', '', 'EPUB3 (*.epub)')
-        if not paths:
-            return
+        if paths:
+            self.load_selected_volumes(tuple(paths))
+
+    def load_selected_volumes(self, paths: tuple[str, ...]) -> bool:
+        """기존 대조 화면의 명시적 인계 또는 직접 파일 선택만 허용."""
         self.invalidate()
+        if type(paths) is not tuple:
+            self.status.setText('EPUB3 권을 직접 선택해야 합니다.')
+            return False
         try:
-            catalog = build_private_volume_catalog(tuple(paths))
+            catalog = build_private_volume_catalog(paths)
         except (ValueError, OSError):
             self.status.setText('선택한 EPUB3 권의 로컬 읽기 목록을 만들지 못했습니다.')
-            return
+            return False
         self._catalog = catalog
         for entry in catalog.volumes:
             self.volumes.addItem(
@@ -70,6 +76,7 @@ class PrivateVolumeReaderPanel(QGroupBox):
             f'{len(catalog.volumes)}권 / {catalog.total_chapters}회차 로컬 열람 준비. '
             '실제 EPUB Reader 통합 검증·출판 승인 아님.')
         self.volumes.setCurrentRow(0)
+        return True
 
     def _volume_changed(self, row):
         self.chapters.clear()

@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QFileDialog, QGroupBox, QLabel, QPushButton, QSpinBox,
+    QComboBox, QFileDialog, QGroupBox, QLabel, QPushButton, QSpinBox,
     QTableWidget, QTableWidgetItem, QVBoxLayout,
 )
 
-from ai_novel_factory.epub_source_alignment import (
-    EpubSourceAlignmentError, compare_private_epub_to_saved_finals,
+from ai_novel_factory.epub_reader_handoff import (
+    EpubReaderHandoffError, preview_epub_reader_handoff,
+    require_current_epub_reader_handoff,
 )
+from .author_batch_scope_bridge import _current_author_state, BatchScopeBridgeError
+from .author_navigation_contract import select_saved_episode
 
 
 class EpubSourceAlignmentPanel(QGroupBox):
@@ -17,6 +20,8 @@ class EpubSourceAlignmentPanel(QGroupBox):
         self.authoring = authoring
         self._paths = ()
         self._toc = ''
+        self._lease = None
+        self._project = None
         root = QVBoxLayout(self)
         self.through = QSpinBox()
         self.through.setRange(1, 1000)
@@ -35,6 +40,16 @@ class EpubSourceAlignmentPanel(QGroupBox):
         compare.setObjectName('epubSourceAlignmentCompare')
         compare.clicked.connect(self.compare)
         root.addWidget(compare)
+        self.reader_button = QPushButton('현재 원고와 일치하는 EPUB3 전체 권을 기존 Reader로 열기')
+        self.reader_button.setEnabled(False)
+        self.reader_button.clicked.connect(self.open_checked_reader)
+        root.addWidget(self.reader_button)
+        self.mismatches = QComboBox()
+        root.addWidget(self.mismatches)
+        self.editor_button = QPushButton('선택한 불일치 회차를 기존 원고 편집기로 열기')
+        self.editor_button.setEnabled(False)
+        self.editor_button.clicked.connect(self.open_mismatched_episode)
+        root.addWidget(self.editor_button)
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(
             ['권/회차 범위', '본문 불일치', '목차 불일치', '검사 범위 상태'])
@@ -46,6 +61,11 @@ class EpubSourceAlignmentPanel(QGroupBox):
         root.addWidget(self.status)
 
     def invalidate(self, *_args):
+        self._lease = None
+        self._project = None
+        self.reader_button.setEnabled(False)
+        self.editor_button.setEnabled(False)
+        self.mismatches.clear()
         self.table.setRowCount(0)
         self.status.setText('작품·범위·파일 선택이 변경되었습니다. 다시 비교하세요.')
 
@@ -75,14 +95,19 @@ class EpubSourceAlignmentPanel(QGroupBox):
             self.status.setText('기존 EPUB3 권들을 직접 선택하세요.')
             return
         try:
-            report = compare_private_epub_to_saved_finals(
-                session.store, str(session.project_id),
+            checked_session, identity = _current_author_state(self.authoring)
+            report, lease = preview_epub_reader_handoff(
+                checked_session.store, identity[1],
                 through_episode=self.through.value(),
-                selected_volume_files=self._paths,
-                toc_manifest_file=self._toc or None)
-        except (EpubSourceAlignmentError, OSError, ValueError):
+                selected_files=self._paths, toc_manifest_file=self._toc)
+        except (EpubReaderHandoffError, BatchScopeBridgeError, OSError, ValueError):
             self.status.setText('원고/EPUB3 변경 또는 누락으로 전체 권별 비교를 완료하지 못했습니다.')
             return
+        self._lease, self._project = lease, identity
+        self.reader_button.setEnabled(not lease.mismatched_episodes)
+        for number in lease.mismatched_episodes:
+            self.mismatches.addItem(f'{number}화 불일치 · 직접 검토 필요', number)
+        self.editor_button.setEnabled(bool(lease.mismatched_episodes))
         self.table.setRowCount(len(report.volumes))
         for row_index, item in enumerate(report.volumes):
             cells = (f'{item.volume_index}권 {item.first_episode}~{item.last_episode}화',
@@ -94,3 +119,49 @@ class EpubSourceAlignmentPanel(QGroupBox):
             f'{report.through_episode}화 / {len(report.volumes)}권 / {report.status}. '
             '본문과 목차의 현재 저장본 일치 범위만 확인하며, '
             '실제 Windows EPUB Reader·품질·출판 승인은 별도입니다.')
+
+    def _require_current(self):
+        if self._lease is None or self._project is None:
+            raise EpubReaderHandoffError('먼저 현재 저장 원고와 EPUB3 전체 권을 대조하세요.')
+        session, identity = _current_author_state(self.authoring)
+        if identity != self._project:
+            raise EpubReaderHandoffError('작품이 변경됐습니다. 다시 대조하세요.')
+        require_current_epub_reader_handoff(self._lease, session.store, identity[1])
+        return identity
+
+    def open_checked_reader(self):
+        """작가의 두 번째 클릭으로 일치하는 권만 기존 로컬 Reader에 인계."""
+        try:
+            identity = self._require_current()
+            if self._lease.mismatched_episodes:
+                raise EpubReaderHandoffError('불일치 회차를 먼저 직접 검토하세요.')
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            if hub is None or not hub.open_feature(
+                    'private_volume_reader_panel', project_identity=identity):
+                raise EpubReaderHandoffError('기존 EPUB3 Reader 화면을 열지 못했습니다.')
+            panel = getattr(self.authoring, 'private_volume_reader_panel', None)
+            if panel is None or not panel.load_selected_volumes(self._lease.selected_files):
+                raise EpubReaderHandoffError('기존 EPUB3 Reader가 선택 권을 열지 못했습니다.')
+        except (EpubReaderHandoffError, BatchScopeBridgeError, OSError, ValueError):
+            self.invalidate()
+            self.status.setText('원고·EPUB3·목차 또는 작품이 변경됐습니다. 다시 대조하세요.')
+            return
+        self.status.setText('일치 범위의 EPUB3 권을 로컬 Reader로 열었습니다. 실제 Reader 통합 검증·출판 승인은 아닙니다.')
+
+    def open_mismatched_episode(self):
+        """불일치 원고를 직접 고칠 수 있도록 기존 편집기로만 이동."""
+        number = self.mismatches.currentData()
+        try:
+            identity = self._require_current()
+            if number not in self._lease.mismatched_episodes:
+                raise EpubReaderHandoffError('불일치 회차를 다시 선택하세요.')
+            decision = select_saved_episode(
+                self.authoring, project_identity=identity, episode=number)
+            if not decision.allowed:
+                self.status.setText(decision.message)
+                return
+        except (EpubReaderHandoffError, BatchScopeBridgeError, OSError, ValueError):
+            self.invalidate()
+            self.status.setText('불일치 원고 또는 EPUB3 파일이 변경됐습니다. 다시 대조하세요.')
+            return
+        self.status.setText(f'{number}화 기존 편집기로 이동했습니다. 저장·검수·출판은 자동 수행하지 않습니다.')
