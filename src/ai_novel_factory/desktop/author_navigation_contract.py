@@ -99,6 +99,7 @@ _EPISODE_FIELDS = {
     'author_volume_review_matrix_panel': 'through',
     'author_editorial_readiness_panel': 'through',
     'author_recovery_matrix_panel': 'through',
+    'author_continuity_coverage_panel': 'through',
 }
 
 
