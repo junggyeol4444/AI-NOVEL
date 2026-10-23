@@ -46,6 +46,8 @@ _QUICK_TOOLS = (
     ('장면·배치 중단 기록 합동 검토', 'author_recovery_matrix_panel'),
     ('참고작 5종 직접 선택·등록', 'reference_intake_panel'),
     ('참고작 회차별 검사 범위', 'reference_coverage_panel'),
+    ('현재 참고작·최종본 전수 재검사 대기열', 'reference_coverage_panel'),
+    ('기존 AI 배치 실행 전 SQLite·참고작·GGUF 확인', 'batch_preflight_panel'),
     ('최종 원고 참고작 전수 비교', 'final_reference_audit_panel'),
     ('30·100·250화 저장 기록 현황', 'author_workflow_milestones_panel'),
     ('장편 권별 원고·검수·EPUB3 현황', 'author_volume_review_matrix_panel'),
