@@ -62,6 +62,7 @@ FEATURE_ENTRIES: tuple[FeatureEntry, ...] = (
     FeatureEntry('장편 집필', '회차별 실제 남은 작가 작업', 'author_workflow_dependencies_panel', 'AuthorWorkflowDependenciesPanel', 'author_workflow_dependencies_panel'),
     FeatureEntry('장편 집필', '30·100·250·1000화 저장 기록 현황', 'author_workflow_milestones_panel', 'AuthorWorkflowMilestonesPanel', 'author_workflow_milestones_panel'),
     FeatureEntry('비공개 출력', '장편 권별 원고·검수·EPUB3 작업 현황', 'author_volume_review_matrix_panel', 'AuthorVolumeReviewMatrixPanel', 'author_volume_review_matrix_panel'),
+    FeatureEntry('작가 검수', '장편 편집 이슈·QC·검수 연결 현황', 'author_editorial_readiness_panel', 'AuthorEditorialReadinessPanel', 'author_editorial_readiness_panel'),
 )
 
 
