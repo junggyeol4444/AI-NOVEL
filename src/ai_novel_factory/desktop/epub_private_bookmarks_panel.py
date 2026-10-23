@@ -6,6 +6,11 @@ from ai_novel_factory.private_volume_reader import (
     build_private_volume_catalog, read_selected_volume_chapter)
 from ai_novel_factory.epub_private_bookmarks import (
     find_private_epub_text, list_private_bookmarks, save_private_bookmark)
+from ai_novel_factory.epub_reader_selection_handoff import (
+    ReaderSelectionHandoffError, preview_reader_selection,
+    require_current_reader_selection,
+)
+from .author_batch_scope_bridge import _current_author_state, BatchScopeBridgeError
 
 
 class EpubPrivateBookmarksPanel(QGroupBox):
@@ -16,6 +21,8 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         self._search = None
         self._marks = ()
         self._folder = ''
+        self._handoff_lease = None
+        self._handoff_identity = None
         root = QVBoxLayout(self)
         note = QLabel('작가가 직접 선택한 비공개 EPUB3만 열람합니다. 검색어/본문은 기록·전송하지 않습니다.')
         note.setWordWrap(True)
@@ -57,6 +64,15 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         form.addRow(read_marks)
         self.marks = QListWidget()
         root.addWidget(self.marks)
+        self.reader_preview = QPushButton('현재 권·회차의 기존 Reader 인계 준비')
+        self.reader_preview.setObjectName('epubBookmarkReaderHandoffPreview')
+        self.reader_preview.clicked.connect(self.preview_reader_handoff)
+        root.addWidget(self.reader_preview)
+        self.reader_handoff = QPushButton('확인한 권·회차를 기존 Reader로 이동')
+        self.reader_handoff.setObjectName('epubBookmarkReaderHandoff')
+        self.reader_handoff.setEnabled(False)
+        self.reader_handoff.clicked.connect(self.open_reader_handoff)
+        root.addWidget(self.reader_handoff)
         choose_folder = folder_btn.clicked.connect(self.choose_folder)
         add.clicked.connect(self.add_bookmark)
         read_marks.clicked.connect(self.read_bookmarks)
@@ -66,12 +82,15 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         self.search_button.clicked.connect(self.search)
         self.query.textChanged.connect(self._clear_search)
         self.volume.valueChanged.connect(self._change_volume)
+        self.chapter.valueChanged.connect(self._revoke_reader_handoff)
 
     def _change_volume(self, value):
+        self._revoke_reader_handoff()
         if self._catalog is not None and 1 <= value <= len(self._catalog.volumes):
             self.chapter.setMaximum(self._catalog.volumes[value-1].chapters)
 
     def invalidate(self, *_args):
+        self._revoke_reader_handoff()
         self._catalog = None
         self._search = None
         self._marks = ()
@@ -81,6 +100,66 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         self.preview.clear()
         self.folder_label.setText('책갈피 폴더 미선택')
         self.status.setText('작품/선택이 바뀌어 이전 EPUB 책갈피 권 목록을 폐기했습니다.')
+
+    def _revoke_reader_handoff(self, *_args):
+        self._handoff_lease = None
+        self._handoff_identity = None
+        if hasattr(self, 'reader_handoff'):
+            self.reader_handoff.setEnabled(False)
+
+    def accept_reader_selection(self, catalog, lease, identity):
+        _, current = _current_author_state(self.authoring)
+        if current != identity:
+            raise ReaderSelectionHandoffError('작품이 변경됐습니다.')
+        require_current_reader_selection(lease, catalog, identity)
+        self.invalidate()
+        self._catalog = catalog
+        self.volume.setMaximum(len(catalog.volumes))
+        self.volume.setValue(lease.volume_index)
+        self.chapter.setMaximum(catalog.volumes[lease.volume_index - 1].chapters)
+        self.chapter.setValue(lease.chapter_index)
+        self.status.setText(
+            f'{lease.volume_index}권 {lease.chapter_index}회차 선택 인계 완료. '
+            '본문 읽기·검색·책갈피 저장은 별도 직접 클릭하세요.')
+
+    def preview_reader_handoff(self):
+        self._revoke_reader_handoff()
+        try:
+            _, identity = _current_author_state(self.authoring)
+            lease = preview_reader_selection(
+                self._catalog, identity,
+                volume_index=self.volume.value(),
+                chapter_index=self.chapter.value())
+        except (ReaderSelectionHandoffError, BatchScopeBridgeError, OSError, ValueError):
+            self.status.setText('현재 작품·원고·EPUB3 권·회차를 다시 확인하세요.')
+            return
+        self._handoff_identity, self._handoff_lease = identity, lease
+        self.reader_handoff.setEnabled(True)
+        self.status.setText('EPUB3 파일 지문 확인 완료. 별도 클릭으로 기존 Reader에 이동할 수 있습니다.')
+
+    def open_reader_handoff(self):
+        identity, lease = self._handoff_identity, self._handoff_lease
+        self._revoke_reader_handoff()
+        if lease is None or identity is None:
+            self.status.setText('Reader 인계를 먼저 직접 준비하세요.')
+            return
+        try:
+            _, current = _current_author_state(self.authoring)
+            if current != identity:
+                raise ReaderSelectionHandoffError('작품이 변경됐습니다.')
+            require_current_reader_selection(lease, self._catalog, current)
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            if hub is None or not hub.open_feature(
+                    'private_volume_reader_panel', project_identity=identity):
+                raise ReaderSelectionHandoffError('기존 Reader를 열지 못했습니다.')
+            panel = getattr(self.authoring, 'private_volume_reader_panel', None)
+            if panel is None or not hasattr(panel, 'accept_bookmark_selection'):
+                raise ReaderSelectionHandoffError('기존 Reader 인계 기능이 없습니다.')
+            panel.accept_bookmark_selection(self._catalog, lease, identity)
+        except (ReaderSelectionHandoffError, BatchScopeBridgeError, OSError, ValueError):
+            self.status.setText('원고·EPUB3 변경 또는 Reader 인계 실패. 다시 준비하세요.')
+            return
+        self.status.setText('기존 Reader로 선택 회차를 인계했습니다. 자동 저장·출판 없음.')
 
     def _clear_search(self):
         self._search = None
