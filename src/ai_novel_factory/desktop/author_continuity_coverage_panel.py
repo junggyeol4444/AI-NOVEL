@@ -10,6 +10,10 @@ from ..author_continuity_coverage import (
     ContinuityCoverageError, build_continuity_coverage,
     require_current_continuity_coverage,
 )
+from ..author_continuity_context_handoff import (
+    ContinuityContextHandoffError, preview_continuity_context,
+    require_current_continuity_context,
+)
 from .author_batch_scope_bridge import _current_author_state, BatchScopeBridgeError
 from .author_navigation_contract import check_author_navigation
 
@@ -34,6 +38,8 @@ class AuthorContinuityCoveragePanel(QGroupBox):
         self.authoring = authoring
         self._identity = None
         self._snapshot = None
+        self._context_lease = None
+        self._context_identity = None
         root = QVBoxLayout(self)
         root.addWidget(QLabel(
             '작가가 선택한 기존 기록만 읽습니다. 빈 기록·과거 근거는 자동 보완하지 않으며 '
@@ -81,8 +87,32 @@ class AuthorContinuityCoveragePanel(QGroupBox):
         self.open_button.clicked.connect(self.open_stage)
         actions.addWidget(self.open_button)
         root.addLayout(actions)
+        context_actions = QHBoxLayout()
+        context_actions.addWidget(QLabel('문맥 장면 수'))
+        self.context_scenes = QSpinBox()
+        self.context_scenes.setRange(1, 20)
+        self.context_scenes.setValue(3)
+        self.context_scenes.setObjectName('authorContinuityContextScenes')
+        self.context_scenes.valueChanged.connect(self.invalidate_context)
+        context_actions.addWidget(self.context_scenes)
+        self.context_preview_button = QPushButton('선택 회차의 5종 실제 집필 문맥 확인')
+        self.context_preview_button.setObjectName('authorContinuityContextPreview')
+        self.context_preview_button.clicked.connect(self.preview_context)
+        context_actions.addWidget(self.context_preview_button)
+        self.context_handoff_button = QPushButton('확인한 5종 문맥을 기존 집필 화면에 선택만 인계')
+        self.context_handoff_button.setObjectName('authorContinuityContextHandoff')
+        self.context_handoff_button.setEnabled(False)
+        self.context_handoff_button.clicked.connect(self.handoff_context)
+        context_actions.addWidget(self.context_handoff_button)
+        root.addLayout(context_actions)
+
+    def invalidate_context(self, *_args):
+        self._context_lease = None
+        self._context_identity = None
+        self.context_handoff_button.setEnabled(False)
 
     def invalidate(self, *_args):
+        self.invalidate_context()
         self._identity = self._snapshot = None
         self.table.setRowCount(0)
         self.open_button.setEnabled(False)
@@ -150,3 +180,71 @@ class AuthorContinuityCoveragePanel(QGroupBox):
             self.status.setText('원고·기록·작품이 변경됐거나 화면을 열지 못했습니다. 다시 조회하세요.')
             return
         self.status.setText(f'{row.episode}화 기존 화면을 열었습니다. 검수·저장·승인은 별도 클릭입니다.')
+    def preview_context(self):
+        """작가 첫 클릭: 저장 원고·5종 기록·장면별 문맥을 실제 조합해 확인."""
+        self.invalidate_context()
+        identity, snapshot = self._identity, self._snapshot
+        row_index = self.table.currentRow()
+        if identity is None or snapshot is None or not 0 <= row_index < len(snapshot.rows):
+            self.status.setText('현재 작품의 기록을 조회하고 저장 회차를 선택하세요.')
+            return
+        episode = snapshot.rows[row_index].episode
+        try:
+            session, current = _current_author_state(self.authoring)
+            if current != identity:
+                raise ContinuityContextHandoffError('작품이 변경됐습니다.')
+            decision = check_author_navigation(
+                self.authoring, project_identity=identity, episode=episode)
+            if not decision.allowed:
+                self.status.setText(decision.message)
+                return
+            lease = preview_continuity_context(
+                session.store, identity[1], coverage=snapshot,
+                episode=episode, scene_count=self.context_scenes.value())
+        except (ContinuityContextHandoffError, BatchScopeBridgeError,
+                OSError, ValueError, LookupError):
+            self.status.setText(
+                '저장 최종본·작가 기록·근거·문맥 길이가 유효하지 않습니다. '
+                '원본을 직접 정리하고 다시 조회하세요.')
+            return
+        self._context_lease, self._context_identity = lease, identity
+        self.context_handoff_button.setEnabled(True)
+        self.status.setText(
+            f'{episode}화 {lease.scene_count}장면의 기존 5종 문맥 조합 확인: '
+            f'공통 {lease.outline_chars}자, 장면별 추가 {lease.scene_chars}자. '
+            '원고 내용은 전송하지 않았고 AI 실행·문맥 사용 승인도 하지 않았습니다.')
+
+    def handoff_context(self):
+        """작가 두 번째 클릭: 같은 기록 지문만 기존 통합 문맥 GUI에 전달."""
+        lease, identity = self._context_lease, self._context_identity
+        self.invalidate_context()
+        if lease is None or identity is None:
+            self.status.setText('먼저 저장 회차의 문맥을 직접 확인하세요.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            if current != identity:
+                raise ContinuityContextHandoffError('작품이 변경됐습니다.')
+            require_current_continuity_context(lease, session.store, identity[1])
+            decision = check_author_navigation(
+                self.authoring, project_identity=identity, episode=lease.episode)
+            if not decision.allowed:
+                self.status.setText(decision.message)
+                return
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            if hub is None or not hub.open_feature(
+                    'author_context_composer_panel',
+                    episode_number=lease.episode, project_identity=identity):
+                raise ContinuityContextHandoffError('기존 통합 문맥 화면을 열지 못했습니다.')
+            composer = getattr(self.authoring, 'author_context_composer_panel', None)
+            if composer is None:
+                raise ContinuityContextHandoffError('기존 문맥 화면을 찾지 못했습니다.')
+            composer.accept_existing_continuity_sources(lease)
+        except (ContinuityContextHandoffError, BatchScopeBridgeError,
+                OSError, ValueError, LookupError):
+            self.status.setText(
+                '기록·작품·원고가 변경됐거나 인계하지 못했습니다. 다시 직접 확인하세요.')
+            return
+        self.status.setText(
+            f'{lease.episode}화 5종 기록 폴더만 기존 문맥 화면에 선택했습니다. '
+            '문맥 미리보기·1회 모델 문맥 동의·배치 실행은 모두 별도 직접 클릭입니다.')

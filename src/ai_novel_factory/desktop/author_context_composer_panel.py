@@ -9,6 +9,10 @@ from pathlib import Path
 from PySide6.QtWidgets import (QCheckBox, QFormLayout, QGroupBox, QLabel,
                                QPushButton, QSpinBox, QPlainTextEdit,
                                QFileDialog, QVBoxLayout)
+from ..author_continuity_context_handoff import (
+    ContinuityContextLease, ContinuityContextHandoffError,
+    require_current_continuity_context,
+)
 from ..author_memory_delta import (AuthorMemoryDeltaError, list_author_memory_deltas,
                                    memory_delta_fingerprint)
 from ..author_context_envelope import (AuthorContextSources, AuthorContextEnvelopeError,
@@ -29,6 +33,7 @@ class AuthorContextComposerPanel(QGroupBox):
         self.authoring = authoring
         self.folders: dict[str, Path] = {}
         self._approved: AuthorContextSources | None = None
+        self._handoff_lease: ContinuityContextLease | None = None
         root = QVBoxLayout(self)
         note = QLabel('작가 기록만 선택해 조합합니다. 미선택 기록을 AI가 추론해 채우지 않습니다. '
                       '문맥 미리보기는 AI 모델 실행/품질 QC/출판 승인과 별개입니다.')
@@ -61,8 +66,12 @@ class AuthorContextComposerPanel(QGroupBox):
         self.status = QLabel('모든 항목은 기존 SQLite/작가 JSON 읽기 전용입니다.')
         self.status.setWordWrap(True)
         root.addWidget(self.status)
-        self.episode.valueChanged.connect(self._reset_consent)
-        self.scenes.valueChanged.connect(self._reset_consent)
+        self.episode.valueChanged.connect(self._episode_changed)
+        self.scenes.valueChanged.connect(self._episode_changed)
+
+    def _episode_changed(self, *_):
+        self._handoff_lease = None
+        self._reset_consent()
 
     def _reset_consent(self, *_):
         self._approved = None
@@ -72,6 +81,7 @@ class AuthorContextComposerPanel(QGroupBox):
         self.preview.clear()
 
     def invalidate(self):
+        self._handoff_lease = None
         self._reset_consent()
         self.folders.clear()
         for label in self.folder_labels.values():
@@ -81,6 +91,7 @@ class AuthorContextComposerPanel(QGroupBox):
     def choose_folder(self, key: str):
         selected = QFileDialog.getExistingDirectory(self, '기존 작가 기록 폴더 직접 선택')
         if selected:
+            self._handoff_lease = None
             self.folders[key] = Path(selected)
             self._reset_consent()
             self.folder_labels[key].setText('선택됨 · 로컬 원본 변경 없음')
@@ -102,11 +113,33 @@ class AuthorContextComposerPanel(QGroupBox):
 
     def _capture(self) -> AuthorContextSources:
         store, project_id = self.authoring.session.required()
+        lease = self._handoff_lease
+        if lease is not None:
+            if self.episode.value() != lease.episode or self.scenes.value() != lease.scene_count:
+                raise ContinuityContextHandoffError('문맥 인계 회차·장면 수가 변경됐습니다.')
+            require_current_continuity_context(lease, store, str(project_id))
         return capture_author_context_sources(
             store, str(project_id), arc_folder=self.folders.get('arc'),
             scene_folder=self.folders.get('scene'), fact_folder=self.folders.get('fact'),
             language_folder=self.folders.get('language'),
             memory_folder=self.folders.get('memory'))
+
+    def accept_existing_continuity_sources(self, lease: ContinuityContextLease) -> None:
+        """기존 연속성 화면의 두 번째 클릭에서만 5종 폴더를 선택한다."""
+        store, project_id = self.authoring.session.required()
+        require_current_continuity_context(lease, store, str(project_id))
+        self._handoff_lease = None
+        self._reset_consent()
+        self.episode.setValue(lease.episode)
+        self.scenes.setValue(lease.scene_count)
+        names = ('arc', 'scene', 'fact', 'language', 'memory')
+        self.folders = dict(zip(names, (Path(p) for p in lease.coverage.folders)))
+        for key in names:
+            self.folder_labels[key].setText('작가가 연속성 화면에서 직접 선택함 · 재확인 필요')
+        self._handoff_lease = lease
+        self.status.setText(
+            '5종 기록 폴더와 회차만 인계했습니다. 문맥 미리보기와 '
+            'AI 배치 문맥 1회 사용 동의는 별도 직접 클릭하세요.')
 
     def refresh(self):
         self._reset_consent()
