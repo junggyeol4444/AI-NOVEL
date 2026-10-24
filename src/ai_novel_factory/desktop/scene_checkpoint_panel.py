@@ -5,11 +5,12 @@ from pathlib import Path
 from PySide6.QtCore import QStandardPaths
 from PySide6.QtWidgets import (
     QComboBox, QGroupBox, QHBoxLayout, QLabel, QPushButton, QSpinBox,
-    QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QPlainTextEdit,
 )
 from ..author_scene_checkpoint_integrity import (
     SceneIntegrityError, audit_scene_checkpoints,
     require_current_scene_checkpoint_audit,
+    list_author_scene_stage_choices, read_author_scene_stage_choice,
 )
 from ..author_checkpoint_final_coverage import (
     CheckpointFinalCoverageError, build_checkpoint_final_coverage,
@@ -44,6 +45,8 @@ class SceneCheckpointPanel(QGroupBox):
         self._reference_lease = None
         self._final_alignment = None
         self._final_identity = None
+        self._stage_choices = ()
+        self._stage_identity = None
         layout = QVBoxLayout(self)
         notice = QLabel(
             '사용자가 별도 승인한 실행에서만 생성된 AI 장면 초안을 로컬 임시 폴더에 저장합니다. '
@@ -77,6 +80,35 @@ class SceneCheckpointPanel(QGroupBox):
         self.audit_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.audit_table.setMaximumHeight(240)
         layout.addWidget(self.audit_table)
+
+        self.stage_list_button = QPushButton(
+            '선택 회차의 검증된 임시 장면 목록 직접 조회 (첫 클릭)')
+        self.stage_list_button.setObjectName('sceneStageListDirect')
+        layout.addWidget(self.stage_list_button)
+        self.stage_table = QTableWidget(0, 3)
+        self.stage_table.setObjectName('sceneStageListTable')
+        self.stage_table.setHorizontalHeaderLabels(('임시 묶음 식별자', '장면 단계', '글자 수'))
+        self.stage_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.stage_table.setMaximumHeight(200)
+        layout.addWidget(self.stage_table)
+        self.stage_read_button = QPushButton(
+            '선택 임시 장면 원문 읽기 전용으로 열기 (별도 두 번째 클릭)')
+        self.stage_read_button.setObjectName('sceneStageReadDirect')
+        self.stage_read_button.setEnabled(False)
+        layout.addWidget(self.stage_read_button)
+        self.stage_text = QPlainTextEdit()
+        self.stage_text.setObjectName('sceneStageUnapprovedText')
+        self.stage_text.setReadOnly(True)
+        self.stage_text.setMaximumHeight(260)
+        self.stage_text.setPlaceholderText('직접 선택한 미승인 임시 장면만 이 화면에 표시합니다.')
+        layout.addWidget(self.stage_text)
+        self.stage_status = QLabel(
+            'NOT_RUN: 임시 장면 열람은 모델 재개·원고 저장·검수·출판 승인이 아닙니다.')
+        self.stage_status.setWordWrap(True)
+        layout.addWidget(self.stage_status)
+        self.stage_list_button.clicked.connect(self.preview_stage_choices)
+        self.stage_read_button.clicked.connect(self.open_stage_choice)
+        self.audit_table.currentCellChanged.connect(self.invalidate_stage_choices)
         self.audit_status = QLabel(
             '파일 형식 확인은 현재 모델 승인·작가 자료 일치·재개 가능 판정이 아닙니다.')
         self.audit_status.setWordWrap(True)
@@ -135,6 +167,7 @@ class SceneCheckpointPanel(QGroupBox):
         self.final_status.setText('현재 작품·원고·임시 장면을 다시 직접 조회하세요.')
 
     def invalidate_audit(self, *_args):
+        self.invalidate_stage_choices()
         self.invalidate_final_alignment()
         self._audit = self._audit_identity = None
         self._batch_scope = self._reference_lease = None
@@ -142,6 +175,64 @@ class SceneCheckpointPanel(QGroupBox):
         self.audit_open_button.setEnabled(False)
         self.audit_handoff_button.setEnabled(False)
         self.audit_status.setText('현재 작품·회차의 실제 파일을 다시 직접 조회하세요.')
+
+
+    def invalidate_stage_choices(self, *_args):
+        self._stage_choices = ()
+        self._stage_identity = None
+        self.stage_table.setRowCount(0)
+        self.stage_read_button.setEnabled(False)
+        self.stage_text.clear()
+        self.stage_status.setText('임시 장면 목록을 다시 직접 조회하세요.')
+
+    def preview_stage_choices(self):
+        self.invalidate_stage_choices()
+        index = self.audit_table.currentRow()
+        if self._audit is None or not 0 <= index < len(self._audit.chapters):
+            self.stage_status.setText('전수 조회 후 임시 장면을 볼 회차를 직접 선택하세요.')
+            return
+        try:
+            session, identity = self._require_audit()
+            episode = self._audit.chapters[index].episode
+            choices = list_author_scene_stage_choices(
+                self._audit, session.store, session.path, identity[1],
+                episode=episode)
+            self._stage_choices, self._stage_identity = choices, identity
+            self.stage_table.setRowCount(len(choices))
+            for row, choice in enumerate(choices):
+                for col, value in enumerate((
+                        choice.folder_name[-8:], choice.stage, choice.characters)):
+                    self.stage_table.setItem(row, col, QTableWidgetItem(str(value)))
+            self.stage_read_button.setEnabled(bool(choices))
+            self.stage_status.setText(
+                f'{episode}화: 형식·SHA 확인된 임시 장면 {len(choices)}개. '
+                '선택한 원문 열람은 별도 직접 클릭이며 미승인 AI 초고입니다.')
+        except (SceneIntegrityError, BatchScopeBridgeError, OSError, ValueError):
+            self.invalidate_stage_choices()
+            self.stage_status.setText('원고·임시 파일이 변경됐습니다. 다시 전수 조회하세요.')
+
+    def open_stage_choice(self):
+        index = self.stage_table.currentRow()
+        choices, identity = self._stage_choices, self._stage_identity
+        self.stage_text.clear()
+        if identity is None or not 0 <= index < len(choices):
+            self.stage_status.setText('조회한 임시 장면을 직접 선택하세요.')
+            return
+        try:
+            session, current = self._require_audit()
+            if current != identity:
+                raise SceneIntegrityError('현재 작품이 변경됐습니다.')
+            text = read_author_scene_stage_choice(
+                self._audit, session.store, session.path, identity[1],
+                choices[index])
+            self.stage_text.setPlainText(text)
+            self.stage_status.setText(
+                f'{choices[index].episode}화 {choices[index].stage}단계 '
+                '미승인 AI 장면 원문을 로컬 읽기 전용으로 표시했습니다. '
+                '저장·재개·검수·출판 승인은 수행하지 않았습니다.')
+        except (SceneIntegrityError, BatchScopeBridgeError, OSError, ValueError):
+            self.invalidate_stage_choices()
+            self.stage_status.setText('원고·임시 파일이 변경됐습니다. 다시 조회하세요.')
 
     def preview_audit(self):
         self.invalidate_audit()

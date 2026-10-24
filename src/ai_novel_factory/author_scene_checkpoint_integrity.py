@@ -200,3 +200,74 @@ def require_current_scene_checkpoint_audit(snapshot: SceneIntegrityAudit,
             or current.project_id != snapshot.project_id
             or current.database_path != snapshot.database_path):
         raise SceneIntegrityError('저장 원고나 임시 장면이 변경됐습니다. 다시 조회하세요.')
+
+@dataclass(frozen=True)
+class SceneStageChoice:
+    """작가가 직접 선택할 임시 장면 파일의 읽기 전용 지문."""
+    episode: int
+    folder_name: str = field(repr=False)
+    stage: int = 0
+    file_sha256: str = field(default='', repr=False)
+    characters: int = 0
+    status: str = 'UNAPPROVED_DRAFT_REVIEW_ONLY'
+    publication_approved: bool = False
+
+
+def list_author_scene_stage_choices(
+        audit: SceneIntegrityAudit, store: EpisodeStore,
+        database_path: str | Path, project_id: str, *,
+        episode: int) -> tuple[SceneStageChoice, ...]:
+    """검증된 장면 파일만 작가의 명시적 선택 목록에 표시한다."""
+    if (type(audit) is not SceneIntegrityAudit or type(episode) is not int
+            or not 1 <= episode <= audit.through_episode):
+        raise SceneIntegrityError('조회한 작품·회차를 다시 선택하세요.')
+    require_current_scene_checkpoint_audit(audit, store, database_path, project_id)
+    root = Path(audit.checkpoint_root)
+    prefix = checkpoint_project_identity(database_path, project_id)[:20] + f'_{episode:04d}_'
+    choices = []
+    if root.exists():
+        for folder in sorted(root.glob(prefix + '*'), key=lambda p: p.name):
+            if (folder.is_symlink() or not folder.is_dir()
+                    or re.fullmatch(re.escape(prefix) + r'[0-9a-f]{32}', folder.name) is None):
+                raise SceneIntegrityError('임시 장면 묶음이 변경됐습니다.')
+            suffix = folder.name[-32:]
+            for path in sorted(folder.iterdir(), key=lambda p: p.name):
+                if path.is_symlink() or not path.is_file():
+                    raise SceneIntegrityError('임시 장면 경로를 신뢰할 수 없습니다.')
+                match = _STAGE.fullmatch(path.name)
+                if match is None or int(match.group(1)) == 0:
+                    continue
+                raw = _read_file(path)
+                stage = int(match.group(1))
+                if not _record_valid(raw, expected_project=checkpoint_project_identity(
+                        database_path, project_id), episode=episode,
+                        stage=stage, suffix=suffix):
+                    continue
+                text = json.loads(raw.decode('utf-8'))['text']
+                choices.append(SceneStageChoice(
+                    episode, folder.name, stage, sha256(raw).hexdigest(), len(text)))
+    require_current_scene_checkpoint_audit(audit, store, database_path, project_id)
+    return tuple(choices)
+
+
+def read_author_scene_stage_choice(
+        audit: SceneIntegrityAudit, store: EpisodeStore,
+        database_path: str | Path, project_id: str,
+        choice: SceneStageChoice) -> str:
+    """별도 클릭에서 전체 원고·파일 지문을 재확인한 후 로컬 미승인 장면만 읽는다."""
+    if type(choice) is not SceneStageChoice:
+        raise SceneIntegrityError('읽을 임시 장면을 다시 선택하세요.')
+    current = list_author_scene_stage_choices(
+        audit, store, database_path, project_id, episode=choice.episode)
+    if choice not in current:
+        raise SceneIntegrityError('임시 장면 또는 원고가 변경됐습니다. 다시 조회하세요.')
+    path = Path(audit.checkpoint_root) / choice.folder_name / f'{choice.stage:02d}.json'
+    raw = _read_file(path)
+    if sha256(raw).hexdigest() != choice.file_sha256:
+        raise SceneIntegrityError('임시 장면 내용이 변경됐습니다.')
+    record = json.loads(raw.decode('utf-8'))
+    if not _record_valid(raw, expected_project=checkpoint_project_identity(
+            database_path, project_id), episode=choice.episode,
+            stage=choice.stage, suffix=choice.folder_name[-32:]):
+        raise SceneIntegrityError('임시 장면 형식을 신뢰할 수 없습니다.')
+    return record['text']
