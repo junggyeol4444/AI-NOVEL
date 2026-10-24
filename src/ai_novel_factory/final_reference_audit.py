@@ -171,3 +171,46 @@ def save_explicit_final_reference_qc(
             'human_review_required=true;publication_approved=false')
     return store.add_check(project_id, result.episode, 'reference_similarity',
                            outcome, note, expected_revision=result.revision)
+
+
+def require_current_final_reference_audit(
+    report: FinalReferenceAudit, intake: ReferenceIntakePlan, *,
+    database_path: str | Path, project_id: str,
+    selected_paths: tuple[str, ...], through_episode: int,
+) -> None:
+    """작가의 별도 검토 이동 전에 참고작과 1~N화 저장 최종본을 다시 확인.
+
+    기존 검사 결과를 다시 읽는 확인일 뿐 QC PASS, 원고 승인 또는 출판 승인
+    상태를 변경하지 않는다. 누락 회차의 추가/수정도 이전 조회를 무효화한다.
+    """
+    if (type(report) is not FinalReferenceAudit
+            or type(intake) is not ReferenceIntakePlan
+            or report.project_id != project_id
+            or report.through_episode != through_episode
+            or report.selected_fingerprint != intake.fingerprint
+            or report.selected_count != len(intake.entries)
+            or len(report.results) != through_episode
+            or type(selected_paths) is not tuple):
+        raise FinalReferenceAuditError('작품·검사 범위가 변경됐습니다. 다시 직접 검사하세요.')
+    require_current_intake(intake, selected_paths)
+    path = Path(database_path)
+    if not path.is_absolute() or not path.is_file():
+        raise FinalReferenceAuditError('현재 로컬 작품 SQLite를 확인할 수 없습니다.')
+    with EpisodeStore(path) as store:
+        store.get_project(project_id)
+        saved = {row.episode: row for row in store.list_episodes(project_id)}
+        for number, row in enumerate(report.results, 1):
+            if row.episode != number:
+                raise FinalReferenceAuditError('검사 회차가 변경됐습니다. 다시 직접 검사하세요.')
+            current = saved.get(number)
+            if row.status == 'MISSING_FINAL':
+                if (current is None and row.revision != 0
+                        or current is not None and (
+                            current.revision != row.revision
+                            or bool(current.final_text.strip()))):
+                    raise FinalReferenceAuditError('저장 원고가 변경됐습니다. 다시 직접 검사하세요.')
+            elif (current is None or current.revision != row.revision
+                  or not current.final_text.strip()
+                  or _hash_final(current.final_text) != row.final_sha256):
+                raise FinalReferenceAuditError('저장 원고가 변경됐습니다. 다시 직접 검사하세요.')
+    require_current_intake(intake, selected_paths)
