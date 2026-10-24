@@ -30,6 +30,7 @@ _QUICK_TOOLS = (
     ('기존 SQLite 재열기', 'sqlite_reopen_panel'),
     ('SQLite 안전 백업', 'project_backup_panel'),
     ('SQLite 별도 복원 사본', 'project_restore_panel'),
+    ('원본·별도 SQLite 사본 실제 저장 내용 대조', 'author_sqlite_copy_comparison_panel'),
     ('편집 이슈·인계 보류', 'editorial_handoff_panel'),
     ('비공개 EPUB3 다권 생성', 'epub_volume_panel'),
     ('EPUB3 메타데이터·목차·표지 직접 대조·인계', 'author_epub_materials_panel'),

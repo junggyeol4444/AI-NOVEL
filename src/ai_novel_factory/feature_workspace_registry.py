@@ -39,6 +39,7 @@ FEATURE_ENTRIES: tuple[FeatureEntry, ...] = (
     FeatureEntry('작품·SQLite', '기존 SQLite 재열기', 'sqlite_reopen_panel', 'SqliteReopenPanel', 'sqlite_reopen_panel'),
     FeatureEntry('작품·SQLite', 'SQLite 로컬 백업', 'project_backup_panel', 'ProjectBackupPanel', 'project_backup_panel'),
     FeatureEntry('작품·SQLite', 'SQLite 새 복원 사본', 'project_restore_panel', 'ProjectRestorePanel', 'project_restore_panel'),
+    FeatureEntry('작품·SQLite', '원본·별도 SQLite 사본 저장 내용 직접 대조', 'author_sqlite_copy_comparison_panel', 'AuthorSqliteCopyComparisonPanel', 'author_sqlite_copy_comparison_panel'),
     FeatureEntry('비공개 출력', 'EPUB3 1권 생성', 'private_epub_panel', 'PrivateEpubPanel', 'private_epub_panel'),
     FeatureEntry('비공개 출력', 'EPUB3 다권 분할 생성', 'epub_volume_panel', 'EpubVolumePanel', 'epub_volume_panel'),
     FeatureEntry('비공개 출력', 'EPUB3 회차별 목차 편집', 'epub_toc_panel', 'EpubTocPanel', 'epub_toc_panel'),

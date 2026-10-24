@@ -69,6 +69,32 @@ class SqliteReopenPanel(QGroupBox):
             self.invalidate()
             return False
 
+    def accept_author_copy_comparison(self, snapshot) -> bool:
+        """작가가 별도 조회한 새 사본을 선택만 받는다. 실제 열기·저장 없음."""
+        from ..author_sqlite_copy_comparison import (
+            AuthorCopyComparison, require_current_author_copy_comparison,
+        )
+        try:
+            if type(snapshot) is not AuthorCopyComparison:
+                raise SqliteReopenError('현재 SQLite 사본을 다시 선택하세요.')
+            require_idle_authoring(self.authoring, snapshot.project_id)
+            if str(self.authoring.session.path) != str(snapshot.source):
+                raise SqliteReopenError('현재 작품 경로가 변경됐습니다.')
+            require_current_author_copy_comparison(snapshot)
+            preview = preview_existing_sqlite(snapshot.copy)
+            require_current_sqlite(preview)
+            if len(preview.projects) != 1 or preview.projects[0][0] != snapshot.project_id:
+                raise SqliteReopenError('새 사본에 선택 작품 하나만 있어야 합니다.')
+            self.invalidate()
+            self._preview = preview
+            self.status.setText(
+                '원본·사본 내용 대조 후 새 사본 경로만 선택했습니다. '
+                '실제 재열기는 아래 버튼을 별도로 눌러야 합니다.')
+            return True
+        except (SqliteReopenError, LocalHandoffError, ValueError, OSError):
+            self.invalidate()
+            return False
+
     def open_database(self):
         plan = self._preview
         lease = self._copy_handoff
