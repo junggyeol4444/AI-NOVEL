@@ -4,8 +4,14 @@ from __future__ import annotations
 from pathlib import Path
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QFormLayout,
                                QGroupBox, QLabel, QLineEdit, QPushButton,
-                               QPlainTextEdit, QSpinBox, QVBoxLayout)
+                               QPlainTextEdit, QSpinBox, QTableWidget, QTableWidgetItem, QVBoxLayout)
 
+from ..author_memory_final_alignment import (
+    AuthorMemoryFinalAlignmentError, build_author_memory_final_alignment,
+    require_current_author_memory_final_alignment,
+)
+from .author_batch_scope_bridge import _current_author_state, BatchScopeBridgeError
+from .author_navigation_contract import select_saved_episode
 from ..author_memory_delta import (AuthorMemoryDeltaError,
                                    add_author_memory_delta, retract_author_memory_delta,
                                    list_author_memory_deltas, memory_delta_fingerprint)
@@ -17,6 +23,8 @@ class AuthorMemoryPanel(QGroupBox):
         self.authoring = authoring
         self.folder: Path | None = None
         self.approved_fingerprint: str | None = None
+        self._final_alignment = None
+        self._final_identity = None
         root = QVBoxLayout(self)
         info = QLabel('근거가 되는 기존 최종 원고를 직접 읽고 기억 변화를 기록하세요. '
                       '저장·철회는 각각 별도 승인하며 원고/SQLite는 변경하지 않습니다.')
@@ -67,6 +75,32 @@ class AuthorMemoryPanel(QGroupBox):
         self.status = QLabel('기억 기록을 작성해도 모델 실행/품질 검사/출판 승인은 자동으로 일어나지 않습니다.')
         self.status.setWordWrap(True)
         root.addWidget(self.status)
+        # 저장된 최종본과 기존 기억 변화 원장 전체의 별도 읽기 전용 대조.
+        self.final_scope = QSpinBox()
+        self.final_scope.setRange(1, 1000)
+        self.final_scope.setValue(30)
+        self.final_scope.valueChanged.connect(self.invalidate_final_alignment)
+        root.addWidget(QLabel('기억 변화·저장 최종본 전체 대조 범위 (1~1000화)'))
+        root.addWidget(self.final_scope)
+        self.final_read = QPushButton('작가 기억 변화·저장 최종본 전수 대조 (읽기 전용)')
+        self.final_read.setObjectName('authorMemoryFinalReadOnly')
+        self.final_read.clicked.connect(self.preview_final_alignment)
+        root.addWidget(self.final_read)
+        self.final_table = QTableWidget(0, 8)
+        self.final_table.setHorizontalHeaderLabels([
+            '회차', '최종본 글자', '적용 기억', '근거 변경',
+            '대상 출현', '변화 문구 출현', '변화 문구 미출현', '최종본 누락',
+        ])
+        self.final_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.final_table.setMaximumHeight(250)
+        root.addWidget(self.final_table)
+        self.final_status = QLabel('NOT_RUN: 작가가 먼저 전수 대조를 직접 실행하세요.')
+        self.final_status.setWordWrap(True)
+        root.addWidget(self.final_status)
+        self.final_open = QPushButton('선택한 저장 회차를 기존 원고 편집기로 이동 (별도 클릭)')
+        self.final_open.setEnabled(False)
+        self.final_open.clicked.connect(self.open_final_alignment)
+        root.addWidget(self.final_open)
         for control in (self.source, self.start, self.end, self.category):
             signal = control.currentIndexChanged if isinstance(control, QComboBox) else control.valueChanged
             signal.connect(self._clear_approval)
@@ -80,6 +114,7 @@ class AuthorMemoryPanel(QGroupBox):
         self.batch_consent.blockSignals(False)
 
     def invalidate(self):
+        self.invalidate_final_alignment()
         self._clear_approval()
         self.folder = None
         self.existing.clear()
@@ -91,6 +126,7 @@ class AuthorMemoryPanel(QGroupBox):
     def choose_folder(self):
         chosen = QFileDialog.getExistingDirectory(self, '기존 로컬 기억 기록 폴더 선택')
         if chosen:
+            self.invalidate_final_alignment()
             self.folder = Path(chosen)
             self._clear_approval()
             self.save_agree.setChecked(False)
@@ -117,6 +153,7 @@ class AuthorMemoryPanel(QGroupBox):
             self.status.setText('현재 작품·기억 기록을 다시 선택하세요. 원고/DB는 변경하지 않았습니다.')
 
     def refresh(self):
+        self.invalidate_final_alignment()
         self._clear_approval()
         self.existing.clear()
         if self.folder is None:
@@ -134,6 +171,7 @@ class AuthorMemoryPanel(QGroupBox):
             self.status.setText('기억 기록을 안전하게 읽을 수 없습니다. 원본은 수정하지 않았습니다.')
 
     def add(self):
+        self.invalidate_final_alignment()
         agreed = self.save_agree.isChecked()
         self.save_agree.setChecked(False)
         self._clear_approval()
@@ -153,6 +191,7 @@ class AuthorMemoryPanel(QGroupBox):
             self.status.setText('승인/근거/범위/중복을 확인하세요. 기존 파일은 변경하지 않았습니다.')
 
     def retract(self):
+        self.invalidate_final_alignment()
         agreed = self.retract_agree.isChecked()
         self.retract_agree.setChecked(False)
         self._clear_approval()
@@ -189,3 +228,68 @@ class AuthorMemoryPanel(QGroupBox):
         if path is None or not stamp or memory_delta_fingerprint(path) != stamp:
             raise AuthorMemoryDeltaError('기억 기록이 변경돼 동의를 다시 받아야 합니다.')
         return str(path), stamp
+
+    def invalidate_final_alignment(self, *_args):
+        self._final_alignment = None
+        self._final_identity = None
+        if hasattr(self, 'final_table'):
+            self.final_table.setRowCount(0)
+            self.final_open.setEnabled(False)
+            self.final_status.setText('작품·기억 원장·범위·저장 원고 변경 시 다시 조회하세요.')
+
+    def preview_final_alignment(self):
+        self.invalidate_final_alignment()
+        try:
+            session, identity = _current_author_state(self.authoring)
+            if self.folder is None:
+                raise AuthorMemoryFinalAlignmentError('기존 기억 폴더 선택 필요')
+            snapshot = build_author_memory_final_alignment(
+                session.store, identity[1], folder=self.folder,
+                through_episode=self.final_scope.value())
+        except (AuthorMemoryFinalAlignmentError, BatchScopeBridgeError,
+                ValueError, OSError, LookupError):
+            self.final_status.setText('현재 작품·저장 원고·작가 기억 기록을 읽지 못했습니다.')
+            return
+        self._final_alignment = snapshot
+        self._final_identity = identity
+        self.final_table.setRowCount(len(snapshot.rows))
+        for index, row in enumerate(snapshot.rows):
+            cells = (row.episode, row.final_characters, row.applicable_memories,
+                     row.stale_sources, row.subject_found, row.change_found,
+                     row.change_not_found, '예' if row.missing_final else '아니요')
+            for column, value in enumerate(cells):
+                self.final_table.setItem(index, column, QTableWidgetItem(str(value)))
+        self.final_open.setEnabled(True)
+        self.final_status.setText(
+            f'{snapshot.through_episode}화 직접 대조: 저장 최종본 누락 '
+            f'{snapshot.missing_final_chapters}화, 기억 근거 변경 '
+            f'{snapshot.stale_source_chapters}화, 검토 후보 '
+            f'{snapshot.candidate_chapters}화. 정확한 문자열 출현만 집계했으며 '
+            '문학 품질·QC·출판 승인 판정이 아닙니다.')
+
+    def open_final_alignment(self):
+        snapshot, identity = self._final_alignment, self._final_identity
+        row_index = self.final_table.currentRow()
+        if (snapshot is None or identity is None
+                or not 0 <= row_index < len(snapshot.rows)):
+            self.final_status.setText('먼저 전수 대조하고 이동할 회차를 직접 선택하세요.')
+            return
+        row = snapshot.rows[row_index]
+        self.invalidate_final_alignment()
+        if row.revision is None:
+            self.final_status.setText('저장되지 않은 회차는 자동 생성하지 않습니다.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            if current != identity or self.final_scope.value() != snapshot.through_episode:
+                raise AuthorMemoryFinalAlignmentError('작품 또는 조회 범위가 변경됐습니다.')
+            if self.folder is None or str(self.folder.resolve()) != snapshot.folder:
+                raise AuthorMemoryFinalAlignmentError('기억 폴더가 변경됐습니다.')
+            require_current_author_memory_final_alignment(
+                snapshot, session.store, identity[1])
+            decision = select_saved_episode(
+                self.authoring, project_identity=identity, episode=row.episode)
+            self.final_status.setText(decision.message)
+        except (AuthorMemoryFinalAlignmentError, BatchScopeBridgeError,
+                ValueError, OSError, LookupError):
+            self.final_status.setText('기억 기록·원고 변경으로 이전 인계를 무효화했습니다.')
