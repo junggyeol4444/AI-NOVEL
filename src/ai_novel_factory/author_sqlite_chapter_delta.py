@@ -157,3 +157,52 @@ def require_current_author_sqlite_chapter_delta(snapshot: AuthorSqliteChapterDel
         snapshot.comparison, through_episode=snapshot.through_episode)
     if latest.fingerprint != snapshot.fingerprint:
         raise AuthorSqliteChapterDeltaError('원본·사본·검수 기록이 변경됐습니다. 다시 조회하세요.')
+
+
+@dataclass(frozen=True)
+class AuthorSqliteCopyChapterText:
+    """작가가 직접 선택한 사본 회차 원문. 원고는 로컬 화면에만 전달한다."""
+    episode: int
+    revision: int
+    plot: str = field(repr=False)
+    draft: str = field(repr=False)
+    final_text: str = field(repr=False)
+    summary: str = field(repr=False)
+    status: str = 'COPY_READ_ONLY_AUTHOR_PREVIEW_NOT_VERIFIED'
+    publication_approved: bool = False
+
+
+def read_author_sqlite_copy_chapter(
+    snapshot: AuthorSqliteChapterDelta, episode: int,
+) -> AuthorSqliteCopyChapterText:
+    """원본은 열지 않고 사본의 선택 회차 원문만 읽는다. 변경 시 조회를 거부한다."""
+    if (type(snapshot) is not AuthorSqliteChapterDelta or type(episode) is not int
+            or not 1 <= episode <= snapshot.through_episode):
+        raise AuthorSqliteChapterDeltaError('먼저 사본의 회차별 차이를 직접 조회하세요.')
+    selected = next((row for row in snapshot.rows if row.episode == episode), None)
+    if selected is None or selected.copy_revision is None:
+        raise AuthorSqliteChapterDeltaError('사본에 저장된 회차만 읽을 수 있습니다.')
+    try:
+        require_current_author_sqlite_chapter_delta(snapshot)
+        with closing(sqlite3.connect(
+            snapshot.comparison.copy.as_uri() + '?mode=ro', uri=True, timeout=8,
+        )) as db:
+            db.execute('PRAGMA query_only=ON')
+            row = db.execute(
+                'SELECT revision, plot, draft, final_text, summary '
+                'FROM bible_episodes WHERE project_id=? AND episode=?',
+                (snapshot.comparison.project_id, episode),
+            ).fetchone()
+        if (row is None or type(row[0]) is not int
+                or row[0] != selected.copy_revision
+                or any(type(value) is not str for value in row[1:])):
+            raise AuthorSqliteChapterDeltaError(
+                '사본의 선택 회차가 변경됐습니다. 다시 직접 조회하세요.')
+        require_current_author_sqlite_chapter_delta(snapshot)
+        return AuthorSqliteCopyChapterText(episode, row[0], *row[1:])
+    except AuthorSqliteChapterDeltaError:
+        raise
+    except (AuthorCopyComparisonError, OSError, ValueError, TypeError,
+            sqlite3.Error, UnicodeError, OverflowError):
+        raise AuthorSqliteChapterDeltaError(
+            '사본의 선택 회차 원문을 읽기 전용으로 열지 못했습니다.') from None

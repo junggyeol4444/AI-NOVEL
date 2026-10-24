@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QFileDialog, QGroupBox, QHBoxLayout, QLabel, QPushButton, QSpinBox,
-    QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QComboBox, QFileDialog, QGroupBox, QHBoxLayout, QLabel, QPlainTextEdit,
+    QPushButton, QSpinBox, QTableWidget, QTableWidgetItem, QVBoxLayout,
 )
 
 from ai_novel_factory.author_sqlite_copy_comparison import (
@@ -12,7 +12,7 @@ from ai_novel_factory.author_sqlite_copy_comparison import (
 )
 from ai_novel_factory.author_sqlite_chapter_delta import (
     AuthorSqliteChapterDeltaError, build_author_sqlite_chapter_delta,
-    require_current_author_sqlite_chapter_delta,
+    read_author_sqlite_copy_chapter, require_current_author_sqlite_chapter_delta,
 )
 from .author_navigation_contract import select_saved_episode
 from ai_novel_factory.project_local_handoff import (
@@ -78,14 +78,37 @@ class AuthorSqliteCopyComparisonPanel(QGroupBox):
         self.chapter_open.setEnabled(False)
         self.chapter_open.clicked.connect(self.open_source_chapter)
         layout.addWidget(self.chapter_open)
+        self.copy_text_field = QComboBox()
+        self.copy_text_field.setObjectName('authorSqliteCopyTextField')
+        for label, key in (('플롯', 'plot'), ('초고', 'draft'),
+                           ('최종본', 'final_text'), ('요약', 'summary')):
+            self.copy_text_field.addItem(label, key)
+        layout.addWidget(self.copy_text_field)
+        self.copy_text_open = QPushButton('선택 회차의 사본 원문 읽기 전용 열람 (별도 직접 클릭)')
+        self.copy_text_open.setObjectName('authorSqliteCopyChapterText')
+        self.copy_text_open.setEnabled(False)
+        self.copy_text_open.clicked.connect(self.open_copy_chapter_text)
+        layout.addWidget(self.copy_text_open)
+        self.copy_text_view = QPlainTextEdit()
+        self.copy_text_view.setObjectName('authorSqliteCopyChapterTextView')
+        self.copy_text_view.setReadOnly(True)
+        self.copy_text_view.setPlaceholderText('작가가 사본 회차와 원문 종류를 직접 선택하면 이곳에만 표시합니다.')
+        layout.addWidget(self.copy_text_view)
+        self.copy_text_field.currentIndexChanged.connect(self.clear_copy_text)
+        self.chapter_table.itemSelectionChanged.connect(self.clear_copy_text)
         self.status = QLabel('현재 작품을 연 뒤 로컬 사본과 SHA 기록을 직접 선택하세요.')
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
+
+    def clear_copy_text(self, *_args):
+        self.copy_text_view.clear()
 
     def invalidate_chapters(self, *_args):
         self._chapter_delta = None
         self.chapter_table.setRowCount(0)
         self.chapter_open.setEnabled(False)
+        self.copy_text_open.setEnabled(False)
+        self.clear_copy_text()
 
     def invalidate(self, *_args):
         self.invalidate_chapters()
@@ -164,11 +187,44 @@ class AuthorSqliteCopyComparisonPanel(QGroupBox):
             for column, value in enumerate(values):
                 self.chapter_table.setItem(index, column, QTableWidgetItem(value))
         self.chapter_open.setEnabled(bool(delta.rows))
+        self.copy_text_open.setEnabled(any(row.copy_revision is not None for row in delta.rows))
         self.status.setText(
             f'{delta.through_episode}화 범위 · 원본에 없는 회차 {delta.missing_source}화 · '
             f'사본에 없는 회차 {delta.missing_copy}화 · 최종본 차이 {delta.changed_final}화 · '
             f'장면 차이 {delta.changed_scenes}화 · 검수 기록 차이 {delta.changed_checks}화. '
             '차이는 사본 생성 시점에 따른 것일 수 있습니다. 복원·검수·출판 승인 아님.')
+
+
+    def open_copy_chapter_text(self):
+        """원본·사본 대조를 다시 확인한 후 작가가 고른 사본 원문만 표시."""
+        self.clear_copy_text()
+        delta, identity = self._chapter_delta, self._identity
+        index = self.chapter_table.currentRow()
+        if delta is None or identity is None or not 0 <= index < len(delta.rows):
+            self.status.setText('회차별 대조 후 사본에 저장된 회차를 직접 선택하세요.')
+            return
+        row = delta.rows[index]
+        if row.copy_revision is None:
+            self.status.setText('사본에 저장되지 않은 회차의 원문은 열 수 없습니다.')
+            return
+        try:
+            session = self.authoring.session
+            if (str(session.path), str(session.project_id)) != identity:
+                raise AuthorSqliteChapterDeltaError('현재 작품이 변경됐습니다.')
+            require_idle_authoring(self.authoring, identity[1])
+            result = read_author_sqlite_copy_chapter(delta, row.episode)
+            field = self.copy_text_field.currentData()
+            if field not in ('plot', 'draft', 'final_text', 'summary'):
+                raise AuthorSqliteChapterDeltaError('원문 종류를 다시 선택하세요.')
+            content = getattr(result, field)
+            self.copy_text_view.setPlainText(content)
+            self.status.setText(
+                f'{row.episode}화 사본 {self.copy_text_field.currentText()} '
+                f'{len(content)}자 읽기 전용 표시. 원본 변경·사본 병합·검수·출판 승인 없음.')
+        except (AuthorSqliteChapterDeltaError, LocalHandoffError,
+                ValueError, OSError, LookupError):
+            self.clear_copy_text()
+            self.status.setText('현재 작품·사본·기록이 변경됐습니다. 다시 직접 대조하세요.')
 
     def open_source_chapter(self):
         """현재 원본 회차로만 이동한다. 사본 데이터 병합·저장·복원은 하지 않는다."""
