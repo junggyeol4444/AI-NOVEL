@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QFormLayout,
 from ..author_memory_final_alignment import (
     AuthorMemoryFinalAlignmentError, build_author_memory_final_alignment,
     require_current_author_memory_final_alignment,
+    read_author_memory_episode_evidence,
 )
 from .author_batch_scope_bridge import _current_author_state, BatchScopeBridgeError
 from .author_navigation_contract import select_saved_episode
@@ -25,6 +26,7 @@ class AuthorMemoryPanel(QGroupBox):
         self.approved_fingerprint: str | None = None
         self._final_alignment = None
         self._final_identity = None
+        self._final_evidence = None
         root = QVBoxLayout(self)
         info = QLabel('근거가 되는 기존 최종 원고를 직접 읽고 기억 변화를 기록하세요. '
                       '저장·철회는 각각 별도 승인하며 원고/SQLite는 변경하지 않습니다.')
@@ -94,6 +96,16 @@ class AuthorMemoryPanel(QGroupBox):
         self.final_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.final_table.setMaximumHeight(250)
         root.addWidget(self.final_table)
+        self.final_evidence_button = QPushButton(
+            '선택 회차의 저장 최종본·적용 기억 원문 직접 열람 (읽기 전용)')
+        self.final_evidence_button.setObjectName('authorMemoryFinalEvidence')
+        self.final_evidence_button.clicked.connect(self.preview_final_evidence)
+        root.addWidget(self.final_evidence_button)
+        self.final_evidence_text = QPlainTextEdit()
+        self.final_evidence_text.setReadOnly(True)
+        self.final_evidence_text.setMaximumHeight(280)
+        root.addWidget(self.final_evidence_text)
+        self.final_table.itemSelectionChanged.connect(self._clear_final_evidence)
         self.final_status = QLabel('NOT_RUN: 작가가 먼저 전수 대조를 직접 실행하세요.')
         self.final_status.setWordWrap(True)
         root.addWidget(self.final_status)
@@ -229,7 +241,13 @@ class AuthorMemoryPanel(QGroupBox):
             raise AuthorMemoryDeltaError('기억 기록이 변경돼 동의를 다시 받아야 합니다.')
         return str(path), stamp
 
+    def _clear_final_evidence(self, *_args):
+        self._final_evidence = None
+        if hasattr(self, 'final_evidence_text'):
+            self.final_evidence_text.clear()
+
     def invalidate_final_alignment(self, *_args):
+        self._clear_final_evidence()
         self._final_alignment = None
         self._final_identity = None
         if hasattr(self, 'final_table'):
@@ -266,6 +284,53 @@ class AuthorMemoryPanel(QGroupBox):
             f'{snapshot.stale_source_chapters}화, 검토 후보 '
             f'{snapshot.candidate_chapters}화. 정확한 문자열 출현만 집계했으며 '
             '문학 품질·QC·출판 승인 판정이 아닙니다.')
+
+
+    def preview_final_evidence(self):
+        """작가가 직접 선택한 저장 회차의 최종본·기억 원문을 별도 클릭으로 표시."""
+        self._clear_final_evidence()
+        snapshot, identity = self._final_alignment, self._final_identity
+        index = self.final_table.currentRow()
+        if (snapshot is None or identity is None
+                or not 0 <= index < len(snapshot.rows)):
+            self.final_status.setText('먼저 기억·최종본을 전수 대조하고 회차를 선택하세요.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            if current != identity or self.final_scope.value() != snapshot.through_episode:
+                raise AuthorMemoryFinalAlignmentError('작품 또는 조회 범위가 변경됐습니다.')
+            if self.folder is None or str(self.folder.resolve()) != snapshot.folder:
+                raise AuthorMemoryFinalAlignmentError('기억 기록 폴더가 변경됐습니다.')
+            evidence = read_author_memory_episode_evidence(
+                snapshot, session.store, identity[1],
+                episode=snapshot.rows[index].episode)
+            lines = [
+                f'{evidence.episode}화 저장 최종본 · revision {evidence.revision}',
+                '작가 직접 작성 기억 변화와 저장 원고의 정확한 문자열 일치 여부입니다.',
+                '문학 품질·QC 합격·출판 승인 판정이 아닙니다.',
+                f'적용 기억 {len(evidence.memories)}건',
+            ]
+            for number, memory in enumerate(evidence.memories, 1):
+                lines.extend((
+                    '',
+                    f'[{number}] 유형: {memory.category} / 근거: {memory.source_episode}화',
+                    f'근거 최종본 현재 일치: {"예" if memory.source_current else "아니요"}',
+                    f'대상 문자열 출현: {"예" if memory.subject_present else "아니요"}',
+                    f'변화 문자열 출현: {"예" if memory.change_present else "아니요"}',
+                    f'작가 대상: {memory.subject}',
+                    '작가 직접 작성 변화:',
+                    memory.change,
+                ))
+            lines.extend(('', '=== 선택 회차 SQLite 저장 최종본 전체 ===', evidence.final_text))
+            self._final_evidence = evidence
+            self.final_evidence_text.setPlainText('\n'.join(lines))
+            self.final_status.setText(
+                f'{evidence.episode}화 원문과 적용 기억을 읽기 전용으로 표시했습니다. '
+                '저장·모델 실행·QC·출판 승인은 수행하지 않았습니다.')
+        except (AuthorMemoryFinalAlignmentError, BatchScopeBridgeError,
+                ValueError, OSError, LookupError):
+            self.final_status.setText(
+                '저장 최종본 또는 기억 원장이 변경됐습니다. 전수 대조부터 다시 실행하세요.')
 
     def open_final_alignment(self):
         snapshot, identity = self._final_alignment, self._final_identity

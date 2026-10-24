@@ -152,3 +152,77 @@ def require_current_author_memory_final_alignment(
     if (current.source_sha256 != snapshot.source_sha256
             or current.rows != snapshot.rows):
         raise AuthorMemoryFinalAlignmentError('기억 원장·저장 원고 변경으로 이전 조회가 무효화됐습니다.')
+
+
+@dataclass(frozen=True)
+class AuthorMemoryEpisodeEvidenceRow:
+    """작가가 기록한 적용 기억 한 건과 현재 최종본의 문자 일치 근거."""
+    category: str
+    subject: str = field(repr=False)
+    change: str = field(repr=False)
+    source_episode: int = 0
+    source_revision: int = 0
+    source_current: bool = False
+    subject_present: bool = False
+    change_present: bool = False
+
+
+@dataclass(frozen=True)
+class AuthorMemoryEpisodeEvidence:
+    """읽기 전용 전체 저장 최종본 및 선택 회차에 적용되는 기억 기록."""
+    episode: int
+    revision: int
+    final_sha256: str = field(repr=False)
+    final_text: str = field(repr=False)
+    memories: tuple[AuthorMemoryEpisodeEvidenceRow, ...] = ()
+    status: str = 'AUTHOR_REVIEW_REQUIRED_NOT_QC'
+
+
+def read_author_memory_episode_evidence(
+    snapshot: AuthorMemoryFinalSnapshot, store: EpisodeStore,
+    project_id: str, *, episode: int,
+) -> AuthorMemoryEpisodeEvidence:
+    """전수 대조 이후 작가가 직접 선택한 회차의 원문·기억 근거를 재조회한다.
+
+    SQLite·기억 원장은 읽기 전용이며, 문구의 포함 여부는 문학적
+    연속성이나 QC 합격을 뜻하지 않는다.
+    """
+    if (type(episode) is not int or not isinstance(snapshot, AuthorMemoryFinalSnapshot)
+            or not 1 <= episode <= snapshot.through_episode):
+        raise AuthorMemoryFinalAlignmentError('전수 대조한 회차를 직접 선택하세요.')
+    require_current_author_memory_final_alignment(snapshot, store, project_id)
+    directory, memories, saved, stamp = _read_state(
+        store, project_id, snapshot.folder, snapshot.through_episode)
+    if stamp != snapshot.source_sha256 or directory != snapshot.folder:
+        raise AuthorMemoryFinalAlignmentError('기억 원장 또는 원고가 변경됐습니다.')
+    current = saved.get(episode)
+    if current is None or not current.final_text.strip():
+        raise AuthorMemoryFinalAlignmentError('선택한 회차의 저장 최종본이 없습니다.')
+    final = current.final_text
+    rows = []
+    for memory in memories:
+        if not memory.valid_from <= episode <= memory.valid_through:
+            continue
+        source = saved.get(memory.source_episode)
+        source_current = bool(
+            source is not None
+            and source.revision == memory.source_revision
+            and source.final_text.strip()
+            and sha256(source.final_text.encode('utf-8')).hexdigest()
+                == memory.source_sha256)
+        rows.append(AuthorMemoryEpisodeEvidenceRow(
+            category=memory.category,
+            subject=memory.subject, change=memory.change,
+            source_episode=memory.source_episode,
+            source_revision=memory.source_revision,
+            source_current=source_current,
+            subject_present=bool(source_current and memory.subject in final),
+            change_present=bool(source_current and memory.change in final),
+        ))
+    if _read_state(store, project_id, directory, snapshot.through_episode)[3] != stamp:
+        raise AuthorMemoryFinalAlignmentError('조회 중 기억 원장 또는 원고가 변경됐습니다.')
+    return AuthorMemoryEpisodeEvidence(
+        episode=episode, revision=current.revision,
+        final_sha256=sha256(final.encode('utf-8')).hexdigest(),
+        final_text=final, memories=tuple(rows),
+    )
