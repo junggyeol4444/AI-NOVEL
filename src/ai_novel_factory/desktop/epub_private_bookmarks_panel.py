@@ -1,5 +1,7 @@
 """Local EPUB3 text lookup and opt-in bookmark recorder, Windows PySide6."""
 from __future__ import annotations
+from hashlib import sha256
+from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QFormLayout, QLineEdit,
     QLabel, QPushButton, QFileDialog, QListWidget, QPlainTextEdit, QSpinBox)
 from ai_novel_factory.private_volume_reader import (
@@ -42,6 +44,10 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         form.addRow(self.search_button)
         self.result_list = QListWidget()
         root.addWidget(self.result_list)
+        self.search_hit_open = QPushButton('선택 검색 결과의 본문 정확한 위치 표시')
+        self.search_hit_open.setObjectName('epubSearchExactPosition')
+        root.addWidget(self.search_hit_open)
+        self.search_hit_open.clicked.connect(self.open_selected_search_hit)
         self.volume = QSpinBox()
         self.volume.setRange(1,16)
         self.chapter = QSpinBox()
@@ -205,17 +211,49 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         except (ValueError, OSError):
             self.status.setText('EPUB3 검색을 완료하지 못했습니다. 원본 선택을 확인하세요.')
 
+    def open_selected_search_hit(self):
+        item = self.result_list.currentItem()
+        if item is None:
+            self.status.setText('본문 위치를 표시할 검색 결과를 직접 선택하세요.')
+            return
+        self.open_search_hit(item)
+
     def open_search_hit(self, item):
-        if self._search is None:
+        if self._search is None or self._catalog is None:
+            self.status.setText('현재 EPUB3 권에서 먼저 검색하세요.')
             return
         index = self.result_list.row(item)
         if not 0 <= index < len(self._search.results):
             return
         hit = self._search.results[index]
-        self.volume.setValue(hit.volume_index)
-        self.chapter.setMaximum(self._catalog.volumes[hit.volume_index-1].chapters)
-        self.chapter.setValue(hit.chapter_index)
-        self.open_current()
+        try:
+            title, prose = self._chapter(hit.volume_index, hit.chapter_index)
+            if (sha256(prose.encode('utf-8')).hexdigest() != hit.chapter_sha256
+                    or type(hit.match_offset) is not int
+                    or type(hit.match_length) is not int
+                    or hit.match_offset < 0 or hit.match_length < 1
+                    or hit.match_offset + hit.match_length > len(prose)):
+                raise ValueError('검색 당시 EPUB3 본문이 변경되었습니다.')
+            self.volume.setValue(hit.volume_index)
+            self.chapter.setMaximum(self._catalog.volumes[hit.volume_index-1].chapters)
+            self.chapter.setValue(hit.chapter_index)
+            self.preview.setPlainText(prose)
+            if self.preview.toPlainText() != prose:
+                raise ValueError('본문 위치를 안전하게 표시할 수 없습니다.')
+            start = len(prose[:hit.match_offset].encode('utf-16-le')) // 2
+            end = len(prose[:hit.match_offset + hit.match_length].encode('utf-16-le')) // 2
+            cursor = self.preview.textCursor()
+            cursor.setPosition(start)
+            cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+            self.preview.setTextCursor(cursor)
+            self.preview.ensureCursorVisible()
+            self.status.setText(
+                f'{hit.volume_index}권 {hit.chapter_index}회차 / {title[:65]} · '
+                '검색된 정확한 본문 위치를 선택했습니다. 로컬 열람 전용입니다.')
+        except (ValueError, OSError, IndexError, UnicodeError):
+            self._clear_search()
+            self.preview.clear()
+            self.status.setText('EPUB3 본문 또는 검색 위치가 변경되었습니다. 다시 검색하세요.')
 
     def choose_folder(self):
         path = QFileDialog.getExistingDirectory(self, '기존 책갈피 저장 폴더 직접 선택')

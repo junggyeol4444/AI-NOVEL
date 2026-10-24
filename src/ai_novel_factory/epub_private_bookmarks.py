@@ -33,6 +33,9 @@ class EpubSearchHit:
     display_episode: int
     title: str = field(repr=False)
     excerpt: str = field(repr=False)
+    match_offset: int = 0
+    match_length: int = 0
+    chapter_sha256: str = field(default='', repr=False)
 
 
 @dataclass(frozen=True)
@@ -93,6 +96,7 @@ def find_private_epub_text(catalog: PrivateVolumeCatalog, keyword: str,
             raise PrivateBookmarkError('EPUB3 권 구성에 변경이 있습니다.')
         for chapter_index, chapter in enumerate(chapters, 1):
             title, prose = chapter.title, chapter.text
+            prose_digest = sha256(prose.encode('utf-8')).hexdigest()
             for match in expression.finditer(prose):
                 offset = match.start()
                 count += 1
@@ -101,7 +105,8 @@ def find_private_epub_text(catalog: PrivateVolumeCatalog, keyword: str,
                     results.append(EpubSearchHit(
                         volume.index, chapter_index,
                         volume.first_display_episode+chapter_index-1,
-                        title, excerpt.replace('\n',' ')))
+                        title, excerpt.replace('\n',' '),
+                        offset, match.end() - offset, prose_digest))
     _assert_unchanged(catalog)
     return EpubSearchReport(count, tuple(results), count > len(results))
 
