@@ -103,6 +103,8 @@ _EPISODE_FIELDS = {
     'author_manuscript_language_queue_panel': 'through',
     'author_scene_final_alignment_panel': 'through',
     'author_cross_chapter_repetition_panel': 'through',
+    'review_dashboard_panel': 'through',
+    'publication_approval_panel': 'count',
 }
 
 
