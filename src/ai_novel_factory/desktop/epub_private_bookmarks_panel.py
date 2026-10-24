@@ -22,6 +22,7 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         self._catalog = None
         self._search = None
         self._marks = ()
+        self._preview_identity = None
         self._folder = ''
         self._handoff_lease = None
         self._handoff_identity = None
@@ -88,7 +89,9 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         self.search_button.clicked.connect(self.search)
         self.query.textChanged.connect(self._clear_search)
         self.volume.valueChanged.connect(self._change_volume)
+        self.volume.valueChanged.connect(self._clear_preview_binding)
         self.chapter.valueChanged.connect(self._revoke_reader_handoff)
+        self.chapter.valueChanged.connect(self._clear_preview_binding)
 
     def _change_volume(self, value):
         self._revoke_reader_handoff()
@@ -103,7 +106,7 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         self._folder = ''
         self.result_list.clear()
         self.marks.clear()
-        self.preview.clear()
+        self._clear_preview_binding()
         self.folder_label.setText('책갈피 폴더 미선택')
         self.status.setText('작품/선택이 바뀌어 이전 EPUB 책갈피 권 목록을 폐기했습니다.')
 
@@ -167,6 +170,10 @@ class EpubPrivateBookmarksPanel(QGroupBox):
             return
         self.status.setText('기존 Reader로 선택 회차를 인계했습니다. 자동 저장·출판 없음.')
 
+    def _clear_preview_binding(self, *_args):
+        self._preview_identity = None
+        self.preview.clear()
+
     def _clear_search(self):
         self._search = None
         self.result_list.clear()
@@ -196,6 +203,8 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         try:
             title, prose = self._chapter(self.volume.value(), self.chapter.value())
             self.preview.setPlainText(prose)
+            self._preview_identity = (self.volume.value(), self.chapter.value(),
+                                      sha256(prose.encode('utf-8')).hexdigest())
             self.status.setText(f'로컬 비공개 열람: {title[:80]}')
         except (ValueError, OSError, IndexError):
             self.status.setText('EPUB3 권 또는 회차가 변경되어 다시 선택해야 합니다.')
@@ -247,6 +256,8 @@ class EpubPrivateBookmarksPanel(QGroupBox):
             cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
             self.preview.setTextCursor(cursor)
             self.preview.ensureCursorVisible()
+            self._preview_identity = (hit.volume_index, hit.chapter_index,
+                                      hit.chapter_sha256)
             self.status.setText(
                 f'{hit.volume_index}권 {hit.chapter_index}회차 / {title[:65]} · '
                 '검색된 정확한 본문 위치를 선택했습니다. 로컬 열람 전용입니다.')
@@ -265,10 +276,21 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         try:
             if self._catalog is None or not self._folder:
                 raise ValueError('EPUB/폴더 미선택')
+            offset = 0
+            vi, ci = self.volume.value(), self.chapter.value()
+            if (self._preview_identity is not None
+                    and self._preview_identity[:2] == (vi, ci)):
+                prose = self.preview.toPlainText()
+                if sha256(prose.encode('utf-8')).hexdigest() != self._preview_identity[2]:
+                    raise ValueError('현재 미리보기 원문이 변경됐습니다.')
+                utf16 = prose.encode('utf-16-le')
+                position = self.preview.textCursor().position()
+                offset = len(utf16[:position * 2].decode('utf-16-le'))
             save_private_bookmark(self._catalog, self._folder,
-                volume_index=self.volume.value(), chapter_index=self.chapter.value(),
-                explicit_author_save=True)
-            self.status.setText('책갈피 새 파일을 로컬에 생성했습니다. 기존 파일은 변경하지 않았습니다.')
+                volume_index=vi, chapter_index=ci,
+                explicit_author_save=True, text_offset=offset)
+            self.status.setText('현재 본문 커서 위치의 책갈피 새 파일을 저장했습니다. '
+                                '본문을 열지 않았다면 회차 시작 위치입니다. 기존 파일 변경 없음.')
         except (ValueError, OSError):
             self.status.setText('책갈피를 저장하지 못했습니다. 권·회차·폴더를 확인하세요.')
 
@@ -278,17 +300,36 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         try:
             self._marks = list_private_bookmarks(self._catalog, self._folder)
             for mark in self._marks:
-                self.marks.addItem(f'{mark.volume_index}권 · {mark.chapter_index}회차 · {mark.created_at[:19]}')
+                self.marks.addItem(f'{mark.volume_index}권 · {mark.chapter_index}회차 · '
+                                   f'본문 {mark.text_offset + 1}번째 글자 · {mark.created_at[:19]}')
             self.status.setText(f'현재 EPUB 선택에 맞는 책갈피 {len(self._marks)}개 조회')
         except (ValueError, OSError):
             self.status.setText('책갈피를 읽지 못했습니다. EPUB 선택·폴더를 확인하세요.')
 
     def open_bookmark(self, item):
         index = self.marks.row(item)
-        if not 0 <= index < len(self._marks):
+        if not 0 <= index < len(self._marks) or self._catalog is None:
             return
         mark = self._marks[index]
-        self.volume.setValue(mark.volume_index)
-        self.chapter.setMaximum(self._catalog.volumes[mark.volume_index-1].chapters)
-        self.chapter.setValue(mark.chapter_index)
-        self.open_current()
+        self._clear_preview_binding()
+        try:
+            title, prose = self._chapter(mark.volume_index, mark.chapter_index)
+            digest = sha256(prose.encode('utf-8')).hexdigest()
+            if ((mark.chapter_sha256 and mark.chapter_sha256 != digest)
+                    or type(mark.text_offset) is not int
+                    or not 0 <= mark.text_offset <= len(prose)):
+                raise ValueError('저장한 본문 위치와 현재 EPUB3 원문이 다릅니다.')
+            self.volume.setValue(mark.volume_index)
+            self.chapter.setMaximum(self._catalog.volumes[mark.volume_index-1].chapters)
+            self.chapter.setValue(mark.chapter_index)
+            self.preview.setPlainText(prose)
+            cursor = self.preview.textCursor()
+            cursor.setPosition(len(prose[:mark.text_offset].encode('utf-16-le')) // 2)
+            self.preview.setTextCursor(cursor)
+            self.preview.ensureCursorVisible()
+            self._preview_identity = (mark.volume_index, mark.chapter_index, digest)
+            self.status.setText(f'{mark.volume_index}권 {mark.chapter_index}회차 · '
+                                f'{title[:60]} · 저장된 본문 위치로 이동했습니다.')
+        except (ValueError, OSError, IndexError, UnicodeError):
+            self._clear_preview_binding()
+            self.status.setText('책갈피 위치 또는 EPUB3 원본이 변경되었습니다. 다시 확인하세요.')

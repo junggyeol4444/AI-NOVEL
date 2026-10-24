@@ -55,6 +55,8 @@ class PrivateBookmark:
     collection_sha256: str = field(repr=False)
     created_at: str = ''
     event_id: str = ''
+    text_offset: int = 0
+    chapter_sha256: str = field(default='', repr=False)
 
 
 def _collection_hash(catalog: PrivateVolumeCatalog) -> str:
@@ -113,7 +115,8 @@ def find_private_epub_text(catalog: PrivateVolumeCatalog, keyword: str,
 
 def save_private_bookmark(catalog: PrivateVolumeCatalog, folder: str | Path,
                           *, volume_index: int, chapter_index: int,
-                          explicit_author_save: bool) -> PrivateBookmark:
+                          explicit_author_save: bool,
+                          text_offset: int = 0) -> PrivateBookmark:
     if explicit_author_save is not True:
         raise PrivateBookmarkError('이 책갈피를 저장하기 위한 별도 승인이 필요합니다.')
     _assert_unchanged(catalog)
@@ -124,18 +127,27 @@ def save_private_bookmark(catalog: PrivateVolumeCatalog, folder: str | Path,
     if not 1 <= chapter_index <= volume.chapters:
         raise PrivateBookmarkError('저장할 회차를 먼저 선택하세요.')
     directory = _directory(folder)
+    _, prose = read_selected_volume_chapter(
+        catalog, volume_index=volume_index, chapter_index=chapter_index,
+        expected_file_sha256=volume.file_sha256)
+    if type(text_offset) is not int or not 0 <= text_offset <= len(prose):
+        raise PrivateBookmarkError('책갈피 본문 위치가 올바르지 않습니다.')
+    chapter_digest = sha256(prose.encode('utf-8')).hexdigest()
+    _assert_unchanged(catalog)
     snapshot = _collection_hash(catalog)
     stamp = datetime.now(timezone.utc).isoformat()
     event_id = uuid4().hex
     record = PrivateBookmark(volume_index, chapter_index,
         volume.first_display_episode+chapter_index-1,
-        volume.file_sha256, snapshot, stamp, event_id)
-    data = {'version': 1, 'kind':'private_epub_bookmark',
+        volume.file_sha256, snapshot, stamp, event_id,
+        text_offset, chapter_digest)
+    data = {'version': 2, 'kind':'private_epub_bookmark',
             'volume_index': volume_index, 'chapter_index': chapter_index,
             'display_episode': record.display_episode,
             'volume_sha256': volume.file_sha256,
             'collection_sha256': snapshot, 'created_at': stamp,
-            'event_id': event_id}
+            'event_id': event_id, 'text_offset': text_offset,
+            'chapter_sha256': chapter_digest}
     blob = json.dumps(data, ensure_ascii=False, sort_keys=True).encode('utf-8')
     path = directory / ('anf_private_bookmark_' + event_id + '.json')
     try:
@@ -163,7 +175,9 @@ def list_private_bookmarks(catalog: PrivateVolumeCatalog,
             raise PrivateBookmarkError('책갈피 파일 상태가 올바르지 않습니다.')
         try:
             data = json.loads(path.read_text(encoding='utf-8'))
-            if data.get('kind') != 'private_epub_bookmark' or data.get('version') != 1:
+            version = data.get('version')
+            if (data.get('kind') != 'private_epub_bookmark'
+                    or type(version) is not int or version not in (1, 2)):
                 continue
             if data.get('collection_sha256') != collection_hash:
                 continue
@@ -175,9 +189,18 @@ def list_private_bookmarks(catalog: PrivateVolumeCatalog,
                 continue
             if data.get('display_episode') != vol.first_display_episode + ci - 1:
                 continue
+            offset, chapter_digest = 0, ''
+            if version == 2:
+                offset = data.get('text_offset')
+                chapter_digest = data.get('chapter_sha256')
+                if (type(offset) is not int or not 0 <= offset <= 4000000
+                        or type(chapter_digest) is not str
+                        or re.fullmatch(r'[0-9a-f]{64}', chapter_digest) is None):
+                    continue
             records.append(PrivateBookmark(vi, ci, data['display_episode'],
                 vol.file_sha256, collection_hash,
-                str(data.get('created_at','')), str(data.get('event_id',''))))
+                str(data.get('created_at','')), str(data.get('event_id','')),
+                offset, chapter_digest))
         except (OSError, UnicodeError, ValueError, KeyError, TypeError):
             raise PrivateBookmarkError('일부 책갈피를 읽을 수 없습니다.') from None
     return tuple(sorted(records, key=lambda x:x.created_at))
