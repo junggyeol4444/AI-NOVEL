@@ -3,9 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QFormLayout, QLabel,
     QLineEdit, QPlainTextEdit, QSpinBox, QPushButton, QCheckBox, QFileDialog,
-    QListWidget)
+    QListWidget, QTableWidget, QTableWidgetItem)
 from ..author_arc_ledger import (AuthorArcError, add_author_arc,
                                  read_author_arcs, withdraw_author_arc)
+from ..author_arc_final_coverage import (
+    AuthorArcFinalCoverageError, build_author_arc_final_coverage,
+    require_current_author_arc_final_coverage,
+)
+from .author_batch_scope_bridge import _current_author_state, BatchScopeBridgeError
+from .author_navigation_contract import select_saved_episode
 
 class AuthorArcPanel(QGroupBox):
     def __init__(self, authoring, parent=None):
@@ -13,6 +19,8 @@ class AuthorArcPanel(QGroupBox):
         self.authoring = authoring
         self._folder = None
         self._bound = None
+        self._coverage_snapshot = None
+        self._coverage_identity = None
         form = QFormLayout()
         root = QVBoxLayout(self)
         root.addLayout(form)
@@ -34,6 +42,34 @@ class AuthorArcPanel(QGroupBox):
             self.fields[key]=edit;form.addRow(label,edit)
         self.preview = QListWidget();self.preview.setMaximumHeight(130)
         root.addWidget(self.preview)
+        self.coverage_through = QSpinBox()
+        self.coverage_through.setRange(1, 1000)
+        self.coverage_through.setValue(30)
+        form.addRow('최종본 대조 종료 회차', self.coverage_through)
+        self.coverage_episode = QSpinBox()
+        self.coverage_episode.setRange(1, 1000)
+        form.addRow('아크 안에서 직접 열 회차', self.coverage_episode)
+        coverage_button = QPushButton('기존 아크·저장 최종본 복선·해소 범위 직접 대조')
+        coverage_button.setObjectName('authorArcFinalCoveragePreview')
+        coverage_button.clicked.connect(self.preview_saved_arc_coverage)
+        root.addWidget(coverage_button)
+        self.coverage_table = QTableWidget(0, 8)
+        self.coverage_table.setObjectName('authorArcFinalCoverageTable')
+        self.coverage_table.setHorizontalHeaderLabels((
+            '작가 아크', '회차 범위', '저장 최종본', '누락 회차',
+            '복선 문자열 회차', '해소 문자열 회차', '설정 변경', '순서 검토 후보'))
+        self.coverage_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.coverage_table.setMaximumHeight(230)
+        root.addWidget(self.coverage_table)
+        self.coverage_status = QLabel('NOT_RUN: 작가가 기존 아크 폴더를 선택한 뒤 직접 조회하세요.')
+        self.coverage_status.setWordWrap(True)
+        root.addWidget(self.coverage_status)
+        self.coverage_open = QPushButton('선택 아크·직접 지정 회차를 기존 편집기로 열기 (별도 클릭)')
+        self.coverage_open.setObjectName('authorArcFinalCoverageOpen')
+        self.coverage_open.setEnabled(False)
+        self.coverage_open.clicked.connect(self.open_saved_arc_coverage)
+        root.addWidget(self.coverage_open)
+        self.coverage_through.valueChanged.connect(self.invalidate_coverage)
         self.save_consent = QCheckBox('위 내용을 이번 한 번 새 로컬 기록으로 저장하는 데 동의')
         self.withdraw_consent = QCheckBox('선택한 아크 기록을 이번 한 번 철회하는 데 동의')
         root.addWidget(self.save_consent);root.addWidget(self.withdraw_consent)
@@ -56,6 +92,7 @@ class AuthorArcPanel(QGroupBox):
         self.save_consent.setChecked(False)
 
     def invalidate(self):
+        self.invalidate_coverage()
         self.save_consent.setChecked(False);self.withdraw_consent.setChecked(False)
         self.batch_approval.setChecked(False)
         self.preview.clear();self._bound=None
@@ -103,6 +140,7 @@ class AuthorArcPanel(QGroupBox):
             self.invalidate()
 
     def refresh(self):
+        self.invalidate_coverage()
         self.preview.clear();self.withdraw_consent.setChecked(False)
         try:
             _,pid,bound=self._project()
@@ -146,3 +184,71 @@ class AuthorArcPanel(QGroupBox):
             self.refresh()
         except (AuthorArcError,OSError,ValueError):
             self.status.setText('아크 철회를 실행하지 않았습니다. 다시 확인하세요.')
+
+    def invalidate_coverage(self, *_args):
+        self._coverage_snapshot = None
+        self._coverage_identity = None
+        self.coverage_table.setRowCount(0)
+        self.coverage_open.setEnabled(False)
+        self.coverage_status.setText('아크·작품·원고·범위 변경 시 직접 다시 조회하세요.')
+
+    def preview_saved_arc_coverage(self):
+        self.invalidate_coverage()
+        try:
+            session, identity = _current_author_state(self.authoring)
+            if self._folder is None:
+                raise AuthorArcFinalCoverageError('기존 아크 폴더를 직접 선택하세요.')
+            snapshot = build_author_arc_final_coverage(
+                session.store, identity[1], folder=self._folder,
+                through_episode=self.coverage_through.value())
+        except (AuthorArcFinalCoverageError, BatchScopeBridgeError,
+                AuthorArcError, ValueError, OSError, LookupError):
+            self.coverage_status.setText('기존 아크·저장 최종본을 읽지 못했습니다. 자동 승인 없음.')
+            return
+        self._coverage_snapshot, self._coverage_identity = snapshot, identity
+        self.coverage_table.setRowCount(len(snapshot.rows))
+        for index, row in enumerate(snapshot.rows):
+            values = (row.title, f'{row.start}~{row.end}화',
+                      str(row.stored_final), str(row.missing_final),
+                      str(row.foreshadow_hits), str(row.resolution_hits),
+                      '재확인' if row.canon_changed else '변경 없음',
+                      '검토 후보' if row.order_candidate else '확정 아님')
+            for col, value in enumerate(values):
+                self.coverage_table.setItem(index, col, QTableWidgetItem(value))
+        self.coverage_open.setEnabled(bool(snapshot.rows))
+        self.coverage_status.setText(
+            f'기존 아크 {len(snapshot.rows)}개 대조 / '
+            f'작가 검토 후보 {snapshot.review_candidate_count}개. '
+            '복선·해소 문장과 최종본의 정확한 문자열 비교이며 '
+            '실제 서사 해소·품질 합격·출판 승인 판정이 아닙니다.')
+
+    def open_saved_arc_coverage(self):
+        snapshot, identity = self._coverage_snapshot, self._coverage_identity
+        index = self.coverage_table.currentRow()
+        number = self.coverage_episode.value()
+        self._coverage_snapshot = None
+        self._coverage_identity = None
+        self.coverage_open.setEnabled(False)
+        if (snapshot is None or identity is None
+                or not 0 <= index < len(snapshot.rows)
+                or self._folder is None
+                or str(self._folder.resolve()) != snapshot.folder
+                or self.coverage_through.value() != snapshot.through_episode):
+            self.coverage_status.setText('조회한 아크를 다시 직접 선택하세요.')
+            return
+        arc = snapshot.rows[index]
+        if not arc.start <= number <= min(arc.end, snapshot.through_episode):
+            self.coverage_status.setText('선택한 아크 안의 저장 회차를 직접 지정하세요.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            if current != identity:
+                raise AuthorArcFinalCoverageError('작품이 변경됐습니다.')
+            require_current_author_arc_final_coverage(
+                snapshot, session.store, identity[1])
+            decision = select_saved_episode(
+                self.authoring, project_identity=identity, episode=number)
+            self.coverage_status.setText(decision.message)
+        except (AuthorArcFinalCoverageError, BatchScopeBridgeError,
+                AuthorArcError, ValueError, OSError, LookupError):
+            self.coverage_status.setText('아크·원고가 변경됐거나 저장 회차를 열 수 없습니다.')
