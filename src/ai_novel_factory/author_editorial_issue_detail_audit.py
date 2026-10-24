@@ -185,3 +185,51 @@ def require_current_author_editorial_issue_detail_audit(
     if (current.source_fingerprint != snapshot.source_fingerprint
             or current.rows != snapshot.rows):
         raise AuthorEditorialIssueDetailError('원고·QC·편집 기록이 변경됐습니다. 다시 직접 조회하세요.')
+
+@dataclass(frozen=True)
+class EditorialIssueSavedFinal:
+    """작가가 선택한 이슈 메모와 현재 저장 최종본의 읽기 전용 묶음."""
+    episode: int
+    issue_id: str = field(repr=False)
+    category: str = ''
+    state: str = ''
+    revision: int = 0
+    final_sha256: str = field(default='', repr=False)
+    note: str = field(default='', repr=False)
+    final_text: str = field(default='', repr=False)
+    audit_fingerprint: str = field(default='', repr=False)
+
+
+def read_author_editorial_issue_saved_final(
+    snapshot: EditorialIssueDetailAudit, store: EpisodeStore, project_id: str,
+    *, issue_id: str,
+) -> EditorialIssueSavedFinal:
+    """전수 감사 후 작가가 고른 단일 이슈의 원문만 로컬 메모리로 연다.
+
+    저장된 최종본·이슈 JSON·QC·작품 상태를 읽기 전후 전수 재확인한다.
+    종료 처리, 수정, 원고 저장 및 출판 승인과는 독립적이다.
+    """
+    if (not isinstance(snapshot, EditorialIssueDetailAudit)
+            or type(issue_id) is not str or not issue_id):
+        raise AuthorEditorialIssueDetailError('전수 조회한 이슈를 직접 선택하세요.')
+    require_current_author_editorial_issue_detail_audit(
+        snapshot, store, project_id)
+    row = next((item for item in snapshot.rows if item.issue_id == issue_id), None)
+    if row is None or not row.final_present or row.current_revision is None:
+        raise AuthorEditorialIssueDetailError('현재 저장 최종본이 있는 이슈만 열 수 있습니다.')
+    try:
+        episode = store.get_episode(project_id, row.episode)
+        if (episode.revision != row.current_revision
+                or not episode.final_text.strip()):
+            raise AuthorEditorialIssueDetailError('저장 최종본이 변경됐습니다. 다시 조회하세요.')
+        digest = sha256(episode.final_text.encode('utf-8')).hexdigest()
+        require_current_author_editorial_issue_detail_audit(
+            snapshot, store, project_id)
+    except (OSError, ValueError, LookupError, UnicodeError) as exc:
+        raise AuthorEditorialIssueDetailError(
+            '현재 저장 최종본·편집 기록을 다시 확인하세요.') from exc
+    return EditorialIssueSavedFinal(
+        episode=row.episode, issue_id=row.issue_id, category=row.category,
+        state=row.state, revision=episode.revision, final_sha256=digest,
+        note=row.note, final_text=episode.final_text,
+        audit_fingerprint=snapshot.source_fingerprint)
