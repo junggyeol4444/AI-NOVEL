@@ -1,7 +1,13 @@
 """Existing Windows GUI: explicit in-memory manual draft rewrite."""
 from __future__ import annotations
-from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QLabel, QPushButton, QPlainTextEdit, QCheckBox
-from ai_novel_factory.manual_rewrite_workspace import begin_manual_rewrite, commit_manual_rewrite
+from PySide6.QtWidgets import (
+    QGroupBox, QVBoxLayout, QLabel, QPushButton, QPlainTextEdit,
+    QCheckBox, QTableWidget, QTableWidgetItem,
+)
+from ai_novel_factory.manual_rewrite_workspace import (
+    begin_manual_rewrite, commit_manual_rewrite,
+    preview_manual_rewrite, require_current_manual_rewrite_preview,
+)
 
 
 class ManualRewritePanel(QGroupBox):
@@ -9,6 +15,7 @@ class ManualRewritePanel(QGroupBox):
         super().__init__('저장된 초고 수동 재작성 · 기존 최종본 보호', parent)
         self.authoring = authoring
         self.lease = None
+        self.preview_snapshot = None
         root = QVBoxLayout(self)
         label = QLabel('현재 회차 저장 초고를 별도 편집합니다. 직접 저장 버튼 전에는 SQLite 변경 없음. '
                        '최종 원고는 덮어쓰지 않으며 재작성 후 검수/품질 판정은 다시 필요합니다.')
@@ -22,6 +29,19 @@ class ManualRewritePanel(QGroupBox):
         self.editor.setObjectName('manualRewriteEditor')
         self.editor.setPlaceholderText('작가가 직접 수정한 초고를 입력합니다.')
         root.addWidget(self.editor)
+        self.preview_button = QPushButton('저장 전 원본·수정 초고 변경 위치 직접 비교')
+        self.preview_button.setObjectName('manualRewritePreview')
+        self.preview_button.clicked.connect(self.preview_current)
+        root.addWidget(self.preview_button)
+        self.preview_table = QTableWidget(0, 3)
+        self.preview_table.setObjectName('manualRewriteDiffTable')
+        self.preview_table.setHorizontalHeaderLabels(('변경 종류', '기존 초고 줄', '수정 초고 줄'))
+        self.preview_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.preview_table.setMaximumHeight(200)
+        root.addWidget(self.preview_table)
+        self.preview_status = QLabel('NOT_RUN: 작가가 직접 비교를 눌러야 합니다.')
+        self.preview_status.setWordWrap(True)
+        root.addWidget(self.preview_status)
         self.consent = QCheckBox('현재 회차의 초고만 수정 저장하며 재검수해야 함을 확인합니다')
         self.consent.setObjectName('manualRewriteConsent')
         root.addWidget(self.consent)
@@ -33,10 +53,52 @@ class ManualRewritePanel(QGroupBox):
         self.status.setObjectName('manualRewriteStatus')
         self.status.setWordWrap(True)
         root.addWidget(self.status)
-        self.editor.textChanged.connect(lambda: self.consent.setChecked(False))
+        self.editor.textChanged.connect(self.invalidate_preview)
+
+    def invalidate_preview(self, *_args):
+        self.preview_snapshot = None
+        self.preview_table.setRowCount(0)
+        self.consent.setChecked(False)
+        self.preview_status.setText('수정 초고 변경 또는 미조회: 다시 직접 비교하세요.')
+
+    def preview_current(self):
+        session = self.authoring.session
+        lease = self.lease
+        self.invalidate_preview()
+        if (lease is None or session.store is None
+                or session.project_id != lease.project_id
+                or session.episode_number != lease.episode):
+            self.preview_status.setText('현재 작품·회차의 저장 초고를 다시 불러오세요.')
+            return
+        try:
+            snapshot = preview_manual_rewrite(
+                session.store, lease, self.editor.toPlainText())
+        except (ValueError, OSError, UnicodeError):
+            self.preview_status.setText('초고 변경 또는 입력 형식을 확인하세요. 저장·검수하지 않았습니다.')
+            return
+        self.preview_snapshot = snapshot
+        labels = {'replace': '수정', 'insert': '추가', 'delete': '삭제'}
+        self.preview_table.setRowCount(min(len(snapshot.changed_blocks), 100))
+        for index, (kind, old_start, old_end, new_start, new_end) in enumerate(
+                snapshot.changed_blocks[:100]):
+            for column, value in enumerate((
+                    labels.get(kind, '변경'),
+                    f'{old_start}~{old_end}', f'{new_start}~{new_end}')):
+                self.preview_table.setItem(index, column, QTableWidgetItem(value))
+        if not snapshot.details_available:
+            detail = '줄 수가 많아 변경 위치 목록 생략 · 전체 초고 직접 검수 필요'
+        elif len(snapshot.changed_blocks) > 100:
+            detail = f'변경 {len(snapshot.changed_blocks)}구간 중 앞 100구간 표시'
+        else:
+            detail = f'변경 {len(snapshot.changed_blocks)}구간 표시'
+        self.preview_status.setText(
+            f'{lease.episode}화 원본 {snapshot.before_characters}자 → '
+            f'수정 {snapshot.after_characters}자 · {detail}. '
+            '비교는 품질 합격·QC PASS·출판 승인 아님. 직접 저장은 별도입니다.')
 
     def invalidate(self, *_args):
         self.lease = None
+        self.invalidate_preview()
         self.editor.clear()
         self.consent.setChecked(False)
         self.status.setText('현재 회차를 다시 불러와야 합니다.')
@@ -66,6 +128,10 @@ class ManualRewritePanel(QGroupBox):
             return
         self.consent.setChecked(False)
         try:
+            if self.preview_snapshot is not None:
+                require_current_manual_rewrite_preview(
+                    self.preview_snapshot, session.store, lease,
+                    self.editor.toPlainText())
             revision = commit_manual_rewrite(
                 session.store, lease, self.editor.toPlainText(), explicit_author_save=True)
         except (ValueError, OSError):
@@ -73,6 +139,7 @@ class ManualRewritePanel(QGroupBox):
             self.lease = None
             return
         self.lease = None
+        self.invalidate_preview()
         self.authoring._invalidate_author_review_snapshots()
         self.authoring._sync()
         self.status.setText(f'{lease.episode}화 초고 revision {revision} 저장 · 검수/검사 재실행 필요')
