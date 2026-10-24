@@ -26,6 +26,7 @@ from ai_novel_factory.batch_session_journal import (
 from .batch_recovery_panel import default_batch_journal_directory
 from .scene_checkpoint_panel import default_scene_checkpoint_directory
 from ai_novel_factory.scene_checkpoint_store import SceneCheckpointError
+from ai_novel_factory.author_scene_checkpoint_integrity import SceneStageChoice
 from ai_novel_factory.author_context_envelope import AuthorContextEnvelopeError
 from .reference_selection import REFERENCE_FILE_FILTER, display_filename
 from .reference_profile_browser import default_local_catalog_path
@@ -39,7 +40,7 @@ class AutoBatchWorker(QThread):
     def __init__(self, database_path, project_id, provider, target, chars,
                  scenes, parent=None, *, reference_paths=(), catalog_path=None, batch_receipt=None,
                  scene_checkpoint_root=None, scene_checkpoint_lease=None,
-                 context_sources=None):
+                 context_sources=None, explicit_resume_choice=None):
         super().__init__(parent)
         self.database_path = Path(database_path)
         self.project_id = project_id
@@ -53,6 +54,7 @@ class AutoBatchWorker(QThread):
         self.scene_checkpoint_root = scene_checkpoint_root
         self.scene_checkpoint_lease = scene_checkpoint_lease
         self.context_sources = context_sources
+        self.explicit_resume_choice = explicit_resume_choice
         self.stop_requested = Event()
 
     def run(self):
@@ -68,7 +70,8 @@ class AutoBatchWorker(QThread):
                 reference_catalog_path=self.catalog_path,
                 scene_checkpoint_root=self.scene_checkpoint_root,
                 scene_checkpoint_lease=self.scene_checkpoint_lease,
-                context_sources=self.context_sources)
+                context_sources=self.context_sources,
+                explicit_resume_choice=self.explicit_resume_choice)
             journal_state = 'STOPPED' if result.stopped else 'FINISHED'
             self.finished_report.emit(result)
         except (AutoNovelRunError, LocalModelError, ReferenceBatchError) as exc:
@@ -97,6 +100,8 @@ class AutoBatchPanel(QGroupBox):
         self.worker = None
         self._approved_project = None
         self._launch_lease = None
+        self._explicit_resume_choice = None
+        self._resume_project_identity = None
         root = QVBoxLayout(self)
         notice = QLabel(
             '작품의 장르·소재·분위기·목표 회차를 먼저 저장하세요. '
@@ -128,6 +133,9 @@ class AutoBatchPanel(QGroupBox):
         self.scene_checkpoint_opt_in.toggled.connect(
             lambda _checked: self.consent.setChecked(False))
         form.addRow(self.scene_checkpoint_opt_in)
+        self.resume_notice = QLabel('직접 선택한 임시 장면 재개: 미선택')
+        self.resume_notice.setWordWrap(True)
+        form.addRow(self.resume_notice)
         self.reference_paths = ()
         self.reference_choose = QPushButton('참고작 TXT/MD/EPUB/DOCX/PDF 직접 선택')
         self.reference_choose.setObjectName('autoBatchChooseReferences')
@@ -156,9 +164,16 @@ class AutoBatchPanel(QGroupBox):
             lambda _text: self.consent.setChecked(False))
         self.authoring.fields['arguments'].textChanged.connect(
             lambda _text: self.consent.setChecked(False))
+        for field in ('executable', 'arguments'):
+            self.authoring.fields[field].textChanged.connect(
+                lambda _text: self.clear_explicit_scene_resume())
         for spin in (self.through, self.target_chars, self.scenes):
             spin.valueChanged.connect(
                 lambda _value: self.consent.setChecked(False))
+        for spin in (self.through, self.target_chars, self.scenes):
+            spin.valueChanged.connect(lambda _value: self.clear_explicit_scene_resume())
+        self.scene_checkpoint_opt_in.toggled.connect(
+            lambda enabled: self.clear_explicit_scene_resume() if not enabled else None)
         self.start_button = QPushButton('로컬 AI 여러 회차 집필 시작')
         self.start_button.setObjectName('autoBatchStart')
         self.stop_button = QPushButton('현재 장면 완료 후 중단')
@@ -172,6 +187,27 @@ class AutoBatchPanel(QGroupBox):
         root.addWidget(self.status)
         self.start_button.clicked.connect(self.start_batch)
         self.stop_button.clicked.connect(self.request_stop)
+
+    def clear_explicit_scene_resume(self):
+        if self._explicit_resume_choice is not None:
+            self._explicit_resume_choice = None
+            self._resume_project_identity = None
+            self.resume_notice.setText('직접 선택한 임시 장면 재개: 설정 변경으로 선택 해제')
+            self.consent.setChecked(False)
+
+    def set_explicit_scene_resume(self, choice, project_identity):
+        if (type(choice) is not SceneStageChoice or self.is_running()
+                or not self.scene_checkpoint_opt_in.isChecked()
+                or type(project_identity) is not tuple
+                or choice.episode > self.through.value()
+                or choice.stage > self.scenes.value()):
+            raise SceneCheckpointError('장면 재개 범위·장면 수를 기존 배치에서 직접 확인하세요.')
+        self._explicit_resume_choice = choice
+        self._resume_project_identity = project_identity
+        self.consent.setChecked(False)
+        self.resume_notice.setText(
+            f'{choice.episode}화 {choice.stage}단계 선택: 동일 모델·원고·계획·승인 지문일 때만 재사용. '
+            '다음 시작 전에 새 실행 동의가 필요합니다.')
 
     def choose_reference_files(self):
         if self.is_running():
@@ -187,6 +223,7 @@ class AutoBatchPanel(QGroupBox):
         if len(selected) > 100:
             self.reference_notice.setText('참고작은 한 번에 최대 100개까지 선택할 수 있습니다.')
             return
+        self.clear_explicit_scene_resume()
         self.reference_paths = tuple(selected)
         self.reference_list.clear()
         self.reference_list.addItems([display_filename(path) for path in self.reference_paths])
@@ -197,6 +234,7 @@ class AutoBatchPanel(QGroupBox):
     def clear_reference_files(self):
         if self.is_running():
             return
+        self.clear_explicit_scene_resume()
         self.reference_paths = ()
         self.reference_list.clear()
         self.reference_notice.setText('참고작 미선택: 전수 유사성 검사 NOT_RUN')
@@ -280,12 +318,25 @@ class AutoBatchPanel(QGroupBox):
             self.consent.setChecked(False)
             self.status.setText('승인 이후 파일·작품·모델 설정이 바뀌었습니다. 다시 승인하세요.')
             return
+        explicit_choice = self._explicit_resume_choice
+        if explicit_choice is not None and (
+                self._resume_project_identity !=
+                (str(session.path), str(session.project_id))
+                or not self.scene_checkpoint_opt_in.isChecked()
+                or explicit_choice.episode > self.through.value()
+                or explicit_choice.stage > self.scenes.value()):
+            self.consent.setChecked(False)
+            self.status.setText('선택한 장면과 현재 배치 설정이 다릅니다. 다시 직접 선택하세요.')
+            return
         # Bind stage reuse only to the freshly verified, one-run author approval.
         checkpoint_fingerprint = (
             self._launch_lease.fingerprint
             if self.scene_checkpoint_opt_in.isChecked() else None)
-        # Consume the consent before model initialization or worker creation.
+        # Consume the consent and one-run stage selection before worker creation.
         self.consent.setChecked(False)
+        self._explicit_resume_choice = None
+        self._resume_project_identity = None
+        self.resume_notice.setText('직접 선택한 임시 장면 재개: 이번 실행에만 전달됨')
         try:
             executable = self.authoring._text('executable').strip()
             arguments = tuple(shlex.split(self.authoring._text('arguments')))
@@ -344,7 +395,8 @@ class AutoBatchPanel(QGroupBox):
             batch_receipt=receipt,
             scene_checkpoint_root=checkpoint_root,
             scene_checkpoint_lease=checkpoint_fingerprint,
-            context_sources=selected_context_sources)
+            context_sources=selected_context_sources,
+            explicit_resume_choice=explicit_choice)
         self.worker.progress_changed.connect(
             lambda num, stage: self.status.setText(f'{num}화: {stage}'))
         self.worker.finished_report.connect(self._finished)

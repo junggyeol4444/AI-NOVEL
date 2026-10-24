@@ -96,6 +96,11 @@ class SceneCheckpointPanel(QGroupBox):
         self.stage_read_button.setObjectName('sceneStageReadDirect')
         self.stage_read_button.setEnabled(False)
         layout.addWidget(self.stage_read_button)
+        self.stage_resume_button = QPushButton(
+            '선택 장면을 기존 배치의 재개 후보로 인계 (모델 실행 안 함)')
+        self.stage_resume_button.setObjectName('sceneStageResumeHandoff')
+        self.stage_resume_button.setEnabled(False)
+        layout.addWidget(self.stage_resume_button)
         self.stage_text = QPlainTextEdit()
         self.stage_text.setObjectName('sceneStageUnapprovedText')
         self.stage_text.setReadOnly(True)
@@ -108,6 +113,7 @@ class SceneCheckpointPanel(QGroupBox):
         layout.addWidget(self.stage_status)
         self.stage_list_button.clicked.connect(self.preview_stage_choices)
         self.stage_read_button.clicked.connect(self.open_stage_choice)
+        self.stage_resume_button.clicked.connect(self.handoff_stage_resume)
         self.audit_table.currentCellChanged.connect(self.invalidate_stage_choices)
         self.audit_status = QLabel(
             '파일 형식 확인은 현재 모델 승인·작가 자료 일치·재개 가능 판정이 아닙니다.')
@@ -182,6 +188,7 @@ class SceneCheckpointPanel(QGroupBox):
         self._stage_identity = None
         self.stage_table.setRowCount(0)
         self.stage_read_button.setEnabled(False)
+        self.stage_resume_button.setEnabled(False)
         self.stage_text.clear()
         self.stage_status.setText('임시 장면 목록을 다시 직접 조회하세요.')
 
@@ -204,6 +211,7 @@ class SceneCheckpointPanel(QGroupBox):
                         choice.folder_name[-8:], choice.stage, choice.characters)):
                     self.stage_table.setItem(row, col, QTableWidgetItem(str(value)))
             self.stage_read_button.setEnabled(bool(choices))
+            self.stage_resume_button.setEnabled(bool(choices))
             self.stage_status.setText(
                 f'{episode}화: 형식·SHA 확인된 임시 장면 {len(choices)}개. '
                 '선택한 원문 열람은 별도 직접 클릭이며 미승인 AI 초고입니다.')
@@ -233,6 +241,29 @@ class SceneCheckpointPanel(QGroupBox):
         except (SceneIntegrityError, BatchScopeBridgeError, OSError, ValueError):
             self.invalidate_stage_choices()
             self.stage_status.setText('원고·임시 파일이 변경됐습니다. 다시 조회하세요.')
+
+    def handoff_stage_resume(self):
+        index = self.stage_table.currentRow()
+        if (self._stage_identity is None
+                or not 0 <= index < len(self._stage_choices)):
+            self.stage_status.setText('재개할 임시 장면을 직접 선택하세요.')
+            return
+        try:
+            session, identity = self._require_audit()
+            if identity != self._stage_identity:
+                raise SceneIntegrityError('작품이 변경됐습니다.')
+            choice = self._stage_choices[index]
+            read_author_scene_stage_choice(
+                self._audit, session.store, session.path, identity[1], choice)
+            self.authoring.auto_panel.set_explicit_scene_resume(choice, identity)
+            self.stage_status.setText(
+                f'{choice.episode}화 {choice.stage}단계를 기존 배치의 재개 후보로 인계했습니다. '
+                '자동 시작·원고 저장 없음. 모델·설정·원고·임시 파일이 동일한지 '
+                '실제 실행 직전 다시 확인하며 새 실행 동의가 필요합니다.')
+        except (SceneIntegrityError, SceneCheckpointError, BatchScopeBridgeError,
+                OSError, ValueError):
+            self.stage_status.setText(
+                '현재 배치 설정·작품·임시 파일이 일치하지 않습니다. 다시 직접 조회하세요.')
 
     def preview_audit(self):
         self.invalidate_audit()

@@ -15,7 +15,8 @@ from typing import Callable
 
 from .database.episodes import EpisodeStore
 from .continuity_memory_window import extend_scene_context
-from .scene_resume_binding import SceneResumeScope
+from .scene_resume_binding import SceneResumeScope, require_explicit_scene_resume
+from .author_scene_checkpoint_integrity import SceneStageChoice
 from .scene_checkpoint_store import SceneCheckpointError
 from .author_context_envelope import (
     AuthorContextSources, compose_author_context, require_unchanged_author_sources,
@@ -346,6 +347,7 @@ def run_auto_novel(
     scene_checkpoint_root: str | Path | None = None,
     scene_checkpoint_lease: str | None = None,
     context_sources: AuthorContextSources | None = None,
+    explicit_resume_choice: SceneStageChoice | None = None,
 ) -> AutoNovelRunReport:
     """Generate *unapproved drafts* on a dedicated existing SQLite project.
 
@@ -370,6 +372,12 @@ def run_auto_novel(
     if scene_checkpoint_lease is not None and (
             type(scene_checkpoint_lease) is not str or len(scene_checkpoint_lease) != 64):
         raise AutoNovelRunError('장면별 임시 기록에 사용할 승인 지문이 올바르지 않습니다.')
+    if explicit_resume_choice is not None and (
+            type(explicit_resume_choice) is not SceneStageChoice
+            or scene_checkpoint_root is None
+            or explicit_resume_choice.episode > through_episode
+            or explicit_resume_choice.stage > scenes_per_episode):
+        raise AutoNovelRunError('직접 선택한 장면과 현재 집필 승인 범위를 다시 확인하세요.')
     if type(reference_paths) is not tuple:
         raise AutoNovelRunError('참고작 선택 자료 형식이 올바르지 않습니다.')
     reference_batch = None
@@ -410,6 +418,11 @@ def run_auto_novel(
         plans = {e.episode_number: e for e in episodes}
         by_arc = {arc.number: arc for arc in arcs.arcs}
         existing = {e.episode: e for e in db.list_episodes(project_id)}
+        if explicit_resume_choice is not None:
+            if (explicit_resume_choice.episode in existing
+                    or any(n not in existing for n in range(1, explicit_resume_choice.episode))):
+                raise AutoNovelRunError(
+                    '선택 장면의 회차가 다음 신규 회차가 아닙니다. 기존 원고를 덮어쓰지 않습니다.')
         # Author-owned character facts must be visible inside the FIRST
         # 12k native-context characters, rather than only the names list.
         with CharacterStore(database_path) as chars:
@@ -462,6 +475,8 @@ def run_auto_novel(
         # under a clearly preview-only key; it is NOT canon or approved facts.
         missing = any(n not in existing for n in range(1, through_episode + 1))
         story_preview = rules.get('ai_story_outline_preview', '')
+        if explicit_resume_choice is not None and not story_preview.strip():
+            raise AutoNovelRunError('장면 재개 전에 저장된 전체 스토리 초안이 필요합니다. 자동 생성하지 않습니다.')
         if missing and not story_preview.strip():
             # The whole-story draft takes a long model call. Capture the
             # author's original Bible and ALL previously saved chapters
@@ -551,6 +566,11 @@ def run_auto_novel(
                     Path(database_path), project_id, n, Path(scene_checkpoint_root),
                     scene_checkpoint_lease, started_source_state,
                     (plan, slots, scene_targets), scenes_per_episode).open_store()
+            if (explicit_resume_choice is not None
+                    and n == explicit_resume_choice.episode):
+                require_explicit_scene_resume(
+                    checkpoint, explicit_resume_choice,
+                    scenes_per_episode=scenes_per_episode)
 
             def record_unapproved_stage(stage: int, body: str) -> None:
                 if checkpoint is None:
