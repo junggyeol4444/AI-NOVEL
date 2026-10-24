@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from hashlib import sha256
 
-from .author_workflow_dependencies import build_author_workflow_dependencies
+from .author_workflow_dependencies import (AuthorWorkflowChapter, build_author_workflow_dependencies)
 from .epub_volume_workflow import plan_epub_volumes
 
 
@@ -38,6 +38,69 @@ class VolumeReviewMatrix:
     fingerprint: str = field(default='', repr=False)
     status: str = 'AUTHOR_PREVIEW_ONLY_NOT_APPROVED'
     publication_approved: bool = False
+
+
+
+@dataclass(frozen=True)
+class VolumeChapterDetail:
+    """한 권의 모든 회차에 대한 작가 직접 열람 전용 근거 목록."""
+    project_id: str = field(repr=False)
+    through_episode: int = 0
+    volume_index: int = 0
+    first_episode: int = 0
+    last_episode: int = 0
+    chapters: tuple[AuthorWorkflowChapter, ...] = ()
+    matrix_fingerprint: str = field(default='', repr=False)
+    fingerprint: str = field(default='', repr=False)
+    status: str = 'AUTHOR_CHAPTER_DETAIL_ONLY_NOT_APPROVED'
+    publication_approved: bool = False
+
+
+def build_volume_chapter_detail(store, project_id: str, *,
+                                matrix: VolumeReviewMatrix,
+                                volume_index: int) -> VolumeChapterDetail:
+    """선택한 권의 모든 회차를 빠짐없이 읽고 현재 검수·참고작 기록과 결속."""
+    if (type(matrix) is not VolumeReviewMatrix or
+            type(volume_index) is not int or
+            not 1 <= volume_index <= len(matrix.rows)):
+        raise VolumeReviewMatrixError('현재 권별 현황에서 한 권을 직접 선택하세요.')
+    require_current_volume_review_matrix(matrix, store, project_id)
+    volume = matrix.rows[volume_index - 1]
+    workflow = build_author_workflow_dependencies(
+        store, project_id, through_episode=matrix.through_episode)
+    chapters = tuple(c for c in workflow.chapters
+                     if volume.first_episode <= c.episode <= volume.last_episode)
+    if (len(chapters) != volume.last_episode - volume.first_episode + 1 or
+            any(c.episode != volume.first_episode + index
+                for index, c in enumerate(chapters))):
+        raise VolumeReviewMatrixError('권별 회차가 누락됐습니다. 다시 조회하세요.')
+    evidence = tuple((c.episode, c.revision, c.manuscript_sha256,
+                      c.draft_present, c.final_present, c.review_status,
+                      c.reference_status, c.remaining_actions)
+                     for c in chapters)
+    fingerprint = sha256(repr((
+        matrix.fingerprint, volume_index, volume.first_episode,
+        volume.last_episode, evidence)).encode('utf-8')).hexdigest()
+    return VolumeChapterDetail(
+        project_id, matrix.through_episode, volume_index,
+        volume.first_episode, volume.last_episode, chapters,
+        matrix.fingerprint, fingerprint)
+
+
+def require_current_volume_chapter_detail(
+        detail: VolumeChapterDetail, matrix: VolumeReviewMatrix,
+        store, project_id: str) -> None:
+    """두 번째 클릭에서 작품·전 범위·선택 권·각 회차 원고/QC 지문 재확인."""
+    if (type(detail) is not VolumeChapterDetail or
+            type(matrix) is not VolumeReviewMatrix or
+            detail.project_id != project_id or
+            detail.matrix_fingerprint != matrix.fingerprint or
+            detail.through_episode != matrix.through_episode):
+        raise VolumeReviewMatrixError('작품 또는 권별 조회가 변경됐습니다.')
+    current = build_volume_chapter_detail(
+        store, project_id, matrix=matrix, volume_index=detail.volume_index)
+    if current != detail:
+        raise VolumeReviewMatrixError('선택 권의 원고·검수·참고작 기록이 변경됐습니다.')
 
 
 def build_volume_review_matrix(store, project_id: str, *,
