@@ -11,6 +11,10 @@ from ..author_scene_checkpoint_integrity import (
     SceneIntegrityError, audit_scene_checkpoints,
     require_current_scene_checkpoint_audit,
 )
+from ..author_checkpoint_final_coverage import (
+    CheckpointFinalCoverageError, build_checkpoint_final_coverage,
+    require_current_checkpoint_final_coverage,
+)
 from .author_batch_scope_bridge import (
     BatchScopeBridgeError, _current_author_state,
     preview_author_batch_scope, handoff_author_batch_scope,
@@ -38,6 +42,8 @@ class SceneCheckpointPanel(QGroupBox):
         self._audit_identity = None
         self._batch_scope = None
         self._reference_lease = None
+        self._final_alignment = None
+        self._final_identity = None
         layout = QVBoxLayout(self)
         notice = QLabel(
             '사용자가 별도 승인한 실행에서만 생성된 AI 장면 초안을 로컬 임시 폴더에 저장합니다. '
@@ -75,6 +81,29 @@ class SceneCheckpointPanel(QGroupBox):
             '파일 형식 확인은 현재 모델 승인·작가 자료 일치·재개 가능 판정이 아닙니다.')
         self.audit_status.setWordWrap(True)
         layout.addWidget(self.audit_status)
+        self.final_preview_button = QPushButton(
+            '임시 장면 본문·저장 최종본 1화부터 직접 전수 대조')
+        self.final_preview_button.setObjectName('checkpointFinalCoveragePreview')
+        layout.addWidget(self.final_preview_button)
+        self.final_table = QTableWidget(0, 7)
+        self.final_table.setObjectName('checkpointFinalCoverageTable')
+        self.final_table.setHorizontalHeaderLabels((
+            '회차', '원고 revision', '최종본 글자', '임시 장면 파일',
+            '최종본에 그대로 포함', '변경·누락 후보', '손상·불일치'))
+        self.final_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.final_table.setMaximumHeight(250)
+        layout.addWidget(self.final_table)
+        self.final_status = QLabel(
+            'NOT_RUN: 작가가 직접 조회해야 합니다. 문자열 일치는 재개·검수·출판 승인이 아닙니다.')
+        self.final_status.setWordWrap(True)
+        layout.addWidget(self.final_status)
+        self.final_open_button = QPushButton(
+            '선택 저장 회차를 기존 원고 편집기에서 열기 (별도 클릭)')
+        self.final_open_button.setObjectName('checkpointFinalCoverageOpen')
+        self.final_open_button.setEnabled(False)
+        layout.addWidget(self.final_open_button)
+        self.final_preview_button.clicked.connect(self.preview_final_alignment)
+        self.final_open_button.clicked.connect(self.open_final_alignment)
         tool_row = QHBoxLayout()
         self.audit_target = QComboBox()
         for caption, key in (
@@ -99,7 +128,14 @@ class SceneCheckpointPanel(QGroupBox):
         self.audit_handoff_button.clicked.connect(self.handoff_audit_batch)
         self.invalidate_audit()
 
+    def invalidate_final_alignment(self, *_args):
+        self._final_alignment = self._final_identity = None
+        self.final_table.setRowCount(0)
+        self.final_open_button.setEnabled(False)
+        self.final_status.setText('현재 작품·원고·임시 장면을 다시 직접 조회하세요.')
+
     def invalidate_audit(self, *_args):
+        self.invalidate_final_alignment()
         self._audit = self._audit_identity = None
         self._batch_scope = self._reference_lease = None
         self.audit_table.setRowCount(0)
@@ -201,6 +237,59 @@ class SceneCheckpointPanel(QGroupBox):
         except (SceneIntegrityError, BatchScopeBridgeError, ValueError, OSError):
             self.invalidate_audit()
             self.audit_status.setText('원고·참고작·임시 파일 변경으로 인계를 차단했습니다.')
+
+    def preview_final_alignment(self):
+        self.invalidate_final_alignment()
+        try:
+            session, identity = _current_author_state(self.authoring)
+            snapshot = build_checkpoint_final_coverage(
+                session.store, session.path, identity[1],
+                through_episode=self.audit_through.value(),
+                checkpoint_root=default_scene_checkpoint_directory())
+            self._final_alignment, self._final_identity = snapshot, identity
+            self.final_table.setRowCount(len(snapshot.chapters))
+            for i, row in enumerate(snapshot.chapters):
+                values = (
+                    row.episode, row.revision if row.revision is not None else '미저장',
+                    row.saved_final_characters, row.scene_stage_files,
+                    row.exact_in_final, row.changed_or_missing, row.invalid_files)
+                for j, value in enumerate(values):
+                    self.final_table.setItem(i, j, QTableWidgetItem(str(value)))
+            self.final_open_button.setEnabled(bool(snapshot.chapters))
+            self.final_status.setText(
+                f'1~{snapshot.through_episode}화: 임시 장면의 최종본 표현 변경·누락 '
+                f'후보 {snapshot.changed_or_missing}개. '
+                '재작성된 문장은 달라질 수 있습니다. 품질 합격·재개·출판 승인 아님.')
+        except (CheckpointFinalCoverageError, BatchScopeBridgeError,
+                ValueError, OSError, LookupError):
+            self.invalidate_final_alignment()
+            self.final_status.setText(
+                '저장 최종본 또는 임시 장면 파일을 조회할 수 없습니다. 자동 처리하지 않습니다.')
+
+    def open_final_alignment(self):
+        snapshot, identity = self._final_alignment, self._final_identity
+        index = self.final_table.currentRow()
+        self.invalidate_final_alignment()
+        if snapshot is None or identity is None or not 0 <= index < len(snapshot.chapters):
+            self.final_status.setText('조회한 저장 회차를 직접 선택하세요.')
+            return
+        row = snapshot.chapters[index]
+        if row.revision is None:
+            self.final_status.setText('저장되지 않은 회차는 기존 편집기로 이동할 수 없습니다.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            if current != identity:
+                raise CheckpointFinalCoverageError('작품이 변경됐습니다.')
+            require_current_checkpoint_final_coverage(
+                snapshot, session.store, session.path, identity[1])
+            decision = select_saved_episode(
+                self.authoring, project_identity=identity, episode=row.episode)
+            self.final_status.setText(decision.message)
+        except (CheckpointFinalCoverageError, BatchScopeBridgeError,
+                ValueError, OSError, LookupError):
+            self.final_status.setText(
+                '작품·원고·임시 파일이 변경됐습니다. 다시 직접 조회하세요.')
 
     def refresh(self) -> None:
         self.invalidate_audit()
