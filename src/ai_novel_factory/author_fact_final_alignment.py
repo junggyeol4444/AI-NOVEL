@@ -48,6 +48,30 @@ class AuthorFactFinalSnapshot:
     publication_approved: bool = False
 
 
+@dataclass(frozen=True)
+class AuthorFactEpisodeEvidenceRow:
+    source_episode: int
+    kind: str
+    subject: str
+    predicate: str
+    value: str = field(repr=False)
+    source_current: bool = False
+    value_found: bool = False
+    competing_values: bool = False
+
+
+@dataclass(frozen=True)
+class AuthorFactEpisodeEvidence:
+    project_id: str = field(repr=False)
+    episode: int = 0
+    revision: int = 0
+    final_sha256: str = field(default='', repr=False)
+    final_text: str = field(default='', repr=False)
+    facts: tuple[AuthorFactEpisodeEvidenceRow, ...] = ()
+    status: str = 'AUTHOR_REVIEW_REQUIRED_NOT_CERTIFIED'
+    publication_approved: bool = False
+
+
 def _source_state(store: EpisodeStore, project_id: str, folder: str | Path,
                   through_episode: int):
     if (not isinstance(store, EpisodeStore) or type(project_id) is not str
@@ -141,3 +165,59 @@ def require_current_author_fact_final_alignment(
         through_episode=snapshot.through_episode)
     if current.source_sha256 != snapshot.source_sha256 or current.rows != snapshot.rows:
         raise AuthorFactFinalAlignmentError('원고 또는 사실 기록이 변경됐습니다. 다시 조회하세요.')
+
+
+def read_author_fact_episode_evidence(
+    snapshot: AuthorFactFinalSnapshot, store: EpisodeStore, project_id: str, *,
+    episode: int,
+) -> AuthorFactEpisodeEvidence:
+    """작가가 고른 저장 회차 원문과 사실 근거를 별도 읽기 전용 클릭에서 표시한다.
+
+    조회 시점과 반환 직전의 원고·사실 원장 지문을 재확인한다. 문자열
+    출현/충돌 후보는 작가 검토 대상일 뿐 진위나 QC 합격이 아니다.
+    """
+    if (type(snapshot) is not AuthorFactFinalSnapshot
+            or type(episode) is not int
+            or not 1 <= episode <= snapshot.through_episode
+            or snapshot.project_id != project_id):
+        raise AuthorFactFinalAlignmentError('작품·조회 범위·선택 회차가 변경됐습니다.')
+    require_current_author_fact_final_alignment(snapshot, store, project_id)
+    directory, facts, saved, digest = _source_state(
+        store, project_id, snapshot.folder, snapshot.through_episode)
+    if directory != snapshot.folder or digest != snapshot.source_sha256:
+        raise AuthorFactFinalAlignmentError('작가 사실·저장 원고가 변경됐습니다. 다시 조회하세요.')
+    chapter = saved.get(episode)
+    expected = snapshot.rows[episode - 1]
+    if (expected.episode != episode or chapter is None
+            or chapter.revision != expected.revision
+            or not chapter.final_text.strip()):
+        raise AuthorFactFinalAlignmentError('선택 회차의 저장 최종본을 다시 확인하세요.')
+    text = chapter.final_text
+    active = tuple(f for f in facts if f.valid_from <= episode <= f.valid_until)
+    keys: dict[tuple[str, str, str], set[str]] = {}
+    for fact in active:
+        keys.setdefault((fact.kind, fact.subject, fact.predicate), set()).add(fact.value)
+    evidence = []
+    for fact in sorted(active, key=lambda f: (
+            f.kind, f.subject, f.predicate, f.source_episode, f.fact_id)):
+        source = saved.get(fact.source_episode)
+        current = bool(
+            source is not None and source.revision == fact.source_revision
+            and sha256(source.final_text.encode('utf-8')).hexdigest() == fact.source_sha256)
+        evidence.append(AuthorFactEpisodeEvidenceRow(
+            source_episode=fact.source_episode, kind=fact.kind,
+            subject=fact.subject, predicate=fact.predicate, value=fact.value,
+            source_current=current, value_found=fact.value in text,
+            competing_values=len(keys[(fact.kind, fact.subject, fact.predicate)]) > 1))
+    if (expected.active_facts != len(evidence)
+            or expected.stale_sources != sum(not f.source_current for f in evidence)
+            or expected.value_found != sum(f.value_found for f in evidence)
+            or expected.value_not_found != sum(not f.value_found for f in evidence)
+            or expected.conflicting_keys != sum(len(values) > 1 for values in keys.values())
+            or expected.final_chars != len(''.join(text.split()))):
+        raise AuthorFactFinalAlignmentError('회차 사실 대조 근거가 변경됐습니다. 다시 조회하세요.')
+    require_current_author_fact_final_alignment(snapshot, store, project_id)
+    return AuthorFactEpisodeEvidence(
+        project_id=project_id, episode=episode, revision=chapter.revision,
+        final_sha256=sha256(text.encode('utf-8')).hexdigest(),
+        final_text=text, facts=tuple(evidence))

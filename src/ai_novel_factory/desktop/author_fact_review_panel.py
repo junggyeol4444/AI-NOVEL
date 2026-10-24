@@ -3,13 +3,14 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QGroupBox, QLabel, QPushButton, QSpinBox, QTableWidget,
-    QTableWidgetItem, QVBoxLayout,
+    QTableWidgetItem, QVBoxLayout, QPlainTextEdit,
 )
 
 from ai_novel_factory.author_fact_review_matrix import build_author_fact_review_matrix
 from ai_novel_factory.author_fact_final_alignment import (
     AuthorFactFinalAlignmentError, build_author_fact_final_alignment,
     require_current_author_fact_final_alignment,
+    read_author_fact_episode_evidence,
 )
 from .author_batch_scope_bridge import _current_author_state, BatchScopeBridgeError
 from .author_navigation_contract import select_saved_episode
@@ -64,6 +65,28 @@ class AuthorFactReviewPanel(QGroupBox):
         self.open_alignment_button.setEnabled(False)
         self.open_alignment_button.clicked.connect(self.open_fact_alignment)
         layout.addWidget(self.open_alignment_button)
+        self.detail_button = QPushButton('선택 회차 저장 최종본·작가 사실 상세 원문 열람 (별도 클릭)')
+        self.detail_button.setObjectName('authorFactEpisodeEvidenceOpen')
+        self.detail_button.setEnabled(False)
+        self.detail_button.clicked.connect(self.open_fact_evidence)
+        layout.addWidget(self.detail_button)
+        self.detail_table = QTableWidget(0, 7)
+        self.detail_table.setObjectName('authorFactEpisodeEvidenceTable')
+        self.detail_table.setHorizontalHeaderLabels([
+            '근거 회차', '종류', '대상', '속성', '작가 기록 값',
+            '근거 최신', '최종본 출현/동시 다른 값'])
+        self.detail_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.detail_table.setMaximumHeight(230)
+        layout.addWidget(self.detail_table)
+        self.detail_text = QPlainTextEdit()
+        self.detail_text.setObjectName('authorFactEpisodeFinalReadOnly')
+        self.detail_text.setReadOnly(True)
+        self.detail_text.setMaximumHeight(280)
+        layout.addWidget(self.detail_text)
+        self.detail_status = QLabel('회차를 선택한 뒤 별도 클릭으로 원문·작가 사실을 읽습니다.')
+        self.detail_status.setWordWrap(True)
+        layout.addWidget(self.detail_status)
+        self.alignment_table.itemSelectionChanged.connect(self._clear_fact_detail)
 
     def invalidate(self):
         self.table.setRowCount(0)
@@ -111,9 +134,19 @@ class AuthorFactReviewPanel(QGroupBox):
         selector.setCurrentIndex(index)
         self.status.setText(f'{number}화 기존 편집 화면을 선택했습니다. 출판 승인 아님.')
 
+    def _clear_fact_detail(self):
+        if not hasattr(self, 'detail_table'):
+            return
+        self.detail_table.setRowCount(0)
+        self.detail_text.clear()
+        self.detail_button.setEnabled(self._alignment is not None)
+        self.detail_status.setText('선택한 회차의 저장 최종본과 사실 근거는 별도 클릭으로 확인합니다.')
+
     def invalidate_alignment(self, *_args):
         self._alignment = None
         self._alignment_identity = None
+        self._clear_fact_detail()
+        self.detail_button.setEnabled(False)
         self.alignment_table.setRowCount(0)
         self.open_alignment_button.setEnabled(False)
         self.alignment_status.setText('작품·범위·원고·사실 기록 변경 시 다시 직접 조회하세요.')
@@ -172,3 +205,39 @@ class AuthorFactReviewPanel(QGroupBox):
         except (AuthorFactFinalAlignmentError, BatchScopeBridgeError,
                 ValueError, OSError, LookupError):
             self.alignment_status.setText('원고·사실 기록이 변경되어 이전 인계를 무효화했습니다.')
+
+    def open_fact_evidence(self):
+        snapshot, identity = self._alignment, self._alignment_identity
+        row_index = self.alignment_table.currentRow()
+        self._clear_fact_detail()
+        if (snapshot is None or identity is None
+                or not 0 <= row_index < len(snapshot.rows)):
+            self.detail_status.setText('먼저 전체 대조를 조회하고 저장 회차를 직접 선택하세요.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            if current != identity or self.through.value() != snapshot.through_episode:
+                raise AuthorFactFinalAlignmentError('작품 또는 회차 범위가 변경됐습니다.')
+            result = read_author_fact_episode_evidence(
+                snapshot, session.store, identity[1],
+                episode=snapshot.rows[row_index].episode)
+        except (AuthorFactFinalAlignmentError, BatchScopeBridgeError,
+                ValueError, OSError, LookupError):
+            self.invalidate_alignment()
+            self.detail_status.setText('원고·작가 사실·선택 범위가 변경됐습니다. 다시 전수 조회하세요.')
+            return
+        self.detail_table.setRowCount(len(result.facts))
+        for index, fact in enumerate(result.facts):
+            values = (
+                str(fact.source_episode), fact.kind, fact.subject, fact.predicate,
+                fact.value, '일치' if fact.source_current else '변경됨',
+                ('출현' if fact.value_found else '미출현')
+                + (' · 동시 다른 값 후보' if fact.competing_values else ''))
+            for column, value in enumerate(values):
+                self.detail_table.setItem(index, column, QTableWidgetItem(value))
+        self.detail_text.setPlainText(result.final_text)
+        self.detail_status.setText(
+            f'{result.episode}화 저장 최종본 {len(result.final_text)}자 / '
+            f'작가 사실 {len(result.facts)}건 읽기 전용 표시. '
+            '문자열 출현·충돌 후보는 작가 직접 검토 대상이며 QC PASS·출판 승인이 아닙니다.')
+
