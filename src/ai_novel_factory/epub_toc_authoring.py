@@ -6,6 +6,7 @@ EPUB or an existing metadata file. It does not authorize publication.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 from pathlib import Path
 import json
 import os
@@ -127,4 +128,62 @@ def load_current_epub_toc_manifest(
                             overrides=overrides)
     if data.get('source_sha256') != current.source_sha256:
         raise EpubTocError('저장 최종본이 변경되어 기존 목차 파일이 무효화되었습니다.')
+    return current
+
+
+@dataclass(frozen=True)
+class EpubTocReeditSnapshot:
+    """작가가 직접 고른 기존 목차의 읽기 전용 편집 시작 지문."""
+
+    file_path: str
+    file_sha256: str
+    project_id: str
+    through_episode: int
+    source_sha256: str
+    titles: tuple[str, ...]
+
+
+def _toc_file_sha256(path: Path) -> str:
+    """한도 밖 파일을 메모리에 적재하지 않고 기존 JSON 지문만 조회."""
+    try:
+        with path.open('rb') as stream:
+            data = stream.read(256 * 1024 + 1)
+    except OSError:
+        raise EpubTocError('선택한 기존 목차 JSON을 읽을 수 없습니다.') from None
+    if len(data) > 256 * 1024:
+        raise EpubTocError('기존 목차 JSON 크기 제한을 초과했습니다.')
+    return sha256(data).hexdigest()
+
+
+def load_epub_toc_reedit_snapshot(
+    file_path: str | Path, store: EpisodeStore, project_id: str, *,
+    through_episode: int,
+) -> EpubTocReeditSnapshot:
+    """기존 목차를 읽기만 하고 새 JSON으로 저장할 편집용 사본을 제공."""
+    path = Path(file_path)
+    if (not path.is_absolute() or path.is_symlink()
+            or path.suffix.lower() != '.json' or not path.is_file()):
+        raise EpubTocError('기존 로컬 EPUB 목차 JSON을 직접 선택하세요.')
+    before = _toc_file_sha256(path)
+    manifest = load_current_epub_toc_manifest(
+        path, store, project_id, through_episode=through_episode)
+    if _toc_file_sha256(path) != before:
+        raise EpubTocError('목차를 읽는 동안 원본 JSON이 변경되었습니다.')
+    return EpubTocReeditSnapshot(
+        str(path), before, manifest.project_id,
+        manifest.through_episode, manifest.source_sha256, manifest.titles)
+
+
+def require_current_epub_toc_reedit_snapshot(
+    snapshot: EpubTocReeditSnapshot, store: EpisodeStore, project_id: str,
+) -> EpubTocReeditSnapshot:
+    """수정·새 파일 저장 직전 원본 JSON과 SQLite 최종본 변경을 차단."""
+    if (type(snapshot) is not EpubTocReeditSnapshot
+            or snapshot.project_id != project_id):
+        raise EpubTocError('현재 작품의 기존 목차 편집 기록이 아닙니다.')
+    current = load_epub_toc_reedit_snapshot(
+        snapshot.file_path, store, project_id,
+        through_episode=snapshot.through_episode)
+    if current != snapshot:
+        raise EpubTocError('기존 목차 파일 또는 저장 원고가 변경되었습니다.')
     return current

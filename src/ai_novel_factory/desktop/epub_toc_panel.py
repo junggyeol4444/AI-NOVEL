@@ -7,7 +7,8 @@ from PySide6.QtWidgets import (
 )
 
 from ..epub_toc_authoring import (
-    EpubTocError, plan_epub_toc, save_new_epub_toc_manifest,
+    EpubTocError, load_epub_toc_reedit_snapshot, plan_epub_toc,
+    require_current_epub_toc_reedit_snapshot, save_new_epub_toc_manifest,
 )
 
 
@@ -18,6 +19,7 @@ class EpubTocPanel(QGroupBox):
         self._overrides = {}
         self._project = None
         self._source_stamp = None
+        self._import_snapshot = None
         layout = QVBoxLayout(self)
         self.through = QSpinBox()
         self.through.setRange(1, 1000)
@@ -27,6 +29,10 @@ class EpubTocPanel(QGroupBox):
         self.load.setObjectName('epubTocLoad')
         self.load.clicked.connect(self.load_plan)
         layout.addWidget(self.load)
+        self.import_existing = QPushButton('기존 목차 JSON 직접 선택해 재편집 시작 (원본 읽기 전용)')
+        self.import_existing.setObjectName('epubTocImportExisting')
+        self.import_existing.clicked.connect(self.load_existing_manifest)
+        layout.addWidget(self.import_existing)
         self.episode = QSpinBox()
         self.episode.setRange(1, 1000)
         self.episode.setValue(1)
@@ -55,6 +61,7 @@ class EpubTocPanel(QGroupBox):
         self._overrides = {}
         self._project = None
         self._source_stamp = None
+        self._import_snapshot = None
         self.consent.setChecked(False)
         self.status.setText('작품 또는 회차 범위 변경: 기존 목차 편집 상태를 폐기했습니다.')
 
@@ -78,6 +85,34 @@ class EpubTocPanel(QGroupBox):
             f'최종본 {plan.through_episode}화의 목차 제목 편집 준비. '
             '기본 제목은 N화이며 새 JSON 저장 전에는 어디에도 반영되지 않습니다.')
 
+    def load_existing_manifest(self):
+        session = self.authoring.session
+        if session.store is None or session.project_id is None:
+            self.status.setText('먼저 기존 작품을 열어야 합니다.')
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, '재편집할 기존 로컬 EPUB 목차 JSON 선택', '', 'JSON (*.json)')
+        if not path:
+            return
+        self.invalidate()
+        try:
+            snapshot = load_epub_toc_reedit_snapshot(
+                path, session.store, str(session.project_id),
+                through_episode=self.through.value())
+        except (EpubTocError, ValueError, OSError):
+            self.status.setText('기존 목차 파일의 작품·범위·최종본이 일치하지 않아 불러오지 않았습니다.')
+            return
+        self._import_snapshot = snapshot
+        self._project = snapshot.project_id
+        self._source_stamp = snapshot.source_sha256
+        self._overrides = {number: title for number, title in enumerate(snapshot.titles, 1)}
+        self.episode.setMaximum(snapshot.through_episode)
+        self.show_current()
+        self.consent.setChecked(False)
+        self.status.setText(
+            f'기존 목차 {snapshot.through_episode}화 제목을 메모리로만 불러왔습니다. '
+            '원본 JSON은 수정하지 않으며 새 파일명으로만 저장할 수 있습니다.')
+
     def show_current(self, *_args):
         if self._source_stamp is None:
             self.title_edit.clear()
@@ -92,6 +127,9 @@ class EpubTocPanel(QGroupBox):
         n = self.episode.value()
         session = self.authoring.session
         try:
+            if self._import_snapshot is not None:
+                require_current_epub_toc_reedit_snapshot(
+                    self._import_snapshot, session.store, self._project)
             trial = dict(self._overrides)
             trial[n] = self.title_edit.text()
             plan = plan_epub_toc(session.store, self._project,
@@ -115,6 +153,9 @@ class EpubTocPanel(QGroupBox):
             return
         self.consent.setChecked(False)
         try:
+            if self._import_snapshot is not None:
+                require_current_epub_toc_reedit_snapshot(
+                    self._import_snapshot, session.store, self._project)
             plan = plan_epub_toc(session.store, self._project,
                                  through_episode=self.through.value(),
                                  overrides=self._overrides)
@@ -129,7 +170,15 @@ class EpubTocPanel(QGroupBox):
         if not path:
             return
         try:
-            save_new_epub_toc_manifest(plan, path, explicit_author_save=True)
+            if self._import_snapshot is not None:
+                require_current_epub_toc_reedit_snapshot(
+                    self._import_snapshot, session.store, self._project)
+            current = plan_epub_toc(
+                session.store, self._project, through_episode=self.through.value(),
+                overrides=self._overrides)
+            if current != plan:
+                raise EpubTocError('파일 선택 중 저장 원고가 변경되었습니다.')
+            save_new_epub_toc_manifest(current, path, explicit_author_save=True)
         except (EpubTocError, ValueError, OSError):
             self.status.setText('기존 파일을 덮어쓰지 않았습니다. 새 JSON 파일명을 선택하세요.')
             return
