@@ -138,3 +138,64 @@ def revalidate_manuscript_hit(database_path: str | Path, project_id: str,
                         == hit.source_sha256)
     except (sqlite3.Error, ValueError, UnicodeError):
         return False
+
+
+@dataclass(frozen=True)
+class ManuscriptExactMatch:
+    """저장된 회차의 정확한 검색 일치 위치와 원문. 화면 메모리 전용."""
+
+    episode: int
+    revision: int
+    field_name: str
+    match_start: int
+    match_end: int
+    text: str = field(repr=False)
+    source_sha256: str = field(repr=False)
+    status: str = 'LOCAL_SAVED_MANUSCRIPT_READ_ONLY_NOT_REVIEWED'
+
+
+def read_saved_manuscript_exact_match(
+    database_path: str | Path, project_id: str,
+    hit: ManuscriptHit, query: str,
+) -> ManuscriptExactMatch:
+    """작가가 직접 고른 검색 결과의 저장 원문을 읽기 전용으로 재조회.
+
+    검색 당시 회차 revision·원문 SHA256·정확한 일치 위치를 모두 재확인한다.
+    원문은 파일·로그·모델 문맥에 기록하지 않으며, QC/출판 승인이 아니다.
+    """
+    if (type(hit) is not ManuscriptHit or hit.field not in _FIELDS
+            or type(hit.episode) is not int or not 1 <= hit.episode <= 1000
+            or type(hit.revision) is not int
+            or type(hit.column_start) is not int or hit.column_start < 0
+            or type(project_id) is not str or not _PROJECT.fullmatch(project_id)):
+        raise ManuscriptSearchError('저장 원고 검색 결과를 다시 직접 선택하세요.')
+    term = _term(query)
+    path = _path(database_path)
+    uri = 'file:' + quote(str(path), safe='/') + '?mode=ro'
+    try:
+        with sqlite3.connect(uri, uri=True, timeout=5) as db:
+            db.execute('PRAGMA query_only=ON')
+            db.execute('BEGIN')
+            # SQL 열 이름은 _FIELDS 고정 허용 목록만 사용한다.
+            row = db.execute(
+                f'SELECT revision,{hit.field} FROM bible_episodes '
+                'WHERE project_id=? AND episode=?',
+                (project_id, hit.episode)).fetchone()
+            if row is None or row[0] != hit.revision or type(row[1]) is not str:
+                raise ManuscriptSearchError('저장 원고가 변경됐습니다. 다시 검색하세요.')
+            prose = row[1]
+            digest = sha256(prose.encode('utf-8', 'surrogatepass')).hexdigest()
+            if digest != hit.source_sha256 or hit.column_start >= len(prose):
+                raise ManuscriptSearchError('검색 당시 원고 지문이 변경됐습니다.')
+            found = re.compile(re.escape(term), re.IGNORECASE).match(
+                prose, hit.column_start)
+            if found is None or found.start() != hit.column_start:
+                raise ManuscriptSearchError('검색된 본문 위치가 변경됐습니다.')
+            result = ManuscriptExactMatch(
+                hit.episode, hit.revision, hit.field, found.start(), found.end(),
+                prose, digest)
+            db.execute('ROLLBACK')
+            return result
+    except sqlite3.Error:
+        raise ManuscriptSearchError(
+            '읽기 전용 SQLite 원문 위치 조회를 완료하지 못했습니다.') from None
