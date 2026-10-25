@@ -13,6 +13,9 @@ from ..author_continuity_context_handoff import (
     ContinuityContextLease, ContinuityContextHandoffError,
     require_current_continuity_context,
 )
+from ..author_scene_plan import (
+    AuthorScenePlanError, read_author_scene_plans, scene_plan_fingerprint,
+)
 from ..author_memory_delta import (AuthorMemoryDeltaError, list_author_memory_deltas,
                                    memory_delta_fingerprint)
 from ..author_context_envelope import (AuthorContextSources, AuthorContextEnvelopeError,
@@ -110,6 +113,39 @@ class AuthorContextComposerPanel(QGroupBox):
         self._reset_consent()
         self.folder_labels['memory'].setText('작가가 기존 기억 화면에서 직접 선택함')
         self.status.setText('기억 폴더만 선택했습니다. 미리보기와 AI 문맥 동의는 별도로 진행하세요.')
+
+    def accept_existing_scene_folder(
+        self, folder: Path, episode: int, scene_count: int, identity: tuple,
+    ) -> None:
+        """작가가 별도 클릭으로 선택한 기존 저장 장면 기록만 문맥 폴더에 연결."""
+        session = self.authoring.session
+        store, project_id = session.required()
+        current = (str(session.path), str(project_id))
+        if (type(identity) is not tuple or identity != current
+                or type(episode) is not int or not 1 <= episode <= 1000
+                or type(scene_count) is not int or not 1 <= scene_count <= 20):
+            raise AuthorScenePlanError('작품 또는 장면 범위가 변경됐습니다.')
+        path = Path(folder)
+        if not path.is_absolute() or path.is_symlink() or not path.is_dir():
+            raise AuthorScenePlanError('작가가 직접 선택한 로컬 기록 폴더가 필요합니다.')
+        plans = tuple(
+            plan for plan in read_author_scene_plans(path, str(project_id))
+            if plan.episode == episode and not plan.revoked)
+        if len(plans) != 1 or len(plans[0].beats) != scene_count:
+            raise AuthorScenePlanError(
+                '현재 회차의 활성 저장 장면 계획이 하나이고 장면 수가 일치해야 합니다.')
+        scene_plan_fingerprint(path)
+        self._handoff_lease = None
+        self._reset_consent()
+        self.episode.setValue(episode)
+        self.scenes.setValue(scene_count)
+        self.folders['scene'] = path
+        self.folder_labels['scene'].setText(
+            '기존 저장 장면 계획에서 직접 선택됨 · 현재 지문 재확인 필요')
+        self.status.setText(
+            f'{episode}화의 기존 저장 장면 {scene_count}개 폴더만 선택했습니다. '
+            '작가 통합 문맥 미리보기와 배치 1회 사용 동의는 별도 클릭해야 합니다. '
+            'AI 실행·원고 저장·출판은 하지 않았습니다.')
 
     def _capture(self) -> AuthorContextSources:
         store, project_id = self.authoring.session.required()

@@ -56,6 +56,11 @@ class AuthorScenePlanPanel(QGroupBox):
             btn = QPushButton(caption); btn.clicked.connect(action)
             buttons.addWidget(btn)
         root.addLayout(buttons)
+        self.context_handoff_button = QPushButton(
+            '이 회차의 저장 장면 계획을 기존 작가 통합 문맥에 전달 (선택만)')
+        self.context_handoff_button.setObjectName('authorSceneToContext')
+        self.context_handoff_button.clicked.connect(self.handoff_to_context)
+        root.addWidget(self.context_handoff_button)
         self.status = QLabel('기존 원고·SQLite는 변경하지 않습니다. AI 실행/출판 자동 승인 없음.')
         self.status.setWordWrap(True); root.addWidget(self.status)
         self.scenes.valueChanged.connect(self._resize)
@@ -256,6 +261,40 @@ class AuthorScenePlanPanel(QGroupBox):
             self.refresh()
         except (AuthorScenePlanError, OSError, ValueError):
             self.status.setText('철회하지 않았습니다. 작품과 기록을 다시 확인하세요.')
+
+    def handoff_to_context(self):
+        """이미 작가가 저장한 장면 계획만 기존 통합 문맥 화면에 인계."""
+        try:
+            store, pid, identity = self._project()
+            require_idle_authoring(self.authoring, pid)
+            if self.folder is None:
+                raise AuthorScenePlanError('기존 장면 계획 폴더를 직접 선택하세요.')
+            plans = tuple(
+                plan for plan in read_author_scene_plans(self.folder, pid)
+                if plan.episode == self.episode.value() and not plan.revoked)
+            if len(plans) != 1 or len(plans[0].beats) != self.scenes.value():
+                raise AuthorScenePlanError(
+                    '이 회차에 활성 작가 저장 장면 계획이 하나 있어야 합니다.')
+            scene_plan_fingerprint(self.folder)
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            if hub is None or not hub.open_feature(
+                    'author_context_composer_panel', project_identity=identity):
+                raise AuthorScenePlanError('기존 작가 통합 문맥 화면을 열 수 없습니다.')
+            target = getattr(self.authoring, 'author_context_composer_panel', None)
+            if target is None:
+                raise AuthorScenePlanError('작가 통합 문맥 화면이 없습니다.')
+            target.accept_existing_scene_folder(
+                self.folder, self.episode.value(), len(plans[0].beats), identity)
+            self.batch_consent.setChecked(False)
+            self.status.setText(
+                f'{self.episode.value()}화의 저장 장면 기록 폴더를 기존 '
+                '작가 통합 문맥에 선택만 전달했습니다. 모델 실행/배치 사용은 '
+                '해당 화면에서 별도 직접 승인하세요.')
+        except (AuthorScenePlanError, LocalHandoffError,
+                ValueError, OSError):
+            self.status.setText(
+                '현재 회차의 저장 장면 계획 또는 작품 상태가 일치하지 않아 '
+                '통합 문맥으로 전달하지 않았습니다.')
 
     def _bind_batch(self, enabled):
         self._batch_project = None
