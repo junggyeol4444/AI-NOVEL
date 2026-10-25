@@ -12,7 +12,7 @@ from threading import Event
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QFormLayout, QGroupBox, QLabel, QPushButton, QSpinBox, QVBoxLayout,
-    QFileDialog, QListWidget,
+    QFileDialog, QListWidget, QComboBox,
 )
 from ai_novel_factory.auto_novel_run import run_auto_novel, AutoNovelRunError
 from ai_novel_factory.local_models import LocalExecutableProvider, LocalModelError
@@ -117,6 +117,13 @@ class AutoBatchPanel(QGroupBox):
         root.addWidget(notice)
         form = QFormLayout()
         root.addLayout(form)
+        self.actual_novel_preset = QComboBox()
+        self.actual_novel_preset.setObjectName('autoBatchActualNovelPreset')
+        self.actual_novel_preset.addItem('직접 회차 입력 (최대 1000화)', 0)
+        self.actual_novel_preset.addItem('실제 로컬 AI 30화 소설 집필', 30)
+        self.actual_novel_preset.addItem('실제 로컬 AI 100화 소설 집필', 100)
+        self.actual_novel_preset.addItem('실제 로컬 AI 250화 소설 집필', 250)
+        form.addRow('실제 장편 본문 집필 범위', self.actual_novel_preset)
         self.through = QSpinBox()
         self.through.setObjectName('autoBatchThroughEpisode')
         self.through.setRange(1, 1000)
@@ -180,6 +187,9 @@ class AutoBatchPanel(QGroupBox):
             '이번 실행에서만 지정한 로컬 모델로 순차 집필하는 것을 승인합니다')
         self.consent.setObjectName('autoBatchExplicitApproval')
         self.consent.toggled.connect(self._bind_approval)
+        self.actual_novel_preset.currentIndexChanged.connect(
+            self._apply_actual_novel_preset)
+        self.through.valueChanged.connect(self._sync_actual_novel_preset)
         root.addWidget(self.consent)
         for control in self.metric_checks.values():
             control.toggled.connect(lambda _checked: self.consent.setChecked(False))
@@ -214,6 +224,30 @@ class AutoBatchPanel(QGroupBox):
         root.addWidget(self.status)
         self.start_button.clicked.connect(self.start_batch)
         self.stop_button.clicked.connect(self.request_stop)
+
+    def _apply_actual_novel_preset(self, *_args):
+        """Actual episode WRITING, not the separate AI planning preview."""
+        target = self.actual_novel_preset.currentData()
+        if type(target) is not int or not target:
+            return
+        if self.is_running():
+            return
+        self.consent.setChecked(False)
+        self.through.setValue(target)
+        self.status.setText(
+            f'실제 장편 소설 {target}화까지 본문 생성 범위를 선택했습니다. '
+            '기존에 저장한 회차는 덮어쓰지 않으며 새 회차만 실제 로컬 AI로 '
+            '집필합니다. 회차 목표 분량과 저장 작품 목표를 확인한 다음 '
+            '이번 실행을 별도로 승인하세요. '
+            '품질 합격·검수·출판은 자동 처리하지 않습니다.')
+
+    def _sync_actual_novel_preset(self, *_args):
+        """Prevent a stale 250-episode label after manual range editing."""
+        target = self.actual_novel_preset.currentData()
+        if target and target != self.through.value():
+            self.actual_novel_preset.blockSignals(True)
+            self.actual_novel_preset.setCurrentIndex(0)
+            self.actual_novel_preset.blockSignals(False)
 
     def preview_author_context_scope(self):
         """작가가 직접 누른 현재 1~N화 문맥 조회. 승인/모델 실행/저장 없음."""

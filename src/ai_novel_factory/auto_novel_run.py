@@ -230,9 +230,39 @@ def _native_scene_generation_goal(episode: int, scene: int, total_scenes: int,
     if (type(target) is not int or not 50 <= target <= 10_000
             or type(outline) is not str):
         raise AutoNovelRunError('장면 분량 또는 회차 플롯이 올바르지 않습니다.')
+    # The real local model needs a DISTINCT narrative job for each scene.
+    # Without a stage-specific instruction, every 5000-character chapter scene
+    # receives essentially the same plot and can rewrite its opening repeatedly.
+    # These are directions, NOT fabricated manuscript passages or canon.
+    if total_scenes == 1:
+        movement = (
+            '한 장면 안에서 직전 회차의 결과→발단→사건 전개→선택의 대가→'
+            '다음 회차의 궁금증까지 하나의 완결된 회차로 서술. '
+            '회차 플롯의 사건을 원인·행동·결과로 실제 소설 문장화.')
+    elif scene == 1:
+        movement = (
+            '첫 장면 전용: 직전 회차의 실제 결과에서 출발하여 인물의 현재 목표, '
+            '새 사건의 원인과 첫 행동을 서술. '
+            '중반 반전·최종 해결을 미리 전부 보여주지 말 것.')
+    elif scene == total_scenes:
+        movement = (
+            '마지막 장면 전용: 직전 장면에서 이미 진행된 사건을 되풀이하지 말고 '
+            '그 직접적 결과·선택의 대가·감정 변화를 실제 행동으로 전개. '
+            '회차 갈등의 이번 화 범위와 다음 화로 이어질 미해결 질문을 명확히.')
+    elif scene * 2 <= total_scenes:
+        movement = (
+            '중반 전개 전용: 직전 장면과 다른 새로운 행동·장애·정보를 도입, '
+            '기존 선택의 부작용과 인물 간 충돌을 구체적으로 전개. '
+            '회차 발단을 재서술하거나 결말을 먼저 끝내지 말 것.')
+    else:
+        movement = (
+            '후반 전환 전용: 새 사실이나 인물 선택으로 진행 방향을 바꾸고 '
+            '다음 장면의 결과로 이어지는 인과를 제시. '
+            '이전 장면의 대사를 다시 설명하지 말 것.')
     return (
         f'목표 분량 {target}자 내외의 독창적 소설 본문을 작성. '
         f'{episode}화 {scene}/{total_scenes}장면. '
+        + movement + ' '
         f'회차 플롯: {_plot_endpoints(outline, 1500)}. '
         '기존 참고작의 문장·고유명사 복제 금지.'
     )
@@ -753,6 +783,57 @@ def run_auto_novel(
                         scene = candidate
                     record_unapproved_stage(slot.scene_number, scene)
                     drafts.append(scene)
+
+                # The author requested ~5000 REAL Korean prose characters per
+                # episode, not a collection of undersized scene summaries.
+                # Per-scene native calls and four continuations may still
+                # underfill an actual episode. Continue the FINAL real scene,
+                # bounded to six EXTRA calls per episode, before persisting.
+                # No template filler, quality-PASS, new source novel, or
+                # alteration of the author's saved prior manuscript is allowed.
+                # A persistently short output remains WARN and human-review.
+                for chapter_tail_pass in range(6):
+                    actual = '\n\n'.join(drafts)
+                    actual_screen = screen_korean_draft(
+                        actual, target_chars=target_chars)
+                    deficit = target_chars - actual_screen.nonspace_chars
+                    if deficit <= 0:
+                        break
+                    if should_stop is not None and should_stop():
+                        raise InterruptedError()
+                    requested = min(10_000, max(50, deficit))
+                    emit(n, f'회차 {n}화 실제 AI 본문 분량 이어쓰기 '
+                         f'{chapter_tail_pass + 1}/6 '
+                         f'(현재 {actual_screen.nonspace_chars}/{target_chars}자)')
+                    ending_context = (
+                        '이미 집필한 해당 회차 마지막 장면(미검수, 되풀이 금지):\n'
+                        + drafts[-1][-1900:] + '\n'
+                        + _scene_generation_context(context, outline, drafts[-1])
+                    )[:12000]
+                    tail = model(
+                        n, slots[-1].scene_number, ending_context,
+                        f'목표 분량 {requested}자 내외의 독창적인 한국어 '
+                        '소설 후속 본문만 작성. 앞선 문단·대사 재출력 금지. '
+                        '마지막 장면에서 벌어진 선택의 직접적 결과와 '
+                        '앞서 쌓은 복선에 따른 새 행동을 이어 서술.',
+                        '이번 장면 마지막 실제 결과에 이어지는 인과적 갈등',
+                        f'{genre} 작품 세계관의 마지막 장면',
+                        allocated_scene_chars=requested)
+                    continuation_calls += 1
+                    if not tail.strip() or has_foreign_script_corruption(tail):
+                        break
+                    last_scene = drafts[-1].rstrip() + '\n\n' + tail.strip()
+                    candidate = '\n\n'.join((*drafts[:-1], last_scene))
+                    improved = screen_korean_draft(
+                        candidate, target_chars=target_chars)
+                    if (improved.nonspace_chars <= actual_screen.nonspace_chars
+                            or improved.hangul_syllables <= actual_screen.hangul_syllables
+                            or len(last_scene.encode('utf-8')) > 80000
+                            or check_repetition(project_id, n, candidate).findings):
+                        # Never fake the requested length by concatenating
+                        # duplicated, foreign-script, or empty model output.
+                        break
+                    drafts[-1] = last_scene
             except InterruptedError:
                 stopped = True
                 break
