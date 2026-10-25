@@ -6,6 +6,11 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QFormLayout, QLabel,
     QListWidget, QTableWidget, QTableWidgetItem)
 from ..author_arc_ledger import (AuthorArcError, add_author_arc,
                                  read_author_arcs, withdraw_author_arc)
+from ..author_full_plan_preview import (
+    AuthorFullPlanError, build_author_full_plan,
+    require_current_author_full_plan, author_full_plan_scenes,
+)
+from ..project_local_handoff import require_idle_authoring, LocalHandoffError
 from ..author_arc_final_coverage import (
     AuthorArcFinalCoverageError, build_author_arc_final_coverage,
     require_current_author_arc_final_coverage,
@@ -22,9 +27,61 @@ class AuthorArcPanel(QGroupBox):
         self._bound = None
         self._coverage_snapshot = None
         self._coverage_identity = None
+        self._full_plan = None
+        self._full_plan_identity = None
         form = QFormLayout()
         root = QVBoxLayout(self)
         root.addLayout(form)
+        plan_group = QGroupBox('저장 작품 설정 기반 장편 1~1000화 기획 뼈대 · 읽기 전용')
+        plan_root = QVBoxLayout(plan_group)
+        plan_form = QFormLayout()
+        self.full_through = QSpinBox()
+        self.full_through.setRange(1, 1000)
+        self.full_through.setValue(30)
+        self.full_through.setObjectName('authorFullPlanThrough')
+        self.full_arc_count = QSpinBox()
+        self.full_arc_count.setRange(0, 1000)
+        self.full_arc_count.setSpecialValueText('자동 (30화당 약 1개)')
+        self.full_arc_count.setObjectName('authorFullPlanArcCount')
+        self.full_scene_count = QSpinBox()
+        self.full_scene_count.setRange(1, 20)
+        self.full_scene_count.setValue(3)
+        plan_form.addRow('기획 조회 회차', self.full_through)
+        plan_form.addRow('전체 아크 수', self.full_arc_count)
+        plan_form.addRow('회차당 장면 빈 칸', self.full_scene_count)
+        plan_root.addLayout(plan_form)
+        full_preview_button = QPushButton('현재 저장 설정으로 전체 아크·회차 기획 빈 칸 조회')
+        full_preview_button.setObjectName('authorFullPlanPreview')
+        full_preview_button.clicked.connect(self.preview_full_plan)
+        plan_root.addWidget(full_preview_button)
+        self.full_arc_table = QTableWidget(0, 3)
+        self.full_arc_table.setObjectName('authorFullPlanArcTable')
+        self.full_arc_table.setHorizontalHeaderLabels(('아크', '회차 범위', '이 범위에 포함된 회차'))
+        self.full_arc_table.setMaximumHeight(180)
+        self.full_arc_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        plan_root.addWidget(self.full_arc_table)
+        self.full_episode = QSpinBox()
+        self.full_episode.setRange(1, 1000)
+        plan_form.addRow('기획 빈 칸을 볼 회차', self.full_episode)
+        self.full_scene_preview = QPlainTextEdit()
+        self.full_scene_preview.setReadOnly(True)
+        self.full_scene_preview.setMaximumHeight(135)
+        self.full_scene_preview.setObjectName('authorFullPlanScenePreview')
+        plan_root.addWidget(self.full_scene_preview)
+        self.full_plan_status = QLabel(
+            '현재 저장된 작품의 장르·소재·목표 회차·분위기를 사용합니다. '
+            'AI 줄거리 생성/참고작 전수/원고 저장/검수 합격 아님.')
+        self.full_plan_status.setWordWrap(True)
+        plan_root.addWidget(self.full_plan_status)
+        fill_arc = QPushButton('선택 아크를 아래 수동 편집 입력칸에 가져오기 (저장 안 함)')
+        fill_arc.setObjectName('authorFullPlanFillArc')
+        fill_arc.clicked.connect(self.prefill_full_plan_arc)
+        plan_root.addWidget(fill_arc)
+        root.addWidget(plan_group)
+        for spin in (self.full_through, self.full_arc_count, self.full_scene_count):
+            spin.valueChanged.connect(self.invalidate_full_plan)
+        self.full_episode.valueChanged.connect(self.show_full_plan_episode)
+        self.full_arc_table.itemSelectionChanged.connect(self.show_full_plan_episode)
         self.folder_label = QLabel('로컬 계획 폴더 미선택')
         self.folder_label.setWordWrap(True)
         choose = QPushButton('기존 아크 기록 폴더 직접 선택')
@@ -108,11 +165,117 @@ class AuthorArcPanel(QGroupBox):
         self.save_consent.setChecked(False)
 
     def invalidate(self):
+        self.invalidate_full_plan()
         self.invalidate_coverage()
         self.save_consent.setChecked(False);self.withdraw_consent.setChecked(False)
         self.batch_approval.setChecked(False)
         self.preview.clear();self._bound=None
         self.status.setText('작품이 변경되어 아크 승인과 목록을 초기화했습니다.')
+
+    def invalidate_full_plan(self, *_args):
+        self._full_plan = None
+        self._full_plan_identity = None
+        self.full_arc_table.setRowCount(0)
+        self.full_scene_preview.clear()
+        self.full_plan_status.setText(
+            '작품·기획 입력 또는 조회 범위가 변경됐습니다. 저장 설정을 다시 조회하세요.')
+
+    def preview_full_plan(self):
+        self.invalidate_full_plan()
+        try:
+            session, identity = _current_author_state(self.authoring)
+            require_idle_authoring(self.authoring, str(session.project_id))
+            snapshot = build_author_full_plan(
+                session.store, str(session.project_id),
+                through_episode=self.full_through.value(),
+                arc_option=self.full_arc_count.value(),
+                scene_count=self.full_scene_count.value())
+        except (AuthorFullPlanError, BatchScopeBridgeError,
+                LocalHandoffError, ValueError, OSError):
+            self.full_plan_status.setText(
+                '저장된 작품 설정·원고의 현재 상태가 올바르지 않습니다. '
+                '장르·소재·분위기·목표 회차 및 미저장 편집을 확인하세요.')
+            return
+        self._full_plan, self._full_plan_identity = snapshot, identity
+        self.full_arc_table.setRowCount(len(snapshot.arcs))
+        for i, arc in enumerate(snapshot.arcs):
+            visible_end = min(arc.end_episode, snapshot.through_episode)
+            for col, value in enumerate((
+                    str(arc.number),
+                    f'{arc.start_episode}~{arc.end_episode}화',
+                    str(visible_end - arc.start_episode + 1))):
+                self.full_arc_table.setItem(i, col, QTableWidgetItem(value))
+        self.full_episode.setMaximum(snapshot.through_episode)
+        self.full_episode.setValue(1)
+        self.full_plan_status.setText(
+            f'저장 목표 {snapshot.total_episodes}화 중 {snapshot.through_episode}화 · '
+            f'아크 {len(snapshot.arcs)}개 · 회차 기획 {len(snapshot.episodes)}개 · '
+            f'회차당 장면 {snapshot.scene_count}칸. '
+            '기존 기획 모듈의 빈 칸일 뿐 실제 AI 기획·집필·저장은 하지 않았습니다.')
+        self.show_full_plan_episode()
+
+    def show_full_plan_episode(self, *_args):
+        snapshot = self._full_plan
+        if snapshot is None:
+            self.full_scene_preview.clear()
+            return
+        number = self.full_episode.value()
+        if not 1 <= number <= snapshot.through_episode:
+            self.full_scene_preview.clear()
+            return
+        ep = snapshot.episodes[number - 1]
+        try:
+            slots = author_full_plan_scenes(snapshot, number)
+        except AuthorFullPlanError:
+            self.full_scene_preview.clear()
+            return
+        lines = [
+            f'{number}화 / 아크 {ep.arc_number} · 기획 빈 칸',
+            f'목표: {ep.goal}',
+            '아직 확정된 사건·인물·복선·결말 없음 (작가가 직접 작성해야 함)',
+        ]
+        lines.extend(f'장면 {slot.scene_number}: 목표·장소·갈등을 직접 입력'
+                     for slot in slots)
+        self.full_scene_preview.setPlainText('\n'.join(lines))
+
+    def prefill_full_plan_arc(self):
+        snapshot, identity = self._full_plan, self._full_plan_identity
+        row = self.full_arc_table.currentRow()
+        if (snapshot is None or identity is None or
+                not 0 <= row < len(snapshot.arcs)):
+            self.full_plan_status.setText('기존 아크 목록에서 가져올 아크를 선택하세요.')
+            return
+        if (self.title_input.text().strip()
+                or any(widget.toPlainText().strip()
+                       for widget in self.fields.values())):
+            self.full_plan_status.setText(
+                '아래 수동 편집칸에 이미 내용이 있습니다. '
+                '기존 글을 덮어쓰지 않으므로 직접 정리한 뒤 다시 선택하세요.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            require_idle_authoring(self.authoring, str(session.project_id))
+            if identity != current:
+                raise AuthorFullPlanError('작품이 변경됐습니다.')
+            require_current_author_full_plan(
+                snapshot, session.store, str(session.project_id))
+            arc = snapshot.arcs[row]
+            if arc.end_episode > snapshot.through_episode:
+                raise AuthorFullPlanError('아크 마지막 회차까지 조회 범위를 확장하세요.')
+        except (AuthorFullPlanError, BatchScopeBridgeError,
+                LocalHandoffError, ValueError, OSError):
+            self.invalidate_full_plan()
+            self.full_plan_status.setText('작가 기획·원고가 변경됐습니다. 다시 조회하세요.')
+            return
+        self.start.setValue(arc.start_episode)
+        self.end.setValue(arc.end_episode)
+        self.title_input.setText(arc.label)
+        self.fields['objective'].setPlainText(arc.objective)
+        self.save_consent.setChecked(False)
+        self.full_plan_status.setText(
+            '현재 아크 범위만 수동 입력칸에 옮겼습니다. '
+            '갈등·복선·해소 및 목표를 작가가 수정하고 '
+            '별도 저장 승인을 눌러야 기록됩니다. SQLite/JSON 변경 없음.')
 
     def _project(self):
         session=self.authoring.session
