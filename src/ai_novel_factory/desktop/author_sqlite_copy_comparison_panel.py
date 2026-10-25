@@ -1,6 +1,7 @@
 """기존 Windows PySide6 작가 GUI의 SQLite 원본·새 복원 사본 읽기 전용 대조."""
 from __future__ import annotations
 
+from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QComboBox, QFileDialog, QGroupBox, QHBoxLayout, QLabel, QPlainTextEdit,
     QPushButton, QSpinBox, QTableWidget, QTableWidgetItem, QVBoxLayout,
@@ -12,7 +13,8 @@ from ai_novel_factory.author_sqlite_copy_comparison import (
 )
 from ai_novel_factory.author_sqlite_chapter_delta import (
     AuthorSqliteChapterDeltaError, build_author_sqlite_chapter_delta,
-    read_author_sqlite_copy_chapter, require_current_author_sqlite_chapter_delta,
+    read_author_sqlite_copy_chapter, read_author_sqlite_chapter_text_difference,
+    require_current_author_sqlite_chapter_delta,
 )
 from .author_navigation_contract import select_saved_episode
 from ai_novel_factory.project_local_handoff import (
@@ -94,6 +96,18 @@ class AuthorSqliteCopyComparisonPanel(QGroupBox):
         self.copy_text_view.setReadOnly(True)
         self.copy_text_view.setPlaceholderText('작가가 사본 회차와 원문 종류를 직접 선택하면 이곳에만 표시합니다.')
         layout.addWidget(self.copy_text_view)
+        self.original_text_view = QPlainTextEdit()
+        self.original_text_view.setObjectName('authorSqliteOriginalChapterTextView')
+        self.original_text_view.setReadOnly(True)
+        self.original_text_view.setPlaceholderText(
+            '원본·사본의 동일 저장 회차를 선택해 별도 대조하면 원본 전체 원문을 표시합니다.')
+        layout.addWidget(self.original_text_view)
+        self.text_difference = QPushButton(
+            '선택 회차 원본·사본 원문 전체 대조 및 첫 차이 위치 (별도 클릭)')
+        self.text_difference.setObjectName('authorSqliteTextDifference')
+        self.text_difference.setEnabled(False)
+        self.text_difference.clicked.connect(self.show_text_difference)
+        layout.addWidget(self.text_difference)
         self.copy_text_field.currentIndexChanged.connect(self.clear_copy_text)
         self.chapter_table.itemSelectionChanged.connect(self.clear_copy_text)
         self.status = QLabel('현재 작품을 연 뒤 로컬 사본과 SHA 기록을 직접 선택하세요.')
@@ -102,12 +116,14 @@ class AuthorSqliteCopyComparisonPanel(QGroupBox):
 
     def clear_copy_text(self, *_args):
         self.copy_text_view.clear()
+        self.original_text_view.clear()
 
     def invalidate_chapters(self, *_args):
         self._chapter_delta = None
         self.chapter_table.setRowCount(0)
         self.chapter_open.setEnabled(False)
         self.copy_text_open.setEnabled(False)
+        self.text_difference.setEnabled(False)
         self.clear_copy_text()
 
     def invalidate(self, *_args):
@@ -188,12 +204,78 @@ class AuthorSqliteCopyComparisonPanel(QGroupBox):
                 self.chapter_table.setItem(index, column, QTableWidgetItem(value))
         self.chapter_open.setEnabled(bool(delta.rows))
         self.copy_text_open.setEnabled(any(row.copy_revision is not None for row in delta.rows))
+        self.text_difference.setEnabled(any(
+            row.source_revision is not None and row.copy_revision is not None
+            for row in delta.rows))
         self.status.setText(
             f'{delta.through_episode}화 범위 · 원본에 없는 회차 {delta.missing_source}화 · '
             f'사본에 없는 회차 {delta.missing_copy}화 · 최종본 차이 {delta.changed_final}화 · '
             f'장면 차이 {delta.changed_scenes}화 · 검수 기록 차이 {delta.changed_checks}화. '
             '차이는 사본 생성 시점에 따른 것일 수 있습니다. 복원·검수·출판 승인 아님.')
 
+
+
+    def show_text_difference(self):
+        """작가가 고른 저장 원본/사본 전체 원문과 정확한 첫 차이만 로컬 표시."""
+        self.clear_copy_text()
+        delta, identity = self._chapter_delta, self._identity
+        index = self.chapter_table.currentRow()
+        if delta is None or identity is None or not 0 <= index < len(delta.rows):
+            self.status.setText('회차별 대조를 조회하고 양쪽에 저장된 회차를 선택하세요.')
+            return
+        row = delta.rows[index]
+        if row.source_revision is None or row.copy_revision is None:
+            self.status.setText('원본과 사본에 모두 저장된 회차만 대조할 수 있습니다.')
+            return
+        field_name = self.copy_text_field.currentData()
+        try:
+            session = self.authoring.session
+            if (str(session.path), str(session.project_id)) != identity:
+                raise AuthorSqliteChapterDeltaError('현재 작품이 변경됐습니다.')
+            require_idle_authoring(self.authoring, identity[1])
+            evidence = read_author_sqlite_chapter_text_difference(
+                delta, row.episode, field_name)
+            if (self._chapter_delta is not delta or self._identity != identity
+                    or self.chapter_table.currentRow() != index
+                    or self.copy_text_field.currentData() != field_name):
+                raise AuthorSqliteChapterDeltaError('작가의 선택이 변경됐습니다.')
+            self.original_text_view.setPlainText(evidence.source_text)
+            self.copy_text_view.setPlainText(evidence.copy_text)
+            if (self.original_text_view.toPlainText() != evidence.source_text
+                    or self.copy_text_view.toPlainText() != evidence.copy_text):
+                raise AuthorSqliteChapterDeltaError('원문 표시 형식이 변경됐습니다.')
+            if not evidence.identical:
+                for editor, content, changed in (
+                    (self.original_text_view, evidence.source_text,
+                     evidence.source_changed_chars),
+                    (self.copy_text_view, evidence.copy_text,
+                     evidence.copy_changed_chars),
+                ):
+                    offset = evidence.common_prefix_chars
+                    utf16_position = len(content[:offset].encode('utf-16-le')) // 2
+                    cursor = editor.textCursor()
+                    cursor.setPosition(utf16_position)
+                    if changed:
+                        length = len(content[offset:offset + min(changed, 1)]
+                                     .encode('utf-16-le')) // 2
+                        cursor.setPosition(utf16_position + length,
+                                           QTextCursor.MoveMode.KeepAnchor)
+                    editor.setTextCursor(cursor)
+                    editor.ensureCursorVisible()
+            self.status.setText(
+                f'{row.episode}화 {self.copy_text_field.currentText()} · '
+                f'원본 {len(evidence.source_text)}자/revision {evidence.source_revision} · '
+                f'사본 {len(evidence.copy_text)}자/revision {evidence.copy_revision} · '
+                + ('원문 완전 동일. ' if evidence.identical else
+                   f'첫 차이 {evidence.common_prefix_chars + 1}번째 문자 · '
+                   f'원본 차이 구간 {evidence.source_changed_chars}자 · '
+                   f'사본 차이 구간 {evidence.copy_changed_chars}자 · '
+                   f'공통 접미 {evidence.common_suffix_chars}자. ')
+                + '읽기 전용 비교이며 사본 병합·원고 저장·검수·출판 승인 없음.')
+        except (AuthorSqliteChapterDeltaError, LocalHandoffError,
+                ValueError, OSError, LookupError):
+            self.clear_copy_text()
+            self.status.setText('원본·사본·회차·원문 또는 선택 상태가 변경됐습니다. 다시 대조하세요.')
 
     def open_copy_chapter_text(self):
         """원본·사본 대조를 다시 확인한 후 작가가 고른 사본 원문만 표시."""

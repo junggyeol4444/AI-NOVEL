@@ -206,3 +206,92 @@ def read_author_sqlite_copy_chapter(
             sqlite3.Error, UnicodeError, OverflowError):
         raise AuthorSqliteChapterDeltaError(
             '사본의 선택 회차 원문을 읽기 전용으로 열지 못했습니다.') from None
+
+
+@dataclass(frozen=True)
+class AuthorSqliteChapterTextDifference:
+    """작가가 선택한 원본/사본의 동일 회차·동일 항목 실제 문자 차이."""
+    episode: int
+    field_name: str
+    source_revision: int
+    copy_revision: int
+    source_text: str = field(repr=False)
+    copy_text: str = field(repr=False)
+    source_sha256: str = field(repr=False)
+    copy_sha256: str = field(repr=False)
+    common_prefix_chars: int = 0
+    common_suffix_chars: int = 0
+    source_changed_chars: int = 0
+    copy_changed_chars: int = 0
+    identical: bool = False
+    status: str = 'AUTHOR_READ_ONLY_CHARACTER_DIFFERENCE_NOT_VERIFIED'
+    publication_approved: bool = False
+
+
+def read_author_sqlite_chapter_text_difference(
+    snapshot: AuthorSqliteChapterDelta, episode: int, field_name: str,
+) -> AuthorSqliteChapterTextDifference:
+    """원본·사본 두 SQLite의 직접 선택한 한 회차 원문을 로컬에서만 대조.
+
+    Python 문자 오프셋을 반환하며 UTF-16 GUI 커서 위치는 화면에서 변환한다.
+    사본을 원본으로 병합하거나 DB를 열기/쓰기 모드로 연결하지 않는다.
+    """
+    fields = {'plot': 'plot', 'draft': 'draft',
+              'final_text': 'final_text', 'summary': 'summary'}
+    if (type(snapshot) is not AuthorSqliteChapterDelta
+            or type(episode) is not int or not 1 <= episode <= snapshot.through_episode
+            or type(field_name) is not str or field_name not in fields):
+        raise AuthorSqliteChapterDeltaError('원본·사본 대조 범위와 원문 항목을 다시 선택하세요.')
+    selected = next((row for row in snapshot.rows if row.episode == episode), None)
+    if (selected is None or selected.source_revision is None
+            or selected.copy_revision is None):
+        raise AuthorSqliteChapterDeltaError('원본과 사본에 모두 저장된 회차만 비교할 수 있습니다.')
+    try:
+        require_current_author_sqlite_chapter_delta(snapshot)
+        values = []
+        for path, expected_revision in (
+            (snapshot.comparison.source, selected.source_revision),
+            (snapshot.comparison.copy, selected.copy_revision),
+        ):
+            with closing(sqlite3.connect(
+                path.as_uri() + '?mode=ro', uri=True, timeout=8,
+            )) as db:
+                db.execute('PRAGMA query_only=ON')
+                row = db.execute(
+                    'SELECT revision, ' + fields[field_name] +
+                    ' FROM bible_episodes WHERE project_id=? AND episode=?',
+                    (snapshot.comparison.project_id, episode),
+                ).fetchone()
+            if (row is None or type(row[0]) is not int
+                    or row[0] != expected_revision or type(row[1]) is not str):
+                raise AuthorSqliteChapterDeltaError(
+                    '저장 원고 revision 또는 본문이 변경됐습니다. 다시 조회하세요.')
+            values.append(row[1])
+        source_text, copy_text = values
+        # 공통 접두/접미는 겹치지 않게 계산하여 삽입·삭제도 정확히 표시한다.
+        limit = min(len(source_text), len(copy_text))
+        prefix = 0
+        while prefix < limit and source_text[prefix] == copy_text[prefix]:
+            prefix += 1
+        suffix = 0
+        while (suffix < limit - prefix
+                and source_text[len(source_text) - suffix - 1]
+                == copy_text[len(copy_text) - suffix - 1]):
+            suffix += 1
+        require_current_author_sqlite_chapter_delta(snapshot)
+        return AuthorSqliteChapterTextDifference(
+            episode, field_name, selected.source_revision, selected.copy_revision,
+            source_text, copy_text,
+            sha256(source_text.encode('utf-8')).hexdigest(),
+            sha256(copy_text.encode('utf-8')).hexdigest(),
+            prefix, suffix,
+            len(source_text) - prefix - suffix,
+            len(copy_text) - prefix - suffix,
+            source_text == copy_text,
+        )
+    except AuthorSqliteChapterDeltaError:
+        raise
+    except (AuthorCopyComparisonError, OSError, ValueError, TypeError,
+            sqlite3.Error, UnicodeError, OverflowError):
+        raise AuthorSqliteChapterDeltaError(
+            '원본·사본 저장 원문을 읽기 전용으로 대조하지 못했습니다.') from None
