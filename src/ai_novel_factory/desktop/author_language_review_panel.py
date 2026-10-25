@@ -11,6 +11,7 @@ from ..author_language_context import (build_author_language_context,
 from ..author_language_ledger import AuthorLanguageError
 from ..author_language_scope_audit import (
     build_author_language_scope_audit, require_current_author_language_scope_audit,
+    read_author_language_episode_evidence,
 )
 from .author_batch_scope_bridge import _current_author_state, BatchScopeBridgeError
 from .author_navigation_contract import select_saved_episode
@@ -74,12 +75,41 @@ class AuthorLanguageReviewPanel(QGroupBox):
         self.scope_open.setEnabled(False)
         self.scope_open.clicked.connect(self.open_scope_episode)
         root.addWidget(self.scope_open)
+        self.scope_evidence_button = QPushButton('선택 회차 저장 최종본·비권장 표기 전체 근거 열람 (별도 클릭)')
+        self.scope_evidence_button.setObjectName('authorLanguageEpisodeEvidenceOpen')
+        self.scope_evidence_button.setEnabled(False)
+        self.scope_evidence_button.clicked.connect(self.open_scope_evidence)
+        root.addWidget(self.scope_evidence_button)
+        self.scope_evidence_table = QTableWidget(0, 6)
+        self.scope_evidence_table.setObjectName('authorLanguageEpisodeEvidenceTable')
+        self.scope_evidence_table.setHorizontalHeaderLabels((
+            '종류', '대상', '권장 표기', '비권장 표기', '출현 횟수', '첫 문자 위치'))
+        self.scope_evidence_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.scope_evidence_table.setMaximumHeight(230)
+        root.addWidget(self.scope_evidence_table)
+        self.scope_evidence_text = QPlainTextEdit()
+        self.scope_evidence_text.setObjectName('authorLanguageEpisodeFinalReadOnly')
+        self.scope_evidence_text.setReadOnly(True)
+        self.scope_evidence_text.setMaximumHeight(280)
+        root.addWidget(self.scope_evidence_text)
+        self.scope_evidence_status = QLabel('저장 최종본 전체 원문은 회차 선택 후 별도로 열람합니다.')
+        self.scope_evidence_status.setWordWrap(True)
+        root.addWidget(self.scope_evidence_status)
+        self.scope_table.itemSelectionChanged.connect(self._clear_scope_evidence)
         self.scope_status = QLabel('기존 언어 규칙 폴더 선택 후 작가가 직접 조회하세요. 자동 합격 없음.')
         self.scope_status.setWordWrap(True)
         root.addWidget(self.scope_status)
         self.scope_through.valueChanged.connect(self._clear_scope)
 
+    def _clear_scope_evidence(self):
+        self.scope_evidence_table.setRowCount(0)
+        self.scope_evidence_text.clear()
+        self.scope_evidence_status.setText(
+            '회차 선택 후 별도 클릭으로 저장 최종본·표기 후보를 읽습니다.')
+
     def _clear_scope(self, *_):
+        self._clear_scope_evidence()
+        self.scope_evidence_button.setEnabled(False)
         self._scope = self._scope_identity = None
         self.scope_table.setRowCount(0)
         self.scope_details.clear()
@@ -155,6 +185,7 @@ class AuthorLanguageReviewPanel(QGroupBox):
                 for col, value in enumerate(values):
                     self.scope_table.setItem(index, col, QTableWidgetItem(str(value)))
             self.scope_open.setEnabled(True)
+            self.scope_evidence_button.setEnabled(True)
             self.scope_status.setText(
                 f'1~{audit.through_episode}화 저장 최종본 조회: 누락 {audit.missing_final}화, '
                 f'과거 설정 규칙 포함 {audit.stale_rule_chapters}화, '
@@ -207,3 +238,42 @@ class AuthorLanguageReviewPanel(QGroupBox):
         except (AuthorLanguageError, BatchScopeBridgeError, ValueError, OSError, LookupError):
             self._clear_scope()
             self.scope_status.setText('원고·작가 규칙이 변경되어 이전 인계를 무효화했습니다.')
+
+    def open_scope_evidence(self):
+        audit, identity = self._scope, self._scope_identity
+        row_index = self.scope_table.currentRow()
+        self._clear_scope_evidence()
+        if (audit is None or identity is None
+                or not 0 <= row_index < len(audit.chapters)):
+            self.scope_evidence_status.setText('먼저 전수 조회하고 저장 회차를 직접 선택하세요.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            if (current != identity or self.folder is None
+                    or self.scope_through.value() != audit.through_episode):
+                raise AuthorLanguageError('작품·언어 규칙 폴더·조회 범위가 변경됐습니다.')
+            evidence = read_author_language_episode_evidence(
+                audit, session.store, identity[1], folder=self.folder,
+                episode=audit.chapters[row_index].episode)
+        except (AuthorLanguageError, BatchScopeBridgeError,
+                ValueError, OSError, LookupError):
+            self._clear_scope()
+            self.scope_evidence_status.setText(
+                '저장 원고·작가 언어 규칙·선택 회차가 변경됐습니다. 다시 전수 조회하세요.')
+            return
+        visible = evidence.findings[:200]
+        self.scope_evidence_table.setRowCount(len(visible))
+        for index, finding in enumerate(visible):
+            first = finding.offsets[0] + 1 if finding.offsets else '-'
+            values = (finding.kind, finding.subject, finding.preferred,
+                      finding.avoided_form, str(finding.occurrences), str(first))
+            for column, value in enumerate(values):
+                self.scope_evidence_table.setItem(
+                    index, column, QTableWidgetItem(value))
+        self.scope_evidence_text.setPlainText(evidence.final_text)
+        extra = (f' / 표에는 앞 200종만 표시' if len(evidence.findings) > 200 else '')
+        self.scope_evidence_status.setText(
+            f'{evidence.episode}화 저장 최종본 {len(evidence.final_text)}자 · '
+            f'비권장 후보 {len(evidence.findings)}종, '
+            f'{evidence.avoided_occurrences}회 · 이전 설정 규칙 {evidence.stale_rules}개'
+            + extra + '. 정확한 문자열 출현만 조회하며 자동 교정·QC PASS·출판 승인이 아닙니다.')

@@ -150,3 +150,97 @@ def require_current_author_language_scope_audit(
     current = _source_snapshot(store, project_id, folder, audit.through_episode)[0]
     if current != audit.source_sha256:
         raise AuthorLanguageError('저장 원고·작가 언어 규칙 변경으로 이전 조회가 무효화됐습니다.')
+
+@dataclass(frozen=True)
+class AuthorLanguageEpisodeEvidenceRow:
+    """한 회차의 비권장 표현과 실제 저장 원문 내 위치."""
+    rule_id: str
+    kind: str
+    subject: str
+    preferred: str
+    avoided_form: str
+    occurrences: int
+    offsets: tuple[int, ...] = field(repr=False)
+
+
+@dataclass(frozen=True)
+class AuthorLanguageEpisodeEvidence:
+    project_id: str = field(repr=False)
+    episode: int
+    revision: int
+    final_sha256: str
+    final_text: str = field(repr=False)
+    preferred_occurrences: int
+    avoided_occurrences: int
+    stale_rules: int
+    findings: tuple[AuthorLanguageEpisodeEvidenceRow, ...]
+    status: str = 'AUTHOR_REVIEW_REQUIRED_NOT_CERTIFIED'
+
+
+def read_author_language_episode_evidence(
+    audit: AuthorLanguageScopeAudit, store: EpisodeStore, project_id: str,
+    *, folder: str | Path, episode: int,
+) -> AuthorLanguageEpisodeEvidence:
+    """작가가 선택한 저장 최종본과 모든 표기 후보 위치를 읽기 전용으로 반환.
+
+    전수 조회 당시와 현재의 원고·작가 규칙 지문을 앞뒤로 대조한다.
+    위치는 Python 문자열 문자 오프셋이며 자동 교정·품질 합격이 아니다.
+    """
+    if (type(audit) is not AuthorLanguageScopeAudit
+            or type(episode) is not int
+            or not 1 <= episode <= audit.through_episode
+            or audit.project_id != project_id):
+        raise AuthorLanguageError('작품·조회 범위·선택 회차가 변경됐습니다.')
+    require_current_author_language_scope_audit(
+        audit, store, project_id, folder=folder)
+    stamp, saved, canon = _source_snapshot(
+        store, project_id, folder, audit.through_episode)
+    if stamp != audit.source_sha256:
+        raise AuthorLanguageError('저장 원고·작가 규칙이 변경됐습니다.')
+    chapter = saved.get(episode)
+    expected = audit.chapters[episode - 1]
+    if (expected.episode != episode or chapter is None
+            or chapter.revision != expected.revision
+            or not chapter.final_text.strip()):
+        raise AuthorLanguageError('선택 회차에 저장된 최종본이 없습니다.')
+    final = chapter.final_text
+    applicable = tuple(
+        rule for rule in read_author_language_rules(folder, project_id)
+        if not rule.withdrawn and rule.first_episode <= episode <= rule.last_episode)
+    current = tuple(rule for rule in applicable if rule.canon_sha256 == canon)
+    stale = len(applicable) - len(current)
+    preferred = sum(final.count(rule.preferred) for rule in current)
+    findings = []
+    for rule in current:
+        for form in rule.discouraged:
+            count = final.count(form)
+            if not count:
+                continue
+            positions = []
+            start = 0
+            for _ in range(min(count, 100)):
+                offset = final.find(form, start)
+                if offset < 0:
+                    raise AuthorLanguageError('표기 후보 위치를 확인하지 못했습니다.')
+                positions.append(offset)
+                start = offset + len(form)
+            findings.append(AuthorLanguageEpisodeEvidenceRow(
+                rule_id=rule.rule_id, kind=rule.kind, subject=rule.subject,
+                preferred=rule.preferred, avoided_form=form,
+                occurrences=count, offsets=tuple(positions)))
+    avoided = sum(row.occurrences for row in findings)
+    if (expected.active_rules != len(applicable)
+            or expected.stale_rules != stale
+            or expected.preferred_occurrences != preferred
+            or expected.avoided_occurrences != avoided
+            or expected.avoided_forms != len(findings)
+            or expected.final_characters != len(final.replace(' ', '').replace('\n', ''))):
+        raise AuthorLanguageError('전수 대조와 선택 회차 근거가 달라졌습니다.')
+    require_current_author_language_scope_audit(
+        audit, store, project_id, folder=folder)
+    return AuthorLanguageEpisodeEvidence(
+        project_id=project_id, episode=episode, revision=chapter.revision,
+        final_sha256=sha256(final.encode('utf-8')).hexdigest(),
+        final_text=final, preferred_occurrences=preferred,
+        avoided_occurrences=avoided, stale_rules=stale,
+        findings=tuple(findings))
