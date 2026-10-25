@@ -23,6 +23,7 @@ from .scene_resume_binding import SceneResumeScope, require_explicit_scene_resum
 from .author_scene_checkpoint_integrity import SceneStageChoice
 from .scene_checkpoint_store import (
     SceneCheckpointError, FINAL_EPISODE_TAIL_STAGE,
+    FIRST_EPISODE_TAIL_PASS_STAGE, MAX_EPISODE_TAIL_PASSES,
 )
 from .author_context_envelope import (
     AuthorContextSources, compose_author_context, require_unchanged_author_sources,
@@ -867,21 +868,24 @@ def run_auto_novel(
                 # SQLite persistence, recover that immutable complete scene.
                 # Ordinary scene-stage snapshots cannot contain these tail
                 # calls, so replaying only them silently loses written prose.
-                cached_final_scene = (
-                    checkpoint.load_stage(FINAL_EPISODE_TAIL_STAGE)
-                    if checkpoint is not None else None)
-                if cached_final_scene is not None:
-                    original_last_scene = drafts[-1]
-                    if not (
-                        cached_final_scene == original_last_scene
-                        or cached_final_scene.startswith(
-                            original_last_scene.rstrip() + '\n\n')
-                    ):
-                        raise AutoNovelRunError(
-                            '회차 최종 장면 임시 기록이 기존 장면과 일치하지 '
-                            '않습니다. 자동 재개하지 않고 작가 확인을 기다립니다.')
-                    drafts[-1] = cached_final_scene
-                    emit(n, '회차 최종 이어쓰기 임시 기록을 원문 그대로 복원')
+                # The 133회차 final snapshot covered only the gap AFTER
+                # six local-model calls. For a process crash between calls,
+                # immutable 22..27 snapshots now preserve each accepted
+                # continuation. Read them in order and fail closed on gaps
+                # or mismatched original prose, approval, or source identity.
+                cached_final_scene = None
+                completed_tail = False
+                accepted_tail_passes = 0
+                if checkpoint is not None:
+                    (recovered_tail, accepted_tail_passes,
+                     completed_tail) = checkpoint.recover_episode_tail(
+                        drafts[-1])
+                    if accepted_tail_passes or completed_tail:
+                        drafts[-1] = recovered_tail
+                        emit(n, '실제 AI 이어쓰기 중단 지점의 원문 복원 '
+                             f'({accepted_tail_passes}/{MAX_EPISODE_TAIL_PASSES}회)')
+                    if completed_tail:
+                        cached_final_scene = recovered_tail
                 # The author requested ~5000 REAL Korean prose characters per
                 # episode, not a collection of undersized scene summaries.
                 # Per-scene native calls and four continuations may still
@@ -891,7 +895,9 @@ def run_auto_novel(
                 # alteration of the author's saved prior manuscript is allowed.
                 # A persistently short output remains WARN and human-review.
                 for chapter_tail_pass in range(
-                        0 if cached_final_scene is not None else 6):
+                        accepted_tail_passes if not completed_tail
+                        else MAX_EPISODE_TAIL_PASSES,
+                        MAX_EPISODE_TAIL_PASSES):
                     actual = '\n\n'.join(drafts)
                     actual_screen = screen_korean_draft(
                         actual, target_chars=target_chars)
@@ -938,6 +944,15 @@ def run_auto_novel(
                         # Never fake the requested length by concatenating
                         # duplicated, foreign-script, or empty model output.
                         break
+                    # Persist each accepted REAL model continuation before
+                    # requesting the next one. If stopped/crashed later,
+                    # the exact bytes are recovered without repeating calls.
+                    # The same author-state and reference-source guards used
+                    # for ordinary scene snapshots are rechecked here.
+                    if checkpoint is not None:
+                        record_unapproved_stage(
+                            FIRST_EPISODE_TAIL_PASS_STAGE + chapter_tail_pass,
+                            last_scene)
                     drafts[-1] = last_scene
 
                 # Append-only, separately keyed final-stage checkpoint.

@@ -22,6 +22,13 @@ MAX_SCENES = 20
 # scene checkpoints. It captures real local-GGUF chapter-tail continuations
 # before the complete unapproved chapter is atomically saved in SQLite.
 FINAL_EPISODE_TAIL_STAGE = MAX_SCENES + 1
+# Six immutable snapshots of ACTUALLY ACCEPTED GGUF continuation prose.
+# Stage 21 remains the 133회차 final marker for backward compatibility.
+# Stage 22..27 are append-only intermediate checkpoints, not final approval.
+MAX_EPISODE_TAIL_PASSES = 6
+FIRST_EPISODE_TAIL_PASS_STAGE = FINAL_EPISODE_TAIL_STAGE + 1
+LAST_EPISODE_TAIL_PASS_STAGE = (
+    FINAL_EPISODE_TAIL_STAGE + MAX_EPISODE_TAIL_PASSES)
 
 
 class SceneCheckpointError(ValueError):
@@ -98,7 +105,7 @@ class SceneCheckpointStore:
                             + f'_{self.episode:04d}_' + self._key[:32])
 
     def _stage_path(self, stage: int) -> Path:
-        if type(stage) is not int or not 0 <= stage <= FINAL_EPISODE_TAIL_STAGE:
+        if type(stage) is not int or not 0 <= stage <= LAST_EPISODE_TAIL_PASS_STAGE:
             raise SceneCheckpointError('장면 번호가 올바르지 않습니다.')
         return self.directory / f'{stage:02d}.json'
 
@@ -129,6 +136,51 @@ class SceneCheckpointStore:
             return text
         except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
             raise SceneCheckpointError('임시 장면을 확인할 수 없어 자동 재개를 차단했습니다.') from None
+
+    def recover_episode_tail(self, original_scene: str) -> tuple[str, int, bool]:
+        """Recover every accepted REAL GGUF tail without replaying its calls.
+
+        Returns (exact recovered scene, accepted_passes, finalized). Stage 21
+        is the existing completed marker; 22..27 are accepted continuation
+        snapshots. Every step must extend the previous exact prose. A missing
+        middle snapshot, changed text, or final/partial disagreement blocks
+        automatic resume. Old stage-21-only checkpoints remain supported.
+        This is only UNAPPROVED_AI_DRAFT recovery, not an author sign-off.
+        """
+        if type(original_scene) is not str or not original_scene.strip():
+            raise SceneCheckpointError(
+                '기존 장면 원문이 없어 최종 이어쓰기를 자동 복원하지 않습니다.')
+        latest = original_scene
+        count = 0
+        missing_seen = False
+        for stage in range(
+                FIRST_EPISODE_TAIL_PASS_STAGE,
+                LAST_EPISODE_TAIL_PASS_STAGE + 1):
+            recovered = self.load_stage(stage)
+            if recovered is None:
+                missing_seen = True
+                continue
+            if missing_seen:
+                raise SceneCheckpointError(
+                    '회차 이어쓰기 중간 기록이 누락되어 자동 재개하지 않습니다.')
+            if not recovered.startswith(latest.rstrip() + '\n\n'):
+                raise SceneCheckpointError(
+                    '회차 이어쓰기 기록의 원문 접두가 달라 자동 재개하지 않습니다.')
+            latest = recovered
+            count += 1
+        final = self.load_stage(FINAL_EPISODE_TAIL_STAGE)
+        if final is not None:
+            if count:
+                if final != latest:
+                    raise SceneCheckpointError(
+                        '회차 최종 기록과 중간 이어쓰기 기록이 다릅니다.')
+            elif not (final == latest
+                      or final.startswith(latest.rstrip() + '\n\n')):
+                # Backward compatible with pre-134 stage-21-only snapshots.
+                raise SceneCheckpointError(
+                    '회차 최종 장면 기록이 기존 장면과 일치하지 않습니다.')
+            latest = final
+        return latest, count, final is not None
 
     def save_stage(self, stage: int, text: str) -> None:
         """Create one immutable stage after the caller rechecks author state."""
