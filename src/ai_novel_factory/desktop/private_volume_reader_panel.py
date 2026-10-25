@@ -1,6 +1,7 @@
 """Explicit offline multi-volume EPUB3 reading in the existing PySide6 UI."""
 from __future__ import annotations
 
+from hashlib import sha256
 from PySide6.QtWidgets import (
     QGroupBox, QVBoxLayout, QLabel, QPushButton, QFileDialog,
     QListWidget, QPlainTextEdit,
@@ -143,18 +144,43 @@ class PrivateVolumeReaderPanel(QGroupBox):
         self.status.setText('기존 검색·책갈피 화면에 권·회차 선택만 전달했습니다. '
                             '검색·책갈피 저장은 별도 직접 클릭해야 합니다.')
 
-    def accept_bookmark_selection(self, catalog, lease, identity):
+    def accept_bookmark_selection(self, catalog, lease, identity, *,
+                                  bookmark_position=None):
         _, current = _current_author_state(self.authoring)
         if current != identity:
             raise ReaderSelectionHandoffError('작품이 변경됐습니다.')
         require_current_reader_selection(lease, catalog, identity)
+        if bookmark_position is not None:
+            if (type(bookmark_position) is not tuple or len(bookmark_position) != 4
+                    or bookmark_position[:2] != (lease.volume_index, lease.chapter_index)
+                    or type(bookmark_position[2]) is not int
+                    or type(bookmark_position[3]) is not str):
+                raise ReaderSelectionHandoffError('책갈피 위치 정보가 변경되었습니다.')
         paths = tuple(str(volume.file_path) for volume in catalog.volumes)
         if not self.load_selected_volumes(paths):
             raise ReaderSelectionHandoffError('기존 Reader에서 EPUB3를 다시 열지 못했습니다.')
         require_current_reader_selection(lease, self._catalog, identity)
         self.volumes.setCurrentRow(lease.volume_index - 1)
         self.chapters.setCurrentRow(lease.chapter_index - 1)
-        self.status.setText('기존 Reader에서 선택 회차를 열었습니다. 검수·출판 승인 아님.')
+        if bookmark_position is not None:
+            vi, ci, offset, digest = bookmark_position
+            _, prose = read_selected_volume_chapter(
+                self._catalog, volume_index=vi, chapter_index=ci,
+                expected_file_sha256=self._catalog.volumes[vi-1].file_sha256)
+            if (not 0 <= offset <= len(prose)
+                    or sha256(prose.encode('utf-8')).hexdigest() != digest
+                    or self.reader.toPlainText() != prose):
+                self.reader.clear()
+                raise ReaderSelectionHandoffError('책갈피 원문 위치가 변경되었습니다.')
+            cursor = self.reader.textCursor()
+            cursor.setPosition(len(prose[:offset].encode('utf-16-le')) // 2)
+            self.reader.setTextCursor(cursor)
+            self.reader.ensureCursorVisible()
+            self.status.setText(
+                '기존 Reader에서 저장된 책갈피의 정확한 본문 위치로 이동했습니다. '
+                '검수·출판 승인 아님.')
+        else:
+            self.status.setText('기존 Reader에서 선택 회차를 열었습니다. 검수·출판 승인 아님.')
 
     def _volume_changed(self, row):
         self._revoke_handoff()

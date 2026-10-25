@@ -26,6 +26,8 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         self._folder = ''
         self._handoff_lease = None
         self._handoff_identity = None
+        self._handoff_reader_position = None
+        self._bookmark_reader_position = None
         root = QVBoxLayout(self)
         note = QLabel('작가가 직접 선택한 비공개 EPUB3만 열람합니다. 검색어/본문은 기록·전송하지 않습니다.')
         note.setWordWrap(True)
@@ -113,6 +115,7 @@ class EpubPrivateBookmarksPanel(QGroupBox):
     def _revoke_reader_handoff(self, *_args):
         self._handoff_lease = None
         self._handoff_identity = None
+        self._handoff_reader_position = None
         if hasattr(self, 'reader_handoff'):
             self.reader_handoff.setEnabled(False)
 
@@ -142,12 +145,30 @@ class EpubPrivateBookmarksPanel(QGroupBox):
         except (ReaderSelectionHandoffError, BatchScopeBridgeError, OSError, ValueError):
             self.status.setText('현재 작품·원고·EPUB3 권·회차를 다시 확인하세요.')
             return
+        position = self._bookmark_reader_position
+        if position is not None:
+            vi, ci, offset, digest = position
+            if (vi != lease.volume_index or ci != lease.chapter_index
+                    or self._preview_identity != (vi, ci, digest)):
+                self.status.setText('저장 책갈피 선택이 변경되었습니다. 다시 열어 주세요.')
+                return
+            try:
+                _, prose = self._chapter(vi, ci)
+                if (sha256(prose.encode('utf-8')).hexdigest() != digest
+                        or type(offset) is not int or not 0 <= offset <= len(prose)
+                        or self.preview.toPlainText() != prose):
+                    raise ValueError('책갈피 원문이 변경되었습니다.')
+            except (ValueError, OSError, IndexError):
+                self.status.setText('책갈피 본문이 변경되었습니다. 다시 열어 주세요.')
+                return
+        self._handoff_reader_position = position
         self._handoff_identity, self._handoff_lease = identity, lease
         self.reader_handoff.setEnabled(True)
         self.status.setText('EPUB3 파일 지문 확인 완료. 별도 클릭으로 기존 Reader에 이동할 수 있습니다.')
 
     def open_reader_handoff(self):
         identity, lease = self._handoff_identity, self._handoff_lease
+        position = self._handoff_reader_position
         self._revoke_reader_handoff()
         if lease is None or identity is None:
             self.status.setText('Reader 인계를 먼저 직접 준비하세요.')
@@ -164,7 +185,8 @@ class EpubPrivateBookmarksPanel(QGroupBox):
             panel = getattr(self.authoring, 'private_volume_reader_panel', None)
             if panel is None or not hasattr(panel, 'accept_bookmark_selection'):
                 raise ReaderSelectionHandoffError('기존 Reader 인계 기능이 없습니다.')
-            panel.accept_bookmark_selection(self._catalog, lease, identity)
+            panel.accept_bookmark_selection(
+                self._catalog, lease, identity, bookmark_position=position)
         except (ReaderSelectionHandoffError, BatchScopeBridgeError, OSError, ValueError):
             self.status.setText('원고·EPUB3 변경 또는 Reader 인계 실패. 다시 준비하세요.')
             return
@@ -172,6 +194,7 @@ class EpubPrivateBookmarksPanel(QGroupBox):
 
     def _clear_preview_binding(self, *_args):
         self._preview_identity = None
+        self._bookmark_reader_position = None
         self.preview.clear()
 
     def _clear_search(self):
@@ -199,7 +222,7 @@ class EpubPrivateBookmarksPanel(QGroupBox):
                 chapter_index=ch, expected_file_sha256=self._catalog.volumes[vol-1].file_sha256)
 
     def open_current(self):
-        self.preview.clear()
+        self._clear_preview_binding()
         try:
             title, prose = self._chapter(self.volume.value(), self.chapter.value())
             self.preview.setPlainText(prose)
@@ -246,6 +269,7 @@ class EpubPrivateBookmarksPanel(QGroupBox):
             self.volume.setValue(hit.volume_index)
             self.chapter.setMaximum(self._catalog.volumes[hit.volume_index-1].chapters)
             self.chapter.setValue(hit.chapter_index)
+            self._clear_preview_binding()
             self.preview.setPlainText(prose)
             if self.preview.toPlainText() != prose:
                 raise ValueError('본문 위치를 안전하게 표시할 수 없습니다.')
@@ -328,6 +352,8 @@ class EpubPrivateBookmarksPanel(QGroupBox):
             self.preview.setTextCursor(cursor)
             self.preview.ensureCursorVisible()
             self._preview_identity = (mark.volume_index, mark.chapter_index, digest)
+            self._bookmark_reader_position = (
+                mark.volume_index, mark.chapter_index, mark.text_offset, digest)
             self.status.setText(f'{mark.volume_index}권 {mark.chapter_index}회차 · '
                                 f'{title[:60]} · 저장된 본문 위치로 이동했습니다.')
         except (ValueError, OSError, IndexError, UnicodeError):
