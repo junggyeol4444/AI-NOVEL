@@ -4,7 +4,11 @@ from __future__ import annotations
 from hashlib import sha256
 from PySide6.QtWidgets import (
     QGroupBox, QVBoxLayout, QLabel, QPushButton, QFileDialog,
-    QListWidget, QPlainTextEdit, QSpinBox, QFormLayout,
+    QListWidget, QPlainTextEdit, QSpinBox, QFormLayout, QCheckBox,
+)
+from ai_novel_factory.private_reading_receipt import (
+    PrivateReadingReceiptError, save_private_reading_receipt,
+    load_private_reading_receipt,
 )
 from ai_novel_factory.private_volume_navigation import (
     PrivateVolumeNavigationError, open_private_reading_position,
@@ -76,6 +80,18 @@ class PrivateVolumeReaderPanel(QGroupBox):
         self.reading_progress.setWordWrap(True)
         nav_layout.addRow(self.reading_progress)
         layout.addWidget(navigation)
+        self.receipt_consent = QCheckBox(
+            '현재 열람 위치를 새로운 로컬 JSON으로 보관하는 이번 한 번만 승인')
+        self.receipt_consent.setObjectName('privateReaderReceiptConsent')
+        layout.addWidget(self.receipt_consent)
+        self.receipt_save = QPushButton('현재 읽는 회차 위치를 새 JSON에 직접 보관 (기존 파일 덮어쓰기 금지)')
+        self.receipt_save.setObjectName('privateReaderReceiptSave')
+        self.receipt_save.clicked.connect(self.save_reading_receipt)
+        layout.addWidget(self.receipt_save)
+        self.receipt_open = QPushButton('직접 선택한 위치 JSON으로 현재 EPUB3 권에서 이어읽기')
+        self.receipt_open.setObjectName('privateReaderReceiptOpen')
+        self.receipt_open.clicked.connect(self.open_reading_receipt)
+        layout.addWidget(self.receipt_open)
         self._update_navigation()
         self.status = QLabel('EPUB3 파일 미선택')
         self.status.setWordWrap(True)
@@ -94,6 +110,7 @@ class PrivateVolumeReaderPanel(QGroupBox):
         self._revoke_handoff()
         self._catalog = None
         self._position = None
+        self.receipt_consent.setChecked(False)
         self._update_navigation()
         self.volumes.clear()
         self.chapters.clear()
@@ -214,6 +231,47 @@ class PrivateVolumeReaderPanel(QGroupBox):
                 '검수·출판 승인 아님.')
         else:
             self.status.setText('기존 Reader에서 선택 회차를 열었습니다. 검수·출판 승인 아님.')
+
+    def save_reading_receipt(self):
+        approved = self.receipt_consent.isChecked()
+        self.receipt_consent.setChecked(False)
+        if not approved or self._catalog is None or self._position is None:
+            self.status.setText('현재 회차를 연 뒤 새 JSON 보관을 이번 한 번만 별도로 승인하세요.')
+            return
+        destination, _ = QFileDialog.getSaveFileName(
+            self, '새 비공개 EPUB3 이어읽기 위치 JSON', '', 'JSON (*.json)')
+        if not destination:
+            self.status.setText('열람 위치 보관이 취소됐습니다. 원고/DB 변경 없음.')
+            return
+        try:
+            save_private_reading_receipt(
+                self._catalog, self._position, destination,
+                explicit_author_save=True)
+        except (PrivateReadingReceiptError, ValueError, OSError):
+            self.status.setText('현재 EPUB3 지문이 변경됐거나 새 JSON을 생성하지 못했습니다.')
+            return
+        self.status.setText(
+            '작가가 직접 선택한 새 로컬 JSON에 현재 회차 위치만 보관했습니다. '
+            'EPUB 원문·파일 경로·원고·DB·출판 상태는 기록하지 않았습니다.')
+
+    def open_reading_receipt(self):
+        self.receipt_consent.setChecked(False)
+        if self._catalog is None:
+            self.status.setText('먼저 기록 당시와 동일한 EPUB3 권을 순서대로 직접 선택하세요.')
+            return
+        source, _ = QFileDialog.getOpenFileName(
+            self, '기존 비공개 이어읽기 위치 JSON 선택', '', 'JSON (*.json)')
+        if not source:
+            return
+        try:
+            result = load_private_reading_receipt(self._catalog, source)
+        except (PrivateReadingReceiptError, ValueError, OSError):
+            self.status.setText('선택한 위치 JSON과 현재 EPUB3 원본/권 순서가 일치하지 않습니다.')
+            return
+        self._show_navigation_result(result)
+        self.status.setText(
+            '기존 위치 JSON에서 동일 EPUB3 권·회차를 확인해 다시 열었습니다. '
+            '원고·DB·출판 상태 변경 없음.')
 
     def _update_navigation(self):
         position = self._position
