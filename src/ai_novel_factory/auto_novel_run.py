@@ -38,6 +38,7 @@ from .scene_planner import plan_scenes, validate_scene_plans
 from .repetition_checker import check_repetition
 from .korean_draft_quality import screen_korean_draft, has_foreign_script_corruption
 from .episode_crosscheck import screen_cross_episode_reuse
+from .narrative_scene_beats import allocate_model_plot_beats
 from .author_ai_novel_guidance import (
     AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
     require_current_author_ai_novel_guidance,
@@ -224,7 +225,8 @@ def _native_scene_revision_goal(target: int) -> str:
 
 
 def _native_scene_generation_goal(episode: int, scene: int, total_scenes: int,
-                                  outline: str, target: int) -> str:
+                                  outline: str, target: int, *,
+                                  assigned_beat: str = '') -> str:
     """Put the allocated target before untrusted model-authored plot text.
 
     The native bridge reads the FIRST 'NNNN자' expression from the goal.
@@ -234,7 +236,7 @@ def _native_scene_generation_goal(episode: int, scene: int, total_scenes: int,
     prose is fabricated, shortened for quality claims, or persisted here.
     """
     if (type(target) is not int or not 50 <= target <= 10_000
-            or type(outline) is not str):
+            or type(outline) is not str or type(assigned_beat) is not str):
         raise AutoNovelRunError('장면 분량 또는 회차 플롯이 올바르지 않습니다.')
     # The real local model needs a DISTINCT narrative job for each scene.
     # Without a stage-specific instruction, every 5000-character chapter scene
@@ -269,8 +271,11 @@ def _native_scene_generation_goal(episode: int, scene: int, total_scenes: int,
         f'목표 분량 {target}자 내외의 독창적 소설 본문을 작성. '
         f'{episode}화 {scene}/{total_scenes}장면. '
         + movement + ' '
-        f'회차 플롯: {_plot_endpoints(outline, 1500)}. '
-        '기존 참고작의 문장·고유명사 복제 금지.'
+        + ('이 장면에 배정된 실제 모델 플롯 사건(다음 장면 사건을 '
+           '미리 해결하지 말 것): ' + assigned_beat[:1050] + '. '
+           if assigned_beat.strip() else '')
+        + f'전체 회차 플롯은 미확정 참고용: {_plot_endpoints(outline, 440)}. '
+        + '기존 참고작의 문장·고유명사 복제 금지.'
     )
 
 
@@ -717,6 +722,17 @@ def run_auto_novel(
                     record_unapproved_stage(0, outline)
                 else:
                     emit(n, '동일한 이번 실행 승인과 일치한 미검수 플롯 임시 기록 재사용')
+                # The actual local model's episode plot contains a sequence
+                # of events. Give each REAL scene its own chronological event
+                # segment instead of making all 20 scenes repeat the same
+                # opening or prematurely resolve the last scene's events.
+                # This is read-only segmentation, not generated/fake prose.
+                scene_beats = allocate_model_plot_beats(
+                    outline, scenes_per_episode)
+                selected_guide_beats = (
+                    allocate_model_plot_beats(
+                        chosen_episode_outline, scenes_per_episode)
+                    if chosen_episode_outline else ())
                 drafts = []
                 for scene_index, slot in enumerate(slots):
                     cached = checkpoint.load_stage(slot.scene_number) if checkpoint else None
@@ -726,11 +742,19 @@ def run_auto_novel(
                         continue
                     per_scene = scene_targets[scene_index]
                     emit(n, f'장면 {slot.scene_number}/{scenes_per_episode} 로컬 AI 집필')
+                    assigned = scene_beats[scene_index]
                     scene_goal = _native_scene_generation_goal(
                         n, slot.scene_number, scenes_per_episode,
-                        outline, per_scene)
+                        outline, per_scene,
+                        assigned_beat=assigned.assigned_plot)
                     scene_context = _scene_generation_context(
-                        context, outline, drafts[-1] if drafts else '')
+                        context, assigned.assigned_plot,
+                        drafts[-1] if drafts else '')
+                    if assigned.preceding_plot:
+                        scene_context = (
+                            '직전 장면에 배정된 플롯 사건(이미 진행됨):\n'
+                            + assigned.preceding_plot + '\n'
+                            + scene_context)[:12000]
                     if chosen_episode_outline:
                         # The native bridge reads the first 12k characters.
                         # Give the selected AI episode candidate a bounded,
@@ -739,7 +763,7 @@ def run_auto_novel(
                         scene_context = (
                             '이번 화에 작가가 선택한 미검수 AI 기획 후보 '
                             '(중간 생략 표시, 확정 원고/사실 아님):\n'
-                            + _plot_endpoints(chosen_episode_outline, 1150)
+                            + selected_guide_beats[scene_index].assigned_plot
                             + '\n' + scene_context)[:12000]
                     if approved_context is not None:
                         extra_scene = approved_context.scenes[scene_index]
@@ -750,7 +774,7 @@ def run_auto_novel(
                                 '승인된 작가 장면 지시가 모델 문맥 한도를 초과했습니다.')
                     scene_evidence = build_real_scene_chain(
                         existing, n, slot.scene_number, tuple(drafts),
-                        chosen_episode_outline or outline,
+                        assigned.assigned_plot,
                         next_plan=episode_guide.get(n + 1, ''))
                     scene = model(n, slot.scene_number, scene_context,
                                   scene_goal, scene_evidence,
