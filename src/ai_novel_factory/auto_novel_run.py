@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Callable
 
 from .database.episodes import EpisodeStore
+from .database.style_bible import StyleBibleStore
+from .style_checker import StyleCheckerError, check_style
 from .continuity_memory_window import extend_scene_context
 from .scene_resume_binding import SceneResumeScope, require_explicit_scene_resume
 from .author_scene_checkpoint_integrity import SceneStageChoice
@@ -48,6 +50,7 @@ class AutoNovelRunReport:
     review_required_episodes: tuple[int, ...]
     stopped: bool
     local_model_invocations: int
+    style_scope_checked_episodes: int = 0
     publisher_called: bool = False
     quality_certified: bool = False
 
@@ -391,6 +394,7 @@ def run_auto_novel(
             manuscript_database_path=database_path)
 
     created, skipped, review = [], [], []
+    style_scope_count = 0
     calls, stopped = 0, False
     with EpisodeStore(database_path) as db:
         project = db.get_project(project_id)
@@ -749,6 +753,36 @@ def run_auto_novel(
             else:
                 checks.append(('reference_similarity', reference_review.check_status,
                                reference_review.detail))
+            # Real, local, deterministic Style Bible rules are checked against
+            # the actual generated prose. This is scoped evidence only:
+            # no viewpoint inference, literary certification, PASS, or publication.
+            # The full author-source stamp is checked again before persistence.
+            style_scoped = False
+            try:
+                with StyleBibleStore(database_path) as style_store:
+                    style_report = check_style(
+                        style_store, project_id, n, full_draft)
+                if style_report.applied_rules:
+                    style_scoped = True
+                    style_result = 'FAIL' if style_report.findings else 'WARN'
+                    style_note = (
+                        f'checked_rule_count={len(style_report.applied_rules)};'
+                        f'unexamined_rule_count={len(style_report.unexamined_rules)};'
+                        f'finding_count={len(style_report.findings)};'
+                        f'manuscript_sha256={style_report.manuscript_sha256};'
+                        'scope_only=true;viewpoint_unlabelled=true;'
+                        'human_review_required=true;publication_approved=false')
+                else:
+                    style_result = 'NOT_RUN'
+                    style_note = (
+                        '실행 가능한 문체 규칙 없음;'
+                        'human_review_required=true;publication_approved=false')
+            except (StyleCheckerError, OSError, ValueError):
+                style_result = 'NOT_RUN'
+                style_note = (
+                    '문체 규칙 또는 현재 SQLite 상태를 확인할 수 없어 자동 합격 처리 안 함;'
+                    'human_review_required=true;publication_approved=false')
+            checks.append(('style_scope', style_result, style_note))
             checks.extend((category, 'NOT_RUN',
                            '전체 증거가 없어 자동 승인하지 않음')
                           for category in ('continuity', 'logic', 'timeline',
@@ -786,9 +820,12 @@ def run_auto_novel(
                                  for slot, scene_text in zip(slots, drafts)),
                     checks=tuple(checks))
             created.append(n)
+            if style_scoped:
+                style_scope_count += 1
             existing[n] = current
             if requires_review:
                 review.append(n)
             emit(n, '미승인 초고 저장 및 수동 검수 대기')
     return AutoNovelRunReport(through_episode, tuple(created), tuple(skipped),
-                              tuple(review), stopped, calls)
+                              tuple(review), stopped, calls,
+                              style_scope_checked_episodes=style_scope_count)

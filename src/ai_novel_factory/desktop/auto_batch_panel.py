@@ -413,6 +413,8 @@ class AutoBatchPanel(QGroupBox):
             f'이미 존재하는 회차 {len(result.skipped_existing)}개, '
             f'로컬 AI 실행 {result.local_model_invocations}회. '
             f'검수 필수 {len(result.review_required_episodes)}개. '
+            f'저장 초고의 문체 규칙 범위 검사 {result.style_scope_checked_episodes}화'
+            '(WARN/FAIL 기록, 품질 합격 아님). '
             + ('중단 요청 반영됨.' if result.stopped else '비공개 초고만 저장됨.'))
         # Keep existing form edits untouched, but show the newly generated
         # saved episodes in the selector immediately. Preserve selection.
