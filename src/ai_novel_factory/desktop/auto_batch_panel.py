@@ -29,6 +29,7 @@ from .scene_checkpoint_panel import default_scene_checkpoint_directory
 from ai_novel_factory.scene_checkpoint_store import SceneCheckpointError
 from ai_novel_factory.author_scene_checkpoint_integrity import SceneStageChoice
 from ai_novel_factory.author_context_envelope import AuthorContextEnvelopeError
+from ai_novel_factory.author_context_scope import plan_author_context_scope
 from .reference_selection import REFERENCE_FILE_FILTER, display_filename
 from .reference_profile_browser import default_local_catalog_path
 
@@ -165,6 +166,16 @@ class AutoBatchPanel(QGroupBox):
                 'event_cue_density_per_1000', 'cliffhanger_episode_rate'))
             self.metric_checks[key] = control
             form.addRow(control)
+        self.context_scope_button = QPushButton(
+            '선택한 작가 통합 문맥 1~N화 전수 준비 확인 (모델 실행 없음)')
+        self.context_scope_button.setObjectName('autoBatchAuthorContextScopePreview')
+        self.context_scope_button.clicked.connect(self.preview_author_context_scope)
+        form.addRow(self.context_scope_button)
+        self.context_scope_notice = QLabel(
+            '작가 통합 문맥을 선택한 경우 실제 집필 전 모든 미작성 회차를 확인합니다. '
+            '이 조회는 집필 승인이나 QC 합격이 아닙니다.')
+        self.context_scope_notice.setWordWrap(True)
+        form.addRow(self.context_scope_notice)
         self.consent = QCheckBox(
             '이번 실행에서만 지정한 로컬 모델로 순차 집필하는 것을 승인합니다')
         self.consent.setObjectName('autoBatchExplicitApproval')
@@ -203,6 +214,42 @@ class AutoBatchPanel(QGroupBox):
         root.addWidget(self.status)
         self.start_button.clicked.connect(self.start_batch)
         self.stop_button.clicked.connect(self.request_stop)
+
+    def preview_author_context_scope(self):
+        """작가가 직접 누른 현재 1~N화 문맥 조회. 승인/모델 실행/저장 없음."""
+        if self.is_running():
+            self.context_scope_notice.setText(
+                '진행 중인 로컬 집필이 끝난 후 작가 문맥을 다시 조회하세요.')
+            return
+        try:
+            composer = getattr(self.authoring, 'author_context_composer_panel', None)
+            if composer is None:
+                raise AuthorContextEnvelopeError('기존 작가 문맥 화면 선택 필요')
+            session = self.authoring.session
+            store, project_id = session.required()
+            if composer.scenes.value() != self.scenes.value():
+                raise AuthorContextEnvelopeError('배치와 작가 문맥 장면 수가 다릅니다.')
+            sources = composer._capture()
+            plan = plan_author_context_scope(
+                store, str(project_id), through_episode=self.through.value(),
+                scenes_per_episode=self.scenes.value(), sources=sources)
+            blocked = [str(row.episode) for row in plan.episodes
+                       if row.status == 'CONTEXT_BLOCKED']
+            if blocked:
+                self.context_scope_notice.setText(
+                    f'총 {plan.total}화: 기존 저장 {plan.existing}화, '
+                    f'문맥 준비 {plan.ready}화, 추가 확인 {plan.blocked}화. '
+                    f'미준비 회차 앞 12개: {", ".join(blocked[:12])}. '
+                    '실제 모델 실행 전에 작가 기록을 직접 보완하세요.')
+            else:
+                self.context_scope_notice.setText(
+                    f'총 {plan.total}화: 기존 저장 {plan.existing}화, '
+                    f'문맥 조합 가능 {plan.ready}화. '
+                    '문맥 준비 조회만 완료 · 실제 AI 집필/QC/출판은 NOT_RUN.')
+        except (AuthorContextEnvelopeError, ValueError, OSError):
+            self.context_scope_notice.setText(
+                '현재 작품·선택 기록·장면 수가 일치하지 않습니다. '
+                '작가 통합 문맥 화면에서 다시 직접 선택하세요.')
 
     def clear_explicit_scene_resume(self):
         if self._explicit_resume_choice is not None:
@@ -389,9 +436,10 @@ class AutoBatchPanel(QGroupBox):
             selected_context_sources = (
                 composer.consume_batch_sources() if composer is not None else None)
             if (selected_context_sources is not None
-                    and composer.episode.value() != self.through.value()):
+                    and (composer.episode.value() != self.through.value()
+                         or composer.scenes.value() != self.scenes.value())):
                 raise AuthorContextEnvelopeError(
-                    '장편 문맥 미리보기 회차와 현재 배치 마지막 회차가 다릅니다.')
+                    '장편 문맥 미리보기 회차·장면 수와 현재 배치 설정이 다릅니다.')
         except (AuthorContextEnvelopeError, OSError, ValueError):
             self.status.setText('통합 작가 문맥 선택이나 지문이 바뀌었습니다. 다시 확인·승인하세요.')
             return

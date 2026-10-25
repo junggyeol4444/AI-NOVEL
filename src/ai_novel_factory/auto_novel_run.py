@@ -426,6 +426,22 @@ def run_auto_novel(
         plans = {e.episode_number: e for e in episodes}
         by_arc = {arc.number: arc for arc in arcs.arcs}
         existing = {e.episode: e for e in db.list_episodes(project_id)}
+        # A single author-approved source selection applies to the entire
+        # requested batch, not only the last chapter shown in the GUI.
+        # Resolve every missing chapter BEFORE any AI synopsis/scene call.
+        # Saved chapters are read only and are never overwritten.
+        if context_sources is not None:
+            from .author_context_scope import plan_author_context_scope
+            context_plan = plan_author_context_scope(
+                db, project_id, through_episode=through_episode,
+                scenes_per_episode=scenes_per_episode, sources=context_sources)
+            if context_plan.blocked:
+                first = ', '.join(
+                    str(row.episode) for row in context_plan.episodes
+                    if row.status == 'CONTEXT_BLOCKED')[:90]
+                raise AutoNovelRunError(
+                    f'선택한 작가 통합 문맥 {context_plan.blocked}화 준비 미완료 '
+                    f'(회차: {first}). AI 실행 전 기록·장면 수를 다시 확인하세요.')
         if explicit_resume_choice is not None:
             if (explicit_resume_choice.episode in existing
                     or any(n not in existing for n in range(1, explicit_resume_choice.episode))):
