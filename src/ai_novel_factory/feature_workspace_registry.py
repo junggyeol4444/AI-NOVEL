@@ -48,6 +48,7 @@ FEATURE_ENTRIES: tuple[FeatureEntry, ...] = (
     FeatureEntry('비공개 출력', 'EPUB3 원고 대조', 'epub_source_alignment_panel', 'EpubSourceAlignmentPanel', 'epub_source_alignment_panel'),
     FeatureEntry('비공개 출력', 'TXT·MD 비공개 교정본', 'local_manuscript_proof_panel', 'LocalManuscriptProofPanel', 'local_manuscript_proof_panel'),
     FeatureEntry('비공개 출력', '출판 상태 스냅샷', 'release_snapshot_panel', 'ReleaseSnapshotPanel', 'release_snapshot_panel'),
+    FeatureEntry('장편 집필', '승인된 로컬 AI 전체 줄거리·아크별 기획 후보', 'author_ai_planning_panel', 'AuthorAiPlanningPanel', 'author_ai_planning_panel'),
     FeatureEntry('장편 연속성', '작가 장편 아크 직접 작성', 'author_arc_panel', 'AuthorArcPanel', 'author_arc_panel'),
     FeatureEntry('장편 연속성', '회차별 장편 아크 문맥 확인', 'author_arc_context_panel', 'AuthorArcContextPanel', 'author_arc_context_panel'),
     FeatureEntry('장편 집필', '작가 회차별 장면 설계표', 'author_scene_plan_panel', 'AuthorScenePlanPanel', 'author_scene_plan_panel'),
