@@ -136,3 +136,90 @@ def require_current_author_arc_final_coverage(
     if (current.source_sha256 != snapshot.source_sha256
             or current.rows != snapshot.rows):
         raise AuthorArcFinalCoverageError('아크·작품 설정·원고가 변경됐습니다. 다시 조회하세요.')
+
+
+@dataclass(frozen=True)
+class AuthorArcEpisodeEvidence:
+    """작가가 지정한 한 회차의 저장 최종본과 복선·해소 원문 위치."""
+    arc_id: str = field(repr=False)
+    episode: int = 0
+    revision: int = 0
+    final_text: str = field(default='', repr=False)
+    final_sha256: str = field(default='', repr=False)
+    foreshadow_text: str = field(default='', repr=False)
+    resolution_text: str = field(default='', repr=False)
+    foreshadow_count: int = 0
+    resolution_count: int = 0
+    foreshadow_offsets: tuple[int, ...] = ()
+    resolution_offsets: tuple[int, ...] = ()
+    canon_changed: bool = False
+    order_candidate: bool = False
+    status: str = 'AUTHOR_REVIEW_REQUIRED_NOT_VERIFIED'
+    publication_approved: bool = False
+
+
+def _arc_text_positions(text: str, expression: str) -> tuple[int, tuple[int, ...]]:
+    """겹친 출현까지 세되, 메모리에 저장하는 오프셋은 처음 100개로 제한."""
+    count = 0
+    offsets = []
+    start = 0
+    while True:
+        position = text.find(expression, start)
+        if position < 0:
+            break
+        count += 1
+        if len(offsets) < 100:
+            offsets.append(position)
+        start = position + 1
+    return count, tuple(offsets)
+
+
+def read_author_arc_episode_evidence(
+    snapshot: AuthorArcCoverageSnapshot, store: EpisodeStore, project_id: str,
+    *, arc_id: str, episode: int,
+) -> AuthorArcEpisodeEvidence:
+    """전수 대조 후 작가가 고른 한 회차의 원문·정확한 문자 위치만 읽는다.
+
+    문자열 출현은 서사 완결성·문학 품질·검수 합격을 증명하지 않는다.
+    원고·아크 기록·모델·출판 상태는 변경하지 않는다.
+    """
+    if (type(snapshot) is not AuthorArcCoverageSnapshot
+            or type(arc_id) is not str or not arc_id
+            or type(episode) is not int or not 1 <= episode <= 1000):
+        raise AuthorArcFinalCoverageError('기존 대조 결과와 아크·회차를 직접 선택하세요.')
+    require_current_author_arc_final_coverage(snapshot, store, project_id)
+    row = next((item for item in snapshot.rows if item.arc_id == arc_id), None)
+    if (row is None or not row.start <= episode <=
+            min(row.end, snapshot.through_episode)):
+        raise AuthorArcFinalCoverageError('선택한 아크 범위 안의 회차를 지정하세요.')
+    try:
+        arc = next((item for item in read_author_arcs(snapshot.folder, project_id)
+                    if item.arc_id == arc_id and not item.withdrawn), None)
+        if (arc is None or arc.start != row.start or arc.end != row.end
+                or arc.title != row.title):
+            raise AuthorArcFinalCoverageError('아크 기록이 변경됐습니다. 다시 조회하세요.')
+        saved = store.get_episode(project_id, episode)
+        if saved is None or not saved.final_text.strip():
+            raise AuthorArcFinalCoverageError('해당 회차의 저장 최종본이 없습니다.')
+        original = saved.final_text
+        final_hash = sha256(original.encode('utf-8')).hexdigest()
+        foreshadow_count, foreshadow_offsets = _arc_text_positions(
+            original, arc.foreshadow)
+        resolution_count, resolution_offsets = _arc_text_positions(
+            original, arc.resolution)
+        require_current_author_arc_final_coverage(snapshot, store, project_id)
+        latest = store.get_episode(project_id, episode)
+        if (latest is None or latest.revision != saved.revision
+                or sha256(latest.final_text.encode('utf-8')).hexdigest() != final_hash
+                or latest.final_text != original):
+            raise AuthorArcFinalCoverageError('원고가 변경됐습니다. 다시 조회하세요.')
+    except (AuthorArcError, OSError, UnicodeError, LookupError, TypeError):
+        raise AuthorArcFinalCoverageError('아크 근거와 저장 최종본을 다시 조회하세요.') from None
+    return AuthorArcEpisodeEvidence(
+        arc_id=arc_id, episode=episode, revision=saved.revision,
+        final_text=original, final_sha256=final_hash,
+        foreshadow_text=arc.foreshadow, resolution_text=arc.resolution,
+        foreshadow_count=foreshadow_count, resolution_count=resolution_count,
+        foreshadow_offsets=foreshadow_offsets,
+        resolution_offsets=resolution_offsets,
+        canon_changed=row.canon_changed, order_candidate=row.order_candidate)

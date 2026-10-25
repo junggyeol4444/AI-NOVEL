@@ -9,9 +9,10 @@ from ..author_arc_ledger import (AuthorArcError, add_author_arc,
 from ..author_arc_final_coverage import (
     AuthorArcFinalCoverageError, build_author_arc_final_coverage,
     require_current_author_arc_final_coverage,
+    read_author_arc_episode_evidence,
 )
 from .author_batch_scope_bridge import _current_author_state, BatchScopeBridgeError
-from .author_navigation_contract import select_saved_episode
+from .author_navigation_contract import select_saved_episode, _busy, _unsaved
 
 class AuthorArcPanel(QGroupBox):
     def __init__(self, authoring, parent=None):
@@ -69,6 +70,21 @@ class AuthorArcPanel(QGroupBox):
         self.coverage_open.setEnabled(False)
         self.coverage_open.clicked.connect(self.open_saved_arc_coverage)
         root.addWidget(self.coverage_open)
+        self.coverage_detail_button = QPushButton('선택 아크·회차의 저장 최종본 복선·해소 근거 읽기 (별도 클릭)')
+        self.coverage_detail_button.setObjectName('authorArcEpisodeEvidenceOpen')
+        self.coverage_detail_button.setEnabled(False)
+        self.coverage_detail_button.clicked.connect(self.show_saved_arc_episode_evidence)
+        root.addWidget(self.coverage_detail_button)
+        self.coverage_detail_status = QLabel('선택 회차의 원문 근거는 별도 작가 클릭 후에만 표시합니다.')
+        self.coverage_detail_status.setWordWrap(True)
+        root.addWidget(self.coverage_detail_status)
+        self.coverage_detail_text = QPlainTextEdit()
+        self.coverage_detail_text.setObjectName('authorArcEpisodeEvidenceText')
+        self.coverage_detail_text.setReadOnly(True)
+        self.coverage_detail_text.setMaximumHeight(260)
+        root.addWidget(self.coverage_detail_text)
+        self.coverage_episode.valueChanged.connect(self.clear_coverage_detail)
+        self.coverage_table.itemSelectionChanged.connect(self.clear_coverage_detail)
         self.coverage_through.valueChanged.connect(self.invalidate_coverage)
         self.save_consent = QCheckBox('위 내용을 이번 한 번 새 로컬 기록으로 저장하는 데 동의')
         self.withdraw_consent = QCheckBox('선택한 아크 기록을 이번 한 번 철회하는 데 동의')
@@ -185,7 +201,13 @@ class AuthorArcPanel(QGroupBox):
         except (AuthorArcError,OSError,ValueError):
             self.status.setText('아크 철회를 실행하지 않았습니다. 다시 확인하세요.')
 
+    def clear_coverage_detail(self, *_args):
+        self.coverage_detail_text.clear()
+        self.coverage_detail_status.setText('회차·아크를 선택하고 별도 클릭으로 현재 저장 원문을 조회하세요.')
+
     def invalidate_coverage(self, *_args):
+        self.clear_coverage_detail()
+        self.coverage_detail_button.setEnabled(False)
         self._coverage_snapshot = None
         self._coverage_identity = None
         self.coverage_table.setRowCount(0)
@@ -216,6 +238,7 @@ class AuthorArcPanel(QGroupBox):
             for col, value in enumerate(values):
                 self.coverage_table.setItem(index, col, QTableWidgetItem(value))
         self.coverage_open.setEnabled(bool(snapshot.rows))
+        self.coverage_detail_button.setEnabled(bool(snapshot.rows))
         self.coverage_status.setText(
             f'기존 아크 {len(snapshot.rows)}개 대조 / '
             f'작가 검토 후보 {snapshot.review_candidate_count}개. '
@@ -252,3 +275,43 @@ class AuthorArcPanel(QGroupBox):
         except (AuthorArcFinalCoverageError, BatchScopeBridgeError,
                 AuthorArcError, ValueError, OSError, LookupError):
             self.coverage_status.setText('아크·원고가 변경됐거나 저장 회차를 열 수 없습니다.')
+
+
+    def show_saved_arc_episode_evidence(self):
+        """두 번째 작가 클릭: 현재 원고·아크를 재확인한 뒤 읽기 전용 표시."""
+        self.clear_coverage_detail()
+        snapshot, identity = self._coverage_snapshot, self._coverage_identity
+        index = self.coverage_table.currentRow()
+        number = self.coverage_episode.value()
+        if (snapshot is None or identity is None
+                or not 0 <= index < len(snapshot.rows)
+                or self._folder is None
+                or str(self._folder.resolve()) != snapshot.folder
+                or self.coverage_through.value() != snapshot.through_episode):
+            self.coverage_detail_status.setText('아크·조회 범위를 다시 직접 선택하세요.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            if current != identity or _busy(self.authoring) or _unsaved(self.authoring):
+                raise AuthorArcFinalCoverageError('작품·미저장 원고·집필 상태가 변경됐습니다.')
+            detail = read_author_arc_episode_evidence(
+                snapshot, session.store, identity[1],
+                arc_id=snapshot.rows[index].arc_id, episode=number)
+            if (_busy(self.authoring) or _unsaved(self.authoring)
+                    or _current_author_state(self.authoring)[1] != identity
+                    or self.coverage_table.currentRow() != index
+                    or self.coverage_episode.value() != number):
+                raise AuthorArcFinalCoverageError('선택이나 집필 상태가 변경됐습니다.')
+            self.coverage_detail_text.setPlainText(detail.final_text)
+            self.coverage_detail_status.setText(
+                f'{detail.episode}화 저장 최종본 전체 원문 · revision {detail.revision} · '
+                f'복선 표현 {detail.foreshadow_count}회 (앞 {len(detail.foreshadow_offsets)}개 '
+                f'문자 위치: {detail.foreshadow_offsets}) · '
+                f'해소 표현 {detail.resolution_count}회 (앞 {len(detail.resolution_offsets)}개 '
+                f'문자 위치: {detail.resolution_offsets}). '
+                '문자열 발견은 서사 완성·QC 합격·출판 승인이 아닙니다.')
+        except (AuthorArcFinalCoverageError, BatchScopeBridgeError,
+                AuthorArcError, ValueError, OSError, LookupError):
+            self.clear_coverage_detail()
+            self.coverage_detail_status.setText(
+                '아크·저장 원고·작품 또는 미저장/집필 상태가 변경됐습니다. 다시 조회하세요.')
