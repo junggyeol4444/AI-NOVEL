@@ -128,3 +128,89 @@ def require_current_reference_recheck_queue(
         selected_paths=selected_paths)
     if current.fingerprint != snapshot.fingerprint:
         raise ReferenceRecheckQueueError('원고·QC·참고작 선택이 변경됐습니다. 다시 조회하세요.')
+
+
+@dataclass(frozen=True)
+class ReferenceRecheckQCEvidence:
+    """현재/과거 참고작 QC 기록의 읽기 전용 범위 정보."""
+    content_revision: int
+    outcome: str
+    current_revision: bool
+    note_sha256: str = field(default='', repr=False)
+
+
+@dataclass(frozen=True)
+class ReferenceRecheckEpisodeEvidence:
+    """선택 회차의 저장 최종본 및 참고작 검사 범위. 합격·승인이 아니다."""
+    project_id: str = field(repr=False)
+    episode: int = 0
+    revision: int = 0
+    final_sha256: str = field(default='', repr=False)
+    final_text: str = field(default='', repr=False)
+    selected_count: int = 0
+    selected_formats: tuple[tuple[str, int], ...] = ()
+    saved_scope_status: str = 'NOT_RUN'
+    human_review_status: str = 'NOT_RUN'
+    next_action: str = 'SCAN_CURRENT_SELECTION'
+    qc_records: tuple[ReferenceRecheckQCEvidence, ...] = ()
+    status: str = 'AUTHOR_REVIEW_REQUIRED_NOT_CERTIFIED'
+    publication_approved: bool = False
+
+
+def read_reference_recheck_episode_evidence(
+    snapshot: ReferenceRecheckQueue, store: EpisodeStore, project_id: str, *,
+    through_episode: int, selected_paths: tuple[str, ...], episode: int,
+) -> ReferenceRecheckEpisodeEvidence:
+    """작가가 직접 고른 회차의 저장 최종본과 QC 기록을 별도 클릭에서 조회.
+
+    현재 선택한 TXT/MD/EPUB/DOCX/PDF 파일의 바이트 지문, 저장 원고,
+    QC 근거를 조회 전후 다시 확인한다. 과거 PASS를 현재 참고작 검사
+    결과로 재사용하거나 원고·QC·출판 상태를 변경하지 않는다.
+    """
+    if (type(snapshot) is not ReferenceRecheckQueue
+            or type(episode) is not int or type(through_episode) is not int
+            or type(selected_paths) is not tuple
+            or snapshot.project_id != project_id
+            or snapshot.through_episode != through_episode
+            or not 1 <= episode <= through_episode):
+        raise ReferenceRecheckQueueError('작품·회차·선택 참고작 범위를 다시 확인하세요.')
+    require_current_reference_recheck_queue(
+        snapshot, store, project_id, through_episode=through_episode,
+        selected_paths=selected_paths)
+    chapter = snapshot.chapters[episode - 1]
+    if (chapter.episode != episode or not chapter.final_present
+            or chapter.revision is None):
+        raise ReferenceRecheckQueueError('선택 회차에 저장된 최종본이 없습니다.')
+    try:
+        saved = store.get_episode(project_id, episode)
+        if (saved.revision != chapter.revision
+                or type(saved.final_text) is not str
+                or not saved.final_text.strip()):
+            raise ReferenceRecheckQueueError('선택 회차의 저장 최종본이 변경됐습니다.')
+        text = saved.final_text
+        records = tuple(
+            ReferenceRecheckQCEvidence(
+                content_revision=item.content_revision,
+                outcome=item.outcome,
+                current_revision=(item.content_revision == saved.revision),
+                note_sha256=sha256(item.note.encode('utf-8')).hexdigest(),
+            )
+            for item in store.list_checks(project_id, episode)
+            if item.category == 'reference_similarity')
+        result = ReferenceRecheckEpisodeEvidence(
+            project_id=project_id, episode=episode, revision=saved.revision,
+            final_sha256=sha256(text.encode('utf-8')).hexdigest(),
+            final_text=text, selected_count=snapshot.selected_count,
+            selected_formats=snapshot.selected_formats,
+            saved_scope_status=chapter.saved_scope_status,
+            human_review_status=chapter.human_review_status,
+            next_action=chapter.next_action, qc_records=records)
+    except ReferenceRecheckQueueError:
+        raise
+    except (ValueError, OSError, LookupError, TypeError, AttributeError, UnicodeError):
+        raise ReferenceRecheckQueueError(
+            '저장 최종본 또는 참고작 검사 기록을 읽지 못했습니다.') from None
+    require_current_reference_recheck_queue(
+        snapshot, store, project_id, through_episode=through_episode,
+        selected_paths=selected_paths)
+    return result

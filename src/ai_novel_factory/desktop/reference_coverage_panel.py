@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QGroupBox, QLabel, QPushButton, QSpinBox, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QHBoxLayout,
+    QTableWidgetItem, QVBoxLayout, QHBoxLayout, QPlainTextEdit,
 )
 from ..reference_coverage_report import summarize_reference_coverage
 from ..author_reference_recheck_queue import (
     ReferenceRecheckQueueError, build_reference_recheck_queue,
-    require_current_reference_recheck_queue,
+    require_current_reference_recheck_queue, read_reference_recheck_episode_evidence,
 )
 from .author_navigation_contract import _busy, _unsaved, select_saved_episode
 
@@ -71,9 +71,38 @@ class ReferenceCoveragePanel(QGroupBox):
             button.setEnabled(False)
             actions.addWidget(button)
         layout.addLayout(actions)
+        self.detail_button = QPushButton('선택 회차 저장 최종본·참고작 QC 근거 전체 열람 (별도 클릭)')
+        self.detail_button.setObjectName('referenceRecheckEpisodeDetailOpen')
+        self.detail_button.setEnabled(False)
+        self.detail_button.clicked.connect(self.open_episode_detail)
+        layout.addWidget(self.detail_button)
+        self.detail_table = QTableWidget(0, 4)
+        self.detail_table.setObjectName('referenceRecheckEpisodeQCEvidenceTable')
+        self.detail_table.setHorizontalHeaderLabels(
+            ('기록 원고 버전', '기록 결과', '현재 버전 여부', '기록 내용 SHA256'))
+        self.detail_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.detail_table.setMaximumHeight(220)
+        layout.addWidget(self.detail_table)
+        self.detail_text = QPlainTextEdit()
+        self.detail_text.setObjectName('referenceRecheckSavedFinalReadOnly')
+        self.detail_text.setReadOnly(True)
+        self.detail_text.setMaximumHeight(270)
+        layout.addWidget(self.detail_text)
+        self.detail_status = QLabel('작가가 회차를 직접 선택한 뒤 별도 클릭으로 저장 최종본을 읽습니다.')
+        self.detail_status.setWordWrap(True)
+        layout.addWidget(self.detail_status)
+        self.queue_table.itemSelectionChanged.connect(self._clear_detail)
         self.through.valueChanged.connect(self.invalidate)
 
+    def _clear_detail(self):
+        self.detail_table.setRowCount(0)
+        self.detail_text.clear()
+        self.detail_button.setEnabled(self._queue is not None)
+        self.detail_status.setText('현재 선택 회차의 원문·과거 QC 기록은 별도 클릭으로 조회하세요.')
+
     def invalidate(self, *_args):
+        self._clear_detail()
+        self.detail_button.setEnabled(False)
         self._queue = None
         self._identity = None
         self._selection = ()
@@ -144,6 +173,7 @@ class ReferenceCoveragePanel(QGroupBox):
                 self.queue_table.setItem(index, col, QTableWidgetItem(value))
         self.editor_button.setEnabled(True)
         self.audit_button.setEnabled(True)
+        self.detail_button.setEnabled(True)
         formats = ', '.join(
             f'{ext.lstrip(".").upper()} {count}'
             for ext, count in queue.selected_formats if count)
@@ -172,6 +202,7 @@ class ReferenceCoveragePanel(QGroupBox):
         self._queue = None
         self._identity = None
         self._selection = ()
+        self._clear_detail()
         self.editor_button.setEnabled(False)
         self.audit_button.setEnabled(False)
         return chapter, identity
@@ -207,3 +238,47 @@ class ReferenceCoveragePanel(QGroupBox):
         except (ReferenceRecheckQueueError, ValueError, OSError):
             self.invalidate()
             self.summary.setText('원고·참고작이 변경됐습니다. 대기열을 다시 조회하세요.')
+
+    def open_episode_detail(self):
+        """전체 대기열 조회와 별도의 작가 클릭으로 저장 원문만 열람."""
+        self._clear_detail()
+        snapshot, identity, selection = self._queue, self._identity, self._selection
+        row = self.queue_table.currentRow()
+        if (snapshot is None or identity is None
+                or not 0 <= row < len(snapshot.chapters)):
+            self.detail_status.setText('현재 대기열에서 한 회차를 직접 선택하세요.')
+            return
+        episode = snapshot.chapters[row].episode
+        try:
+            session, current_identity = self._current()
+            if (current_identity != identity
+                    or tuple(self.authoring.auto_panel.reference_paths) != selection):
+                raise ReferenceRecheckQueueError('작품 또는 참고작 선택이 변경됐습니다.')
+            evidence = read_reference_recheck_episode_evidence(
+                snapshot, session.store, identity[1],
+                through_episode=self.through.value(),
+                selected_paths=selection, episode=episode)
+            if (self.queue_table.currentRow() != row
+                    or tuple(self.authoring.auto_panel.reference_paths) != selection):
+                raise ReferenceRecheckQueueError('선택 회차 또는 참고작이 변경됐습니다.')
+        except (ReferenceRecheckQueueError, ValueError, OSError, LookupError):
+            self.invalidate()
+            self.detail_status.setText(
+                '원고·QC·참고작·선택 상태가 변경됐거나 저장 최종본이 없습니다. 다시 조회하세요.')
+            return
+        self.detail_table.setRowCount(len(evidence.qc_records))
+        for index, record in enumerate(evidence.qc_records):
+            values = (
+                str(record.content_revision), record.outcome,
+                '현재' if record.current_revision else '과거',
+                record.note_sha256,
+            )
+            for column, value in enumerate(values):
+                self.detail_table.setItem(index, column, QTableWidgetItem(value))
+        self.detail_text.setPlainText(evidence.final_text)
+        self.detail_status.setText(
+            f'{evidence.episode}화 저장 최종본 전체 / revision {evidence.revision} / '
+            f'SHA256 {evidence.final_sha256} / 직접 선택 참고작 {evidence.selected_count}개 / '
+            f'과거 검사 범위 {evidence.saved_scope_status} / 수동 검수 {evidence.human_review_status}. '
+            '현재 참고작 전체 재검사는 별도 작가 실행이 필요합니다. '
+            '과거 QC 결과는 현재 선택 참고작 합격·저작권·출판 승인이 아닙니다.')
