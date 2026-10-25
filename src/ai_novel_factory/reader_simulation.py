@@ -197,3 +197,33 @@ def annotations_from_episode_preview(preview: EpisodeDraftPreview, *,
         raise ReaderSimulationError('invalid episode scene coverage')
     _check_inputs(preview.project_id, preview.episode_number, preview.draft, tuple(out))
     return tuple(out)
+
+
+def annotate_saved_reader_scenes(
+    draft: str, scene_texts: tuple[str, ...],
+    marks: tuple[dict[str, bool | None], ...],
+) -> tuple[SceneReaderAnnotation, ...]:
+    """SQLite에 저장된 장면 원문을 그대로 독자 관찰표시와 결속한다.
+
+    모델을 실행하거나 사람의 의도를 추정하지 않는다. 장면이 하나라도
+    수정·누락·중복되면 원본과 일치하지 않아 결과를 생성하지 않는다.
+    """
+    if (type(draft) is not str or type(scene_texts) is not tuple
+            or type(marks) is not tuple or not 1 <= len(scene_texts) <= MAX_SCENES
+            or len(scene_texts) != len(marks) or any(
+                type(text) is not str or not text.strip() for text in scene_texts)):
+        raise ReaderSimulationError('저장 장면과 독자 관찰표시의 범위가 다릅니다.')
+    if draft != SCENE_SEPARATOR.join(scene_texts):
+        raise ReaderSimulationError(
+            '저장 초고와 장면 원문이 일치하지 않습니다. 자동 병합하지 않습니다.')
+    out = []
+    start = 0
+    for index, (text, values) in enumerate(zip(scene_texts, marks), 1):
+        if (type(values) is not dict or set(values) != set(_ATTRIBUTES)
+                or any(type(v) not in (bool, type(None)) for v in values.values())):
+            raise ReaderSimulationError('장면별 관찰표시는 예·아니요·미확인만 허용합니다.')
+        end = start + len(text)
+        out.append(SceneReaderAnnotation(
+            index, start, end, _digest(text), **values))
+        start = end + len(SCENE_SEPARATOR)
+    return tuple(out)
