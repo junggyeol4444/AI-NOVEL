@@ -155,3 +155,100 @@ def require_current_scene_final_alignment(
     if current.fingerprint != snapshot.fingerprint:
         raise SceneFinalAlignmentError(
             '원고·장면·QC·수동 검수·참고작 기록이 변경됐습니다. 다시 조회하세요.')
+
+@dataclass(frozen=True)
+class SceneEpisodeDetailRow:
+    """선택 회차 저장 장면 원문과 현재 최종본의 문자 위치. 품질 판정 아님."""
+    scene_id: str = field(repr=False)
+    position: int = 0
+    original_text: str = field(default='', repr=False)
+    original_sha256: str = field(default='', repr=False)
+    exact_literal: bool = False
+    normalized_occurrences: int = 0
+    first_start: int | None = None
+    first_end: int | None = None
+    order_review: bool = False
+
+
+@dataclass(frozen=True)
+class SceneEpisodeDetail:
+    project_id: str = field(repr=False)
+    episode: int = 0
+    revision: int = 0
+    draft_text: str = field(default='', repr=False)
+    final_text: str = field(default='', repr=False)
+    final_sha256: str = field(default='', repr=False)
+    scenes: tuple[SceneEpisodeDetailRow, ...] = ()
+    review_status: str = ''
+    reference_status: str = ''
+    next_action: str = ''
+    source_fingerprint: str = field(default='', repr=False)
+    publication_approved: bool = False
+
+
+def read_scene_episode_detail(
+    snapshot: SceneFinalAlignment, store: EpisodeStore, project_id: str, *,
+    episode: int,
+) -> SceneEpisodeDetail:
+    """작가가 별도 선택한 저장 회차의 초고·장면·최종본 원문을 메모리에서만 대조.
+
+    공백을 제거한 장면 검색 위치는 실제 최종본의 Python 문자 위치로 역매핑한다.
+    첫 번째 등장만 위치로 보여 주며 복수 등장·순서 변경은 수동 검토 후보로 남긴다.
+    """
+    if (type(snapshot) is not SceneFinalAlignment or type(episode) is not int
+            or not 1 <= episode <= snapshot.through_episode
+            or not isinstance(store, EpisodeStore)
+            or type(project_id) is not str or snapshot.project_id != project_id):
+        raise SceneFinalAlignmentError('작품·회차를 다시 직접 선택하세요.')
+    require_current_scene_final_alignment(snapshot, store, project_id)
+    expected = snapshot.rows[episode - 1]
+    if expected.episode != episode or expected.revision is None:
+        raise SceneFinalAlignmentError('저장된 원고가 없는 회차입니다.')
+    try:
+        saved = store.get_episode(project_id, episode)
+        scenes = store.list_scenes(project_id, episode)
+        if saved.revision != expected.revision or len(scenes) != expected.saved_scene_count:
+            raise SceneFinalAlignmentError('원고·장면 기록이 변경됐습니다. 다시 조회하세요.')
+        # Python 문자열 오프셋으로 매핑하며 Qt UTF-16 커서 위치와 혼동하지 않는다.
+        positions = [i for i, char in enumerate(saved.final_text) if not char.isspace()]
+        compact_final = ''.join(saved.final_text[i] for i in positions)
+        details = []
+        exact = order = 0
+        previous = -1
+        for scene in scenes:
+            candidate = _compact(scene.text)
+            at = compact_final.find(candidate) if candidate else -1
+            occurrences = compact_final.count(candidate) if candidate else 0
+            reordered = at >= 0 and at < previous
+            if at >= 0:
+                exact += 1
+                order += int(reordered)
+                previous = max(previous, at)
+            details.append(SceneEpisodeDetailRow(
+                scene.scene_id, scene.position, scene.text,
+                sha256(scene.text.encode('utf-8')).hexdigest(),
+                bool(scene.text) and scene.text in saved.final_text,
+                occurrences,
+                positions[at] if at >= 0 else None,
+                positions[at + len(candidate) - 1] + 1 if at >= 0 else None,
+                reordered))
+        if (exact != expected.exact_scene_count
+                or len(scenes) - exact != expected.rewritten_or_missing_scene_count
+                or order != expected.order_review_count):
+            raise SceneFinalAlignmentError('저장 장면 대조 결과가 변경됐습니다. 다시 조회하세요.')
+        # 저장 초고·최종본과 장면별 원문이 조회 도중 변경되지 않았는지 다시 확인.
+        saved_again = store.get_episode(project_id, episode)
+        scenes_again = store.list_scenes(project_id, episode)
+        if saved_again != saved or scenes_again != scenes:
+            raise SceneFinalAlignmentError('원고·장면 기록이 변경됐습니다. 다시 조회하세요.')
+        require_current_scene_final_alignment(snapshot, store, project_id)
+        return SceneEpisodeDetail(
+            project_id, episode, saved.revision, saved.draft, saved.final_text,
+            sha256(saved.final_text.encode('utf-8')).hexdigest(),
+            tuple(details), expected.review_status, expected.reference_status,
+            expected.next_action, snapshot.fingerprint)
+    except SceneFinalAlignmentError:
+        raise
+    except (ValueError, OSError, LookupError, TypeError, AttributeError, UnicodeError):
+        raise SceneFinalAlignmentError(
+            '선택 회차의 저장 장면·초고·최종본을 다시 읽지 못했습니다.') from None
