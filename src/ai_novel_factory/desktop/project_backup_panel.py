@@ -64,14 +64,12 @@ class ProjectBackupPanel(QGroupBox):
         if session.store is None or session.project_id is None:
             self.status.setText('기존 작품을 먼저 열어야 합니다.')
             return
-        if self.authoring.auto_panel.is_running() or self.authoring.is_generating():
-            self.status.setText('AI 집필이 끝난 뒤 백업 계획을 조회하세요.')
-            return
         try:
+            require_idle_authoring(self.authoring, str(session.project_id))
             self._plan = plan_project_backup(
                 self.authoring._text('db'), str(session.project_id))
-        except (ProjectBackupError, OSError, ValueError):
-            self.status.setText('현재 작품 SQLite 백업 계획을 읽지 못했습니다.')
+        except (LocalHandoffError, ProjectBackupError, OSError, ValueError):
+            self.status.setText('미저장 원고 또는 현재 작품 상태 때문에 백업 계획을 확인하지 못했습니다.')
             return
         self.status.setText(f'현재 SQLite에 작품 {self._plan.projects_count}개 확인. '
                             '백업 위치 선택 및 1회 승인이 필요합니다.')
@@ -91,13 +89,14 @@ class ProjectBackupPanel(QGroupBox):
         if plan is None or not approved:
             self.status.setText('현재 작품 계획과 이번 백업의 명시적 승인이 필요합니다.')
             return
-        if self.authoring.auto_panel.is_running() or self.authoring.is_generating():
-            self.status.setText('진행 중인 AI 작업이 있어 백업을 시작하지 않았습니다.')
-            return
         try:
+            session = self.authoring.session
+            require_idle_authoring(self.authoring, plan.project_id)
+            if str(session.path) != str(plan.source):
+                raise LocalHandoffError('작품 저장소 경로가 변경되었습니다.')
             self._receipt = create_project_backup(
                 plan, self._directory, explicit_author_backup=True)
-        except (ProjectBackupError, OSError, ValueError):
+        except (LocalHandoffError, ProjectBackupError, OSError, ValueError):
             self.status.setText('새 백업 생성이 완료되지 않았습니다. 원본은 변경하지 않았습니다.')
             return
         self.status.setText(
