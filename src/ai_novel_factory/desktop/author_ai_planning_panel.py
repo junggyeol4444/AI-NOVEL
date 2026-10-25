@@ -12,7 +12,7 @@ import shlex
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QFileDialog, QFormLayout, QGroupBox, QLabel,
-    QListWidget, QPlainTextEdit, QPushButton, QSpinBox, QVBoxLayout,
+    QListWidget, QPlainTextEdit, QLineEdit, QPushButton, QSpinBox, QVBoxLayout,
 )
 from ai_novel_factory.author_ai_planning import (
     AuthorAiPlanningError, capture_author_ai_planning_source,
@@ -59,6 +59,8 @@ class AuthorAiPlanningPanel(QGroupBox):
         self._result = None
         self._identity = None
         self._run_token = None
+        self._pending_result = None
+        self._edits = {}
         root = QVBoxLayout(self)
         notice = QLabel(
             '작가가 직접 승인한 기존 로컬 EXE/GGUF만 실행합니다. '
@@ -107,6 +109,30 @@ class AuthorAiPlanningPanel(QGroupBox):
         self.preview.setObjectName('authorAiPlanningPreview')
         self.preview.setReadOnly(True)
         root.addWidget(self.preview)
+        manual_box = QGroupBox('작가 직접 수정한 아크 요약 → 기존 수동 아크 입력 폼 인계')
+        manual_form = QFormLayout(manual_box)
+        self.manual_title = QLineEdit()
+        self.manual_title.setObjectName('authorAiPlanningManualArcTitle')
+        manual_form.addRow('아크 제목 (100자 이하)', self.manual_title)
+        self.manual_fields = {}
+        for name, label in (
+                ('objective', '목표 (400자 이하, 한 줄)'),
+                ('conflict', '갈등 (400자 이하, 한 줄)'),
+                ('foreshadow', '복선 (400자 이하, 한 줄)'),
+                ('resolution', '해소 (400자 이하, 한 줄)')):
+            edit = QPlainTextEdit()
+            edit.setMaximumHeight(65)
+            edit.setObjectName('authorAiPlanningManual' + name.title())
+            self.manual_fields[name] = edit
+            manual_form.addRow(label, edit)
+        root.addWidget(manual_box)
+        handoff = QPushButton('직접 수정한 아크 요약을 기존 수동 아크 폼에 전달 (저장 안 함)')
+        handoff.setObjectName('authorAiPlanningToArc')
+        handoff.clicked.connect(self.handoff_manual_arc)
+        root.addWidget(handoff)
+        self.manual_title.textChanged.connect(self._remember_manual_edit)
+        for edit in self.manual_fields.values():
+            edit.textChanged.connect(self._remember_manual_edit)
         export = QPushButton('확인한 AI 기획 후보 전체를 새 로컬 TXT 사본으로 저장 (별도 클릭)')
         export.setObjectName('authorAiPlanningExport')
         export.clicked.connect(self.export_private)
@@ -121,9 +147,11 @@ class AuthorAiPlanningPanel(QGroupBox):
         if self.is_running():
             self._worker.stop_requested.set()
         self._run_token = None
+        self._pending_result = None
         self._source = None
         self._identity = None
         self._result = None
+        self._edits = {}
         self.consent.setChecked(False)
         self.choices.clear()
         self.preview.clear()
@@ -149,6 +177,8 @@ class AuthorAiPlanningPanel(QGroupBox):
         self.consent.setChecked(False)
         self.authoring.approved.setChecked(False)
         self._source = self._result = self._identity = self._run_token = None
+        self._pending_result = None
+        self._edits = {}
         self.choices.clear()
         self.preview.clear()
         if not approved_here or not approved_model:
@@ -176,9 +206,9 @@ class AuthorAiPlanningPanel(QGroupBox):
         worker = AuthorAiPlanningWorker(source, provider, self)
         self._worker = worker
         worker.progress_changed.connect(self._on_progress)
-        worker.completed.connect(lambda result: self._on_complete(result, token))
+        worker.completed.connect(lambda result: self._receive_generated(result, token))
         worker.failed.connect(lambda error: self._on_failed(error, token))
-        worker.finished.connect(self._on_finished)
+        worker.finished.connect(lambda: self._on_finished(token))
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.status.setText(
@@ -196,6 +226,11 @@ class AuthorAiPlanningPanel(QGroupBox):
         if self._run_token is not None:
             self.status.setText(
                 f'로컬 AI 아크 기획 {index}/{total} 호출 중 · 미검수·자동 저장 없음')
+
+    def _receive_generated(self, result, token):
+        # Worker QThread must fully exit before GUI authoring idle checks.
+        if token is self._run_token:
+            self._pending_result = result
 
     def _on_complete(self, result, token):
         if token is not self._run_token or self._source is None:
@@ -236,10 +271,90 @@ class AuthorAiPlanningPanel(QGroupBox):
             self.preview.clear()
             self.status.setText(safe_error)
 
-    def _on_finished(self):
+    def _on_finished(self, token):
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
+        old_worker = self._worker
         self._worker = None
+        if old_worker is not None:
+            old_worker.deleteLater()
+        result = self._pending_result
+        self._pending_result = None
+        if result is not None and token is self._run_token:
+            self._on_complete(result, token)
+
+    def _manual_values(self):
+        return (
+            self.manual_title.text(),
+            self.manual_fields['objective'].toPlainText(),
+            self.manual_fields['conflict'].toPlainText(),
+            self.manual_fields['foreshadow'].toPlainText(),
+            self.manual_fields['resolution'].toPlainText(),
+        )
+
+    def _remember_manual_edit(self, *_args):
+        row = self.choices.currentRow()
+        if self._result is None or not 1 <= row <= len(self._result.arc_drafts):
+            return
+        number = self._result.arc_drafts[row - 1][0]
+        self._edits[number] = self._manual_values()
+
+    def _load_manual_arc(self, number):
+        if number is None:
+            values = ('', '', '', '', '')
+        else:
+            values = self._edits.get(number, (f'아크 {number}', '', '', '', ''))
+        editors = (self.manual_title, *self.manual_fields.values())
+        for edit, value in zip(editors, values):
+            edit.blockSignals(True)
+            if isinstance(edit, QLineEdit):
+                edit.setText(value)
+            else:
+                edit.setPlainText(value)
+            edit.blockSignals(False)
+
+    def handoff_manual_arc(self):
+        source, result, identity = self._source, self._result, self._identity
+        index = self.choices.currentRow()
+        if (source is None or result is None or identity is None
+                or not 1 <= index <= len(result.arc_drafts)):
+            self.status.setText('생성된 아크 후보를 선택한 뒤 직접 요약을 작성하세요.')
+            return
+        number = result.arc_drafts[index - 1][0]
+        values = self._manual_values()
+        limits = (100, 400, 400, 400, 400)
+        if any(type(value) is not str or not value.strip()
+               or len(value) > maximum
+               or any(ord(ch) < 32 or ord(ch) == 127 for ch in value)
+               for value, maximum in zip(values, limits)):
+            self.status.setText(
+                '아크 제목 100자, 목표·갈등·복선·해소 각각 400자 이내의 '
+                '한 줄 사용자 작성 요약을 모두 입력하세요. AI 원문은 잘라내지 않습니다.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            require_idle_authoring(self.authoring, str(session.project_id))
+            if current != identity or result.source_fingerprint != source.fingerprint:
+                raise AuthorAiPlanningError('작품 기획이 변경됐습니다.')
+            require_current_author_ai_planning_source(
+                source, session.store, session.path, str(session.project_id))
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            if hub is None or not hub.open_feature(
+                    'author_arc_panel', project_identity=identity):
+                raise AuthorAiPlanningError('기존 아크 편집 화면을 열지 못했습니다.')
+            target = getattr(self.authoring, 'author_arc_panel', None)
+            if target is None or not target.accept_ai_planning_candidate(
+                    source, number, values, identity):
+                raise AuthorAiPlanningError('기존 아크 입력칸이나 저장 기록을 보호했습니다.')
+        except (AuthorAiPlanningError, BatchScopeBridgeError,
+                LocalHandoffError, ValueError, OSError):
+            self.status.setText(
+                '기존 아크 폴더·작품·미저장 아크 입력을 확인하세요. '
+                '이미 기록된 계획이나 입력 내용을 덮어쓰지 않았습니다.')
+            return
+        self.status.setText(
+            f'작가가 직접 정리한 아크 {number} 요약을 기존 입력칸에 전달했습니다. '
+            '기존 아크 화면에서 별도 저장 승인을 해야 합니다.')
 
     def show_choice(self, row):
         if self._result is None or self._source is None:
@@ -251,6 +366,9 @@ class AuthorAiPlanningPanel(QGroupBox):
             self.preview.setPlainText(self._result.arc_drafts[row - 1][1])
         else:
             self.preview.clear()
+        number = (self._result.arc_drafts[row - 1][0]
+                  if 1 <= row <= len(self._result.arc_drafts) else None)
+        self._load_manual_arc(number)
 
     def export_private(self):
         source, result = self._source, self._result
@@ -274,7 +392,18 @@ class AuthorAiPlanningPanel(QGroupBox):
         if not path:
             return
         try:
-            write_draft_copy(path, result.as_private_text(source.planning))
+            text = result.as_private_text(source.planning)
+            if self._edits:
+                lines = ['', '작가 직접 작성한 임시 아크 요약 (수동 아크 기록으로 저장 전)']
+                for number, values in sorted(self._edits.items()):
+                    if any(value.strip() for value in values):
+                        lines.append(f'아크 {number}:')
+                        lines.extend(
+                            f'{title}: {value}'
+                            for title, value in zip(
+                                ('제목', '목표', '갈등', '복선', '해소'), values))
+                text += '\n'.join(lines) + '\n'
+            write_draft_copy(path, text)
         except (DraftBackupError, AuthorAiPlanningError, ValueError, OSError):
             self.status.setText('새 로컬 TXT 파일 생성을 완료하지 못했습니다. 기존 파일 변경 없음.')
             return

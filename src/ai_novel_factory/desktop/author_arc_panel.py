@@ -6,6 +6,9 @@ from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QFormLayout, QLabel,
     QListWidget, QTableWidget, QTableWidgetItem)
 from ..author_arc_ledger import (AuthorArcError, add_author_arc,
                                  read_author_arcs, withdraw_author_arc)
+from ..author_ai_planning import (
+    AuthorAiPlanningError, require_current_author_ai_planning_source,
+)
 from ..author_full_plan_preview import (
     AuthorFullPlanError, build_author_full_plan,
     require_current_author_full_plan, author_full_plan_scenes,
@@ -312,6 +315,60 @@ class AuthorArcPanel(QGroupBox):
         self.full_plan_status.setText(
             f'{episode}화와 장면 {snapshot.scene_count}개 선택을 기존 설계표에 전달했습니다. '
             '장면 목표·갈등·장소 입력 및 별도 저장은 작가가 직접 해야 합니다.')
+
+    def accept_ai_planning_candidate(self, source, arc_number, values, identity):
+        """기존 아크 기록은 건드리지 않고 작가의 수동 요약만 입력칸으로 받는다."""
+        try:
+            session, current = _current_author_state(self.authoring)
+            require_idle_authoring(self.authoring, str(session.project_id))
+            if identity != current:
+                raise AuthorAiPlanningError('작품이 변경됐습니다.')
+            require_current_author_ai_planning_source(
+                source, session.store, session.path, str(session.project_id))
+            arc = next((item for item in source.planning.arcs
+                        if item.number == arc_number), None)
+            if (arc is None or arc.end_episode > source.planning.through_episode
+                    or self._folder is None):
+                raise AuthorAiPlanningError('완전한 아크 범위와 저장 폴더를 선택하세요.')
+            if (type(values) is not tuple or len(values) != 5
+                    or any(type(value) is not str or not value.strip()
+                           or len(value) > maximum
+                           or any(ord(ch) < 32 or ord(ch) == 127 for ch in value)
+                           for value, maximum in zip(values, (100, 400, 400, 400, 400)))):
+                raise AuthorAiPlanningError('작가가 수정한 아크 내용이 올바르지 않습니다.')
+            if (self.title_input.text().strip()
+                    or any(field.toPlainText().strip() for field in self.fields.values())):
+                self.status.setText(
+                    '기존 아크 수동 입력이 있으므로 자동 덮어쓰지 않습니다. '
+                    '먼저 직접 저장하거나 입력을 정리하세요.')
+                return False
+            records = read_author_arcs(self._folder, str(session.project_id))
+            if any(not row.withdrawn and arc.start_episode <= row.end
+                   and row.start <= arc.end_episode for row in records):
+                self.status.setText(
+                    '이 구간에 이미 저장된 활성 작가 아크가 있습니다. 덮어쓰지 않습니다.')
+                return False
+            self.batch_approval.setChecked(False)
+            self.save_consent.setChecked(False)
+            self.withdraw_consent.setChecked(False)
+            self.start.setValue(arc.start_episode)
+            self.end.setValue(arc.end_episode)
+            self.title_input.setText(values[0])
+            for field, value in zip(('objective', 'conflict', 'foreshadow', 'resolution'),
+                                    values[1:]):
+                self.fields[field].setPlainText(value)
+            self.save_consent.setChecked(False)
+            self.status.setText(
+                f'{arc.start_episode}~{arc.end_episode}화의 작가 수정 요약만 '
+                '기존 입력칸에 전달했습니다. 실제 JSON 저장은 별도의 작가 1회 승인과 '
+                '저장 버튼이 필요합니다. AI 제안은 검수/출판 승인 아님.')
+            return True
+        except (AuthorAiPlanningError, AuthorArcError, BatchScopeBridgeError,
+                LocalHandoffError, ValueError, OSError):
+            self.status.setText(
+                '현재 원고·기획·아크 기록이 변경되었거나 인계할 수 없습니다. '
+                '기존 기록을 보존했습니다.')
+            return False
 
     def _project(self):
         session=self.authoring.session
