@@ -36,6 +36,10 @@ from .scene_planner import plan_scenes, validate_scene_plans
 from .repetition_checker import check_repetition
 from .korean_draft_quality import screen_korean_draft, has_foreign_script_corruption
 from .episode_crosscheck import screen_cross_episode_reuse
+from .author_ai_novel_guidance import (
+    AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
+    require_current_author_ai_novel_guidance,
+)
 
 
 class AutoNovelRunError(ValueError):
@@ -383,6 +387,7 @@ def run_auto_novel(
     scene_checkpoint_lease: str | None = None,
     context_sources: AuthorContextSources | None = None,
     explicit_resume_choice: SceneStageChoice | None = None,
+    episode_writing_guidance: AuthorAiNovelGuidance | None = None,
 ) -> AutoNovelRunReport:
     """Generate *unapproved drafts* on a dedicated existing SQLite project.
 
@@ -456,6 +461,20 @@ def run_auto_novel(
         plans = {e.episode_number: e for e in episodes}
         by_arc = {arc.number: arc for arc in arcs.arcs}
         existing = {e.episode: e for e in db.list_episodes(project_id)}
+        # Connect author-selected, model-generated 1~N episode outlines to
+        # the ACTUAL GGUF prose writer, not merely the planning-only GUI.
+        # One explicitly selected set is frozen for the full batch and is
+        # checked BEFORE any synopsis call or SQLite plot/draft persistence.
+        episode_guide = {}
+        if episode_writing_guidance is not None:
+            require_current_author_ai_novel_guidance(
+                episode_writing_guidance, db, database_path,
+                project_id, through_episode)
+            episode_guide = {
+                number: body
+                for number, body in episode_writing_guidance.plans.episode_drafts
+                if number <= through_episode
+            }
         # A single author-approved source selection applies to the entire
         # requested batch, not only the last chapter shown in the GUI.
         # Resolve every missing chapter BEFORE any AI synopsis/scene call.
@@ -645,6 +664,7 @@ def run_auto_novel(
             active_style_bible = (saved_context.style + '\n' + saved_context.memory)[:5000]
             chapter_canon = (canon_base + '\n' + saved_context.memory + '\n' +
                              reference_statistics).strip()
+            chosen_episode_outline = episode_guide.get(n, '')
             if story_preview.strip():
                 chapter_canon += ('\n전체 스토리 AI 계획 초안(미확정·검수 전): '
                                   + story_preview[:1500])
@@ -669,11 +689,24 @@ def run_auto_novel(
             try:
                 outline = checkpoint.load_stage(0) if checkpoint is not None else None
                 if outline is None:
+                    # Put selected AI guidance FIRST in the bounded local
+                    # model goal. It remains a non-canon candidate until the
+                    # author separately reviews it; the actual plot is still
+                    # written by the user's approved native GGUF model.
+                    plot_goal = (
+                        f'{project.title}: {subject}. {n}/{total}화의 구체적인 '
+                        '독창적 사건과 갈등을 설계. '
+                        f'현재 ARC {arc.number} ({arc.start_episode}~{arc.end_episode}화). '
+                        'Novel Bible을 지키고 전 회차의 결과를 이어 새로운 회차 플롯을 작성.')
+                    if chosen_episode_outline:
+                        plot_goal = (
+                            '이번 실행에 작가가 별도 선택한 AI 회차 기획 후보 '
+                            '(미검수, Novel Bible보다 우선 금지; 일부 발췌): '
+                            + _plot_endpoints(chosen_episode_outline, 1050)
+                            + '\n' + plot_goal)
                     outline = model(
                         n, 1, context,
-                        f'{project.title}: {subject}. {n}/{total}화의 구체적인 독창적 사건과 갈등을 설계. '
-                        f'현재 ARC {arc.number} ({arc.start_episode}~{arc.end_episode}화). '
-                        'Novel Bible을 지키고 전 회차의 결과를 이어 새로운 회차 플롯을 작성.',
+                        plot_goal,
                         f'{mood} 분위기의 갈등과 연속성 유지',
                         f'작품 세계관 ({genre})')
                     record_unapproved_stage(0, outline)
@@ -693,6 +726,16 @@ def run_auto_novel(
                         outline, per_scene)
                     scene_context = _scene_generation_context(
                         context, outline, drafts[-1] if drafts else '')
+                    if chosen_episode_outline:
+                        # The native bridge reads the first 12k characters.
+                        # Give the selected AI episode candidate a bounded,
+                        # explicitly noncanonical place where it is actually
+                        # visible during every REAL scene-generation call.
+                        scene_context = (
+                            '이번 화에 작가가 선택한 미검수 AI 기획 후보 '
+                            '(중간 생략 표시, 확정 원고/사실 아님):\n'
+                            + _plot_endpoints(chosen_episode_outline, 1150)
+                            + '\n' + scene_context)[:12000]
                     if approved_context is not None:
                         extra_scene = approved_context.scenes[scene_index]
                         scene_context = (extra_scene + '\n' + scene_context
@@ -808,6 +851,9 @@ def run_auto_novel(
                     ending_context = (
                         '이미 집필한 해당 회차 마지막 장면(미검수, 되풀이 금지):\n'
                         + drafts[-1][-1900:] + '\n'
+                        + ('이번 화 미검수 AI 기획 후보(확정 아님):\n'
+                           + _plot_endpoints(chosen_episode_outline, 900) + '\n'
+                           if chosen_episode_outline else '')
                         + _scene_generation_context(context, outline, drafts[-1])
                     )[:12000]
                     tail = model(

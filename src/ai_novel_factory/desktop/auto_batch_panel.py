@@ -15,6 +15,10 @@ from PySide6.QtWidgets import (
     QFileDialog, QListWidget, QComboBox,
 )
 from ai_novel_factory.auto_novel_run import run_auto_novel, AutoNovelRunError
+from ai_novel_factory.author_ai_novel_guidance import (
+    AuthorAiNovelGuidanceError, prepare_author_ai_novel_guidance,
+    require_current_author_ai_novel_guidance,
+)
 from ai_novel_factory.local_models import LocalExecutableProvider, LocalModelError
 from ai_novel_factory.reference_batch_context import ReferenceBatchError
 from ai_novel_factory.references.element_selection import FEATURE_KEYS, FEATURE_LABELS
@@ -32,6 +36,7 @@ from ai_novel_factory.author_context_envelope import AuthorContextEnvelopeError
 from ai_novel_factory.author_context_scope import plan_author_context_scope
 from .reference_selection import REFERENCE_FILE_FILTER, display_filename
 from .reference_profile_browser import default_local_catalog_path
+from ai_novel_factory.project_local_handoff import require_idle_authoring, LocalHandoffError
 
 
 class AutoBatchWorker(QThread):
@@ -43,7 +48,8 @@ class AutoBatchWorker(QThread):
                  scenes, parent=None, *, reference_paths=(), reference_metric_keys=None,
                  catalog_path=None, batch_receipt=None,
                  scene_checkpoint_root=None, scene_checkpoint_lease=None,
-                 context_sources=None, explicit_resume_choice=None):
+                 context_sources=None, explicit_resume_choice=None,
+                 episode_writing_guidance=None):
         super().__init__(parent)
         self.database_path = Path(database_path)
         self.project_id = project_id
@@ -59,6 +65,7 @@ class AutoBatchWorker(QThread):
         self.scene_checkpoint_lease = scene_checkpoint_lease
         self.context_sources = context_sources
         self.explicit_resume_choice = explicit_resume_choice
+        self.episode_writing_guidance = episode_writing_guidance
         self.stop_requested = Event()
 
     def run(self):
@@ -76,7 +83,8 @@ class AutoBatchWorker(QThread):
                 scene_checkpoint_root=self.scene_checkpoint_root,
                 scene_checkpoint_lease=self.scene_checkpoint_lease,
                 context_sources=self.context_sources,
-                explicit_resume_choice=self.explicit_resume_choice)
+                explicit_resume_choice=self.explicit_resume_choice,
+                episode_writing_guidance=self.episode_writing_guidance)
             journal_state = 'STOPPED' if result.stopped else 'FINISHED'
             self.finished_report.emit(result)
         except (AutoNovelRunError, LocalModelError, ReferenceBatchError) as exc:
@@ -107,6 +115,7 @@ class AutoBatchPanel(QGroupBox):
         self._launch_lease = None
         self._explicit_resume_choice = None
         self._resume_project_identity = None
+        self._approved_ai_writing_guidance = None
         root = QVBoxLayout(self)
         notice = QLabel(
             '작품의 장르·소재·분위기·목표 회차를 먼저 저장하세요. '
@@ -129,6 +138,17 @@ class AutoBatchPanel(QGroupBox):
         self.through.setRange(1, 1000)
         self.through.setValue(2)
         form.addRow('생성할 마지막 회차', self.through)
+        self.use_ai_episode_guide = QCheckBox(
+            '기존 AI 회차별 기획 화면의 완성된 1~N화 후보를 '
+            '실제 GGUF 본문 집필에 이번 한 번만 사용')
+        self.use_ai_episode_guide.setObjectName('autoBatchUseAiEpisodeGuide')
+        form.addRow(self.use_ai_episode_guide)
+        self.episode_guide_notice = QLabel(
+            '선택하지 않으면 기존 자동 집필이 자체 회차 플롯을 생성합니다. '
+            '선택하면 다른 화면에서 생성한 미검수 회차 기획을 모델 문맥으로만 '
+            '인계합니다. AI 기획 자체는 작가가 승인한 확정 원고가 아닙니다.')
+        self.episode_guide_notice.setWordWrap(True)
+        form.addRow(self.episode_guide_notice)
         self.target_chars = QSpinBox()
         self.target_chars.setObjectName('autoBatchTargetChars')
         self.target_chars.setRange(50, 50000)
@@ -187,6 +207,8 @@ class AutoBatchPanel(QGroupBox):
             '이번 실행에서만 지정한 로컬 모델로 순차 집필하는 것을 승인합니다')
         self.consent.setObjectName('autoBatchExplicitApproval')
         self.consent.toggled.connect(self._bind_approval)
+        self.use_ai_episode_guide.toggled.connect(
+            lambda _checked: self.consent.setChecked(False))
         self.actual_novel_preset.currentIndexChanged.connect(
             self._apply_actual_novel_preset)
         self.through.valueChanged.connect(self._sync_actual_novel_preset)
@@ -337,6 +359,32 @@ class AutoBatchPanel(QGroupBox):
         self.reference_notice.setText('참고작 미선택: 전수 유사성 검사 NOT_RUN')
         self.consent.setChecked(False)
 
+    def _capture_ai_episode_writing_guidance(self):
+        """This never launches a model; it captures the already-generated plan."""
+        if not self.use_ai_episode_guide.isChecked():
+            return None
+        panel = getattr(self.authoring, 'author_ai_episode_planning_panel', None)
+        if panel is None or panel.is_running():
+            raise AuthorAiNovelGuidanceError(
+                '먼저 기존 로컬 AI 회차별 기획 화면에서 1~N화를 생성하세요.')
+        session = self.authoring.session
+        if session.project_id is None or session.path is None:
+            raise AuthorAiNovelGuidanceError('집필 작품이 선택되지 않았습니다.')
+        project_id = str(session.project_id)
+        identity = (str(session.path), project_id)
+        if (panel._identity != identity or panel._source is None
+                or panel._result is None):
+            raise AuthorAiNovelGuidanceError(
+                '현재 작품의 미검수 AI 회차 기획 결과를 다시 선택하세요.')
+        require_idle_authoring(self.authoring, project_id)
+        guide = prepare_author_ai_novel_guidance(
+            panel._source, panel._result, project_id=project_id,
+            through_episode=self.through.value())
+        require_current_author_ai_novel_guidance(
+            guide, session.store, session.path, project_id,
+            self.through.value())
+        return guide
+
     def _bind_approval(self, checked):
         # Bind the author-initiated consent to the exact existing project,
         # local executable, selected references, and target parameters.
@@ -346,11 +394,17 @@ class AutoBatchPanel(QGroupBox):
             if checked and session.path is not None
             and session.project_id is not None else None)
         self._launch_lease = None
+        self._approved_ai_writing_guidance = None
         if checked:
             try:
+                # The author approves both the model batch and the exact
+                # selected frozen AI episode plan. Changing either revokes it.
+                plan = self._capture_ai_episode_writing_guidance()
                 self._launch_lease = capture_launch_lease(
                     **self._launch_configuration())
-            except (LaunchLeaseError, OSError, ValueError):
+                self._approved_ai_writing_guidance = plan
+            except (LaunchLeaseError, AuthorAiNovelGuidanceError,
+                    LocalHandoffError, OSError, ValueError):
                 self.consent.setChecked(False)
                 self.status.setText(
                     '승인 대상 모델·작품·참고작을 확인할 수 없습니다. 다시 선택하세요.')
@@ -419,6 +473,21 @@ class AutoBatchPanel(QGroupBox):
         except (LaunchLeaseError, OSError, ValueError):
             self.consent.setChecked(False)
             self.status.setText('승인 이후 파일·작품·모델 설정이 바뀌었습니다. 다시 승인하세요.')
+            return
+        # Check the saved user selection *again* immediately before
+        # consuming a one-shot model approval. The plan display can change
+        # after consent without the batch form's controls changing.
+        try:
+            new_guidance = self._capture_ai_episode_writing_guidance()
+            old_guidance = self._approved_ai_writing_guidance
+            if ((new_guidance is None) != (old_guidance is None)
+                    or (new_guidance is not None
+                        and new_guidance.fingerprint != old_guidance.fingerprint)):
+                raise AuthorAiNovelGuidanceError(
+                    'AI 회차 기획 후보가 승인 이후 변경됐습니다.')
+        except (AuthorAiNovelGuidanceError, LocalHandoffError, ValueError, OSError):
+            self.consent.setChecked(False)
+            self.status.setText('AI 회차 기획 선택·작품·미저장 원고가 바뀌었습니다. 다시 승인하세요.')
             return
         explicit_choice = self._explicit_resume_choice
         if explicit_choice is not None and (
@@ -500,7 +569,8 @@ class AutoBatchPanel(QGroupBox):
             scene_checkpoint_root=checkpoint_root,
             scene_checkpoint_lease=checkpoint_fingerprint,
             context_sources=selected_context_sources,
-            explicit_resume_choice=explicit_choice)
+            explicit_resume_choice=explicit_choice,
+            episode_writing_guidance=new_guidance)
         self.worker.progress_changed.connect(
             lambda num, stage: self.status.setText(f'{num}화: {stage}'))
         self.worker.finished_report.connect(self._finished)
