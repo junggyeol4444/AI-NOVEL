@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QFileDialog, QComboBox, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QSpinBox, QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QPlainTextEdit, QPushButton, QSpinBox, QTableWidget, QTableWidgetItem, QVBoxLayout,
 )
 
 from ..author_continuity_coverage import (
     ContinuityCoverageError, build_continuity_coverage,
-    require_current_continuity_coverage,
+    read_continuity_episode_evidence, require_current_continuity_coverage,
 )
 from ..author_continuity_context_handoff import (
     ContinuityContextHandoffError, preview_continuity_context,
@@ -77,6 +77,22 @@ class AuthorContinuityCoveragePanel(QGroupBox):
             '회차', '최종본 글자', '아크', '장면', '사실', '말투', '기억', '근거 변경', '미등록 기록'))
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         root.addWidget(self.table)
+        self.table.currentCellChanged.connect(self.invalidate_detail)
+        self.detail_button = QPushButton('선택 회차의 다섯 기록 전체 근거 열람 (별도 클릭)')
+        self.detail_button.setObjectName('authorContinuityEpisodeEvidence')
+        self.detail_button.clicked.connect(self.show_episode_evidence)
+        root.addWidget(self.detail_button)
+        self.detail_table = QTableWidget(0, 4)
+        self.detail_table.setObjectName('authorContinuityEpisodeEvidenceTable')
+        self.detail_table.setHorizontalHeaderLabels(('기록 종류', '작가 기록', '근거 회차', '근거 상태'))
+        self.detail_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.detail_table.currentCellChanged.connect(self.show_evidence_record)
+        root.addWidget(self.detail_table)
+        self.detail_text = QPlainTextEdit()
+        self.detail_text.setObjectName('authorContinuityEpisodeEvidenceText')
+        self.detail_text.setReadOnly(True)
+        root.addWidget(self.detail_text)
+        self._detail = None
         actions = QHBoxLayout()
         self.stage = QComboBox()
         for label, target in _TARGETS:
@@ -113,6 +129,7 @@ class AuthorContinuityCoveragePanel(QGroupBox):
 
     def invalidate(self, *_args):
         self.invalidate_context()
+        self.invalidate_detail()
         self._identity = self._snapshot = None
         self.table.setRowCount(0)
         self.open_button.setEnabled(False)
@@ -248,3 +265,58 @@ class AuthorContinuityCoveragePanel(QGroupBox):
         self.status.setText(
             f'{lease.episode}화 5종 기록 폴더만 기존 문맥 화면에 선택했습니다. '
             '문맥 미리보기·1회 모델 문맥 동의·배치 실행은 모두 별도 직접 클릭입니다.')
+
+    def invalidate_detail(self, *_args):
+        self._detail = None
+        self.detail_table.setRowCount(0)
+        self.detail_text.clear()
+
+    def show_episode_evidence(self):
+        """별도 클릭: 저장 최종본과 다섯 기록 전체 근거를 표시."""
+        self.invalidate_detail()
+        identity, snapshot = self._identity, self._snapshot
+        index = self.table.currentRow()
+        if identity is None or snapshot is None or not 0 <= index < len(snapshot.rows):
+            self.status.setText('다섯 기록을 조회한 뒤 저장 회차를 선택하세요.')
+            return
+        episode = snapshot.rows[index].episode
+        try:
+            session, current = _current_author_state(self.authoring)
+            if current != identity:
+                raise ContinuityCoverageError('작품이 변경됐습니다.')
+            decision = check_author_navigation(
+                self.authoring, project_identity=identity, episode=episode)
+            if not decision.allowed:
+                self.status.setText(decision.message)
+                return
+            evidence = read_continuity_episode_evidence(
+                session.store, identity[1], coverage=snapshot, episode=episode)
+        except (ContinuityCoverageError, BatchScopeBridgeError,
+                OSError, ValueError, LookupError):
+            self.status.setText('원고·작품·기록이 변경됐거나 저장 최종본이 없습니다. 다시 조회하세요.')
+            return
+        self._detail = evidence
+        self.detail_table.setRowCount(len(evidence.rows))
+        for i, item in enumerate(evidence.rows):
+            values = (item.category, item.label,
+                      str(item.source_episode) if item.source_episode is not None else '작품 설정',
+                      '현재 일치' if item.source_current else '과거 근거 변경')
+            for col, value in enumerate(values):
+                self.detail_table.setItem(i, col, QTableWidgetItem(value))
+        self.detail_text.setPlainText(evidence.final_text)
+        self.status.setText(
+            f'{episode}화 저장 최종본 {len(evidence.final_text)}자, '
+            f'작가 기록 {len(evidence.rows)}건, 과거 근거 불일치 {evidence.changed_sources}건. '
+            '자동 품질 판정·QC PASS·출판 승인이 아닙니다.')
+
+    def show_evidence_record(self, row, _column, *_args):
+        detail = self._detail
+        if detail is None or not 0 <= row < len(detail.rows):
+            return
+        item = detail.rows[row]
+        self.detail_text.setPlainText(
+            f'[작가 기록: {item.category} / {item.label}]\n'
+            f'[근거: {"현재 일치" if item.source_current else "과거 근거 변경"}]\n\n'
+            + item.author_text + '\n\n'
+            + f'[저장 최종본 전체: {detail.episode}화 / revision {detail.revision}]\n'
+            + detail.final_text)

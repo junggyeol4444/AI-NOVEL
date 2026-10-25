@@ -155,3 +155,113 @@ def require_current_continuity_coverage(snapshot: ContinuityCoverageSnapshot,
         folders=snapshot.folders)
     if current.fingerprint != snapshot.fingerprint or current.rows != snapshot.rows:
         raise ContinuityCoverageError('원고 또는 작가 기록이 변경됐습니다. 다시 조회하세요.')
+
+
+@dataclass(frozen=True)
+class ContinuityEpisodeEvidenceRow:
+    category: str
+    label: str
+    author_text: str
+    source_episode: int | None
+    source_current: bool
+
+
+@dataclass(frozen=True)
+class ContinuityEpisodeEvidence:
+    episode: int
+    revision: int
+    final_sha256: str
+    final_text: str
+    rows: tuple[ContinuityEpisodeEvidenceRow, ...]
+    changed_sources: int
+
+
+def read_continuity_episode_evidence(
+    store: EpisodeStore, project_id: str, *,
+    coverage: ContinuityCoverageSnapshot, episode: int,
+) -> ContinuityEpisodeEvidence:
+    """작가 선택 회차의 저장 최종본과 5종 기록 전체를 읽기 전용으로 결합한다."""
+    if type(episode) is not int or not 1 <= episode <= coverage.through_episode:
+        raise ContinuityCoverageError('조회 범위의 저장 회차를 직접 선택하세요.')
+    require_current_continuity_coverage(coverage, store, project_id)
+    summary = coverage.rows[episode - 1]
+    if summary.episode != episode or summary.revision is None:
+        raise ContinuityCoverageError('저장된 회차가 없습니다.')
+    try:
+        saved = {item.episode: item for item in store.list_episodes(project_id)}
+        current = saved.get(episode)
+        if current is None or not current.final_text.strip():
+            raise ContinuityCoverageError('저장 최종본이 없는 회차입니다.')
+        folders = coverage.folders
+        arcs = tuple(x for x in read_author_arcs(folders[0], project_id)
+                     if not x.withdrawn and x.start <= episode <= x.end)
+        scenes = tuple(x for x in read_author_scene_plans(folders[1], project_id)
+                       if not x.revoked and x.episode == episode)
+        facts = tuple(x for x in read_author_facts(folders[2], project_id)
+                      if not x.retracted and x.valid_from <= episode <= x.valid_until)
+        languages = tuple(x for x in read_author_language_rules(folders[3], project_id)
+                          if not x.withdrawn and x.first_episode <= episode <= x.last_episode)
+        memories = tuple(x for x in list_author_memory_deltas(folders[4], project_id)
+                         if not x.retracted and x.valid_from <= episode <= x.valid_through)
+        canon = canon_fingerprint(store, project_id)
+        arc_stamp = arc_ledger_fingerprint(folders[0])
+
+        def current_source(number, revision, digest):
+            item = saved.get(number)
+            return (item is not None and item.revision == revision
+                    and sha256(item.final_text.encode('utf-8')).hexdigest() == digest)
+
+        details = []
+        for x in arcs:
+            details.append(ContinuityEpisodeEvidenceRow(
+                '장편 아크', x.title,
+                f'적용 {x.start}~{x.end}화\n목표: {x.objective}\n갈등: {x.conflict}\n'
+                f'복선: {x.foreshadow}\n해소: {x.resolution}',
+                None, x.canon_sha256 == canon))
+        for x in scenes:
+            beat_text = '\n'.join(
+                f'{i}장면: 목표 {beat.goal} / 갈등 {beat.conflict} / 장소 {beat.place} / '
+                f'포함 {beat.must_include} / 제외 {beat.avoid}'
+                for i, beat in enumerate(x.beats, 1))
+            details.append(ContinuityEpisodeEvidenceRow(
+                '장면 설계', f'{len(x.beats)}장면', beat_text, None,
+                x.canon_sha256 == canon and
+                (x.arc_sha256 is None or x.arc_sha256 == arc_stamp)))
+        for x in facts:
+            details.append(ContinuityEpisodeEvidenceRow(
+                '인물·복선·시간선 사실', f'{x.kind} · {x.subject}',
+                f'속성: {x.predicate}\n작가 기록 값: {x.value}\n'
+                f'적용 {x.valid_from}~{x.valid_until}화',
+                x.source_episode,
+                current_source(x.source_episode, x.source_revision, x.source_sha256)))
+        for x in languages:
+            details.append(ContinuityEpisodeEvidenceRow(
+                '표기·말투', f'{x.kind} · {x.subject}',
+                f'권장: {x.preferred}\n비권장: {", ".join(x.discouraged)}\n'
+                f'작가 지침: {x.guidance}\n적용 {x.first_episode}~{x.last_episode}화',
+                None, x.canon_sha256 == canon))
+        for x in memories:
+            details.append(ContinuityEpisodeEvidenceRow(
+                '장편 기억', f'{x.category} · {x.subject}',
+                f'변화: {x.change}\n적용 {x.valid_from}~{x.valid_through}화',
+                x.source_episode,
+                current_source(x.source_episode, x.source_revision, x.source_sha256)))
+        counts = (len(arcs), len(scenes), len(facts), len(languages), len(memories))
+        expected = (summary.arcs, summary.scene_plans, summary.facts,
+                    summary.language_rules, summary.memory_deltas)
+        stale = sum(not item.source_current for item in details)
+        if counts != expected or stale != summary.stale_sources:
+            raise ContinuityCoverageError('전수 집계와 회차별 근거가 다릅니다. 다시 조회하세요.')
+        result = ContinuityEpisodeEvidence(
+            episode, current.revision, sha256(current.final_text.encode('utf-8')).hexdigest(),
+            current.final_text, tuple(details), stale)
+        require_current_continuity_coverage(coverage, store, project_id)
+        latest = store.get_episode(project_id, episode)
+        if (latest.revision != result.revision or latest.final_text != result.final_text
+                or sha256(latest.final_text.encode('utf-8')).hexdigest() != result.final_sha256):
+            raise ContinuityCoverageError('저장 원고가 변경됐습니다. 다시 조회하세요.')
+        return result
+    except ContinuityCoverageError:
+        raise
+    except (ValueError, OSError, UnicodeError, TypeError, LookupError):
+        raise ContinuityCoverageError('다섯 기록의 회차별 근거를 읽지 못했습니다.') from None
