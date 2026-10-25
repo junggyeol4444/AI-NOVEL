@@ -415,6 +415,7 @@ class AutoBatchPanel(QGroupBox):
             f'검수 필수 {len(result.review_required_episodes)}개. '
             f'저장 초고의 문체 규칙 범위 검사 {result.style_scope_checked_episodes}화'
             '(WARN/FAIL 기록, 품질 합격 아님). '
+            f'실제 로컬 모델 장면 이어쓰기 {result.continuation_model_calls}회. '
             + ('중단 요청 반영됨.' if result.stopped else '비공개 초고만 저장됨.'))
         # Keep existing form edits untouched, but show the newly generated
         # saved episodes in the selector immediately. Preserve selection.

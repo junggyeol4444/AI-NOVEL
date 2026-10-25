@@ -51,6 +51,7 @@ class AutoNovelRunReport:
     stopped: bool
     local_model_invocations: int
     style_scope_checked_episodes: int = 0
+    continuation_model_calls: int = 0
     publisher_called: bool = False
     quality_certified: bool = False
 
@@ -395,6 +396,7 @@ def run_auto_novel(
 
     created, skipped, review = [], [], []
     style_scope_count = 0
+    continuation_calls = 0
     calls, stopped = 0, False
     with EpisodeStore(database_path) as db:
         project = db.get_project(project_id)
@@ -689,6 +691,48 @@ def run_auto_novel(
                             and not revised_repeat.findings)
                         if better_format or better_partial:
                             scene = revised
+                    # A single native generation can be shorter than the
+                    # author's per-scene target. Request bounded, REAL
+                    # continuations from the same approved local model.
+                    # Never pad with templates, lower the target, or mark
+                    # a short scene as quality-approved.
+                    for continuation_index in range(4):
+                        current_screen = screen_korean_draft(
+                            scene, target_chars=per_scene)
+                        remaining = per_scene - current_screen.nonspace_chars
+                        if remaining <= 0:
+                            break
+                        if should_stop is not None and should_stop():
+                            raise InterruptedError()
+                        emit(n, f'장면 {slot.scene_number} 실제 AI 이어쓰기 '
+                             f'{continuation_index + 1}/4')
+                        continuation = model(
+                            n, slot.scene_number,
+                            ('이전 실제 장면 마지막 부분(중복 없이 다음 문장부터 이어 쓰기):\n'
+                             + scene[-1800:] + '\n' + scene_context)[:12000],
+                            f'목표 분량 {min(10000, max(50, remaining))}자 내외의 '
+                            '독창적인 새 소설 문장만 이어서 작성. 앞 문장 재출력 금지. '
+                            '작가 Novel Bible 및 이전 사건의 인과관계를 유지.',
+                            '앞 장면에 이어지는 실제 사건·행동·감정',
+                            f'{genre} 작품의 이어지는 장면',
+                            allocated_scene_chars=min(10000, max(50, remaining)))
+                        continuation_calls += 1
+                        if (not continuation.strip()
+                                or has_foreign_script_corruption(continuation)):
+                            break
+                        # Keep the original model's prose byte-for-byte;
+                        # concatenate only model-generated continuation text.
+                        candidate = scene.rstrip() + '\n\n' + continuation.strip()
+                        if len(candidate.encode('utf-8')) > 80000:
+                            break
+                        candidate_screen = screen_korean_draft(
+                            candidate, target_chars=per_scene)
+                        if (candidate_screen.nonspace_chars <= current_screen.nonspace_chars
+                                or candidate_screen.hangul_syllables <=
+                                    current_screen.hangul_syllables
+                                or check_repetition(project_id, n, candidate).findings):
+                            break
+                        scene = candidate
                     record_unapproved_stage(slot.scene_number, scene)
                     drafts.append(scene)
             except InterruptedError:
@@ -828,4 +872,5 @@ def run_auto_novel(
             emit(n, '미승인 초고 저장 및 수동 검수 대기')
     return AutoNovelRunReport(through_episode, tuple(created), tuple(skipped),
                               tuple(review), stopped, calls,
-                              style_scope_checked_episodes=style_scope_count)
+                              style_scope_checked_episodes=style_scope_count,
+                              continuation_model_calls=continuation_calls)
