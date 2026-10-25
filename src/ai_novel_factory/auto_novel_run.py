@@ -21,7 +21,9 @@ from .continuity_memory_window import (
 )
 from .scene_resume_binding import SceneResumeScope, require_explicit_scene_resume
 from .author_scene_checkpoint_integrity import SceneStageChoice
-from .scene_checkpoint_store import SceneCheckpointError
+from .scene_checkpoint_store import (
+    SceneCheckpointError, FINAL_EPISODE_TAIL_STAGE,
+)
 from .author_context_envelope import (
     AuthorContextSources, compose_author_context, require_unchanged_author_sources,
 )
@@ -860,6 +862,26 @@ def run_auto_novel(
                     record_unapproved_stage(slot.scene_number, scene)
                     drafts.append(scene)
 
+                # If a previous approved run finished the FINAL real
+                # scene's length continuations but was interrupted before
+                # SQLite persistence, recover that immutable complete scene.
+                # Ordinary scene-stage snapshots cannot contain these tail
+                # calls, so replaying only them silently loses written prose.
+                cached_final_scene = (
+                    checkpoint.load_stage(FINAL_EPISODE_TAIL_STAGE)
+                    if checkpoint is not None else None)
+                if cached_final_scene is not None:
+                    original_last_scene = drafts[-1]
+                    if not (
+                        cached_final_scene == original_last_scene
+                        or cached_final_scene.startswith(
+                            original_last_scene.rstrip() + '\n\n')
+                    ):
+                        raise AutoNovelRunError(
+                            '회차 최종 장면 임시 기록이 기존 장면과 일치하지 '
+                            '않습니다. 자동 재개하지 않고 작가 확인을 기다립니다.')
+                    drafts[-1] = cached_final_scene
+                    emit(n, '회차 최종 이어쓰기 임시 기록을 원문 그대로 복원')
                 # The author requested ~5000 REAL Korean prose characters per
                 # episode, not a collection of undersized scene summaries.
                 # Per-scene native calls and four continuations may still
@@ -868,7 +890,8 @@ def run_auto_novel(
                 # No template filler, quality-PASS, new source novel, or
                 # alteration of the author's saved prior manuscript is allowed.
                 # A persistently short output remains WARN and human-review.
-                for chapter_tail_pass in range(6):
+                for chapter_tail_pass in range(
+                        0 if cached_final_scene is not None else 6):
                     actual = '\n\n'.join(drafts)
                     actual_screen = screen_korean_draft(
                         actual, target_chars=target_chars)
@@ -916,6 +939,17 @@ def run_auto_novel(
                         # duplicated, foreign-script, or empty model output.
                         break
                     drafts[-1] = last_scene
+
+                # Append-only, separately keyed final-stage checkpoint.
+                # It is stored only after all bounded real model continuation
+                # calls have finished, never before; a crash between here
+                # and the SQLite transaction can now resume the exact prose
+                # instead of silently discarding the generated ending.
+                # Source stamp and user-approved checkpoint lease are
+                # rechecked by record_unapproved_stage before writing.
+                if checkpoint is not None and cached_final_scene is None:
+                    record_unapproved_stage(
+                        FINAL_EPISODE_TAIL_STAGE, drafts[-1])
             except InterruptedError:
                 stopped = True
                 break

@@ -18,6 +18,10 @@ from typing import Any
 MAX_STAGE_BYTES = 500_000
 MAX_STAGE_FILE_BYTES = 800_000
 MAX_SCENES = 20
+# An immutable final-scene snapshot is separate from ordinary 1..20
+# scene checkpoints. It captures real local-GGUF chapter-tail continuations
+# before the complete unapproved chapter is atomically saved in SQLite.
+FINAL_EPISODE_TAIL_STAGE = MAX_SCENES + 1
 
 
 class SceneCheckpointError(ValueError):
@@ -94,7 +98,7 @@ class SceneCheckpointStore:
                             + f'_{self.episode:04d}_' + self._key[:32])
 
     def _stage_path(self, stage: int) -> Path:
-        if type(stage) is not int or not 0 <= stage <= MAX_SCENES:
+        if type(stage) is not int or not 0 <= stage <= FINAL_EPISODE_TAIL_STAGE:
             raise SceneCheckpointError('장면 번호가 올바르지 않습니다.')
         return self.directory / f'{stage:02d}.json'
 
