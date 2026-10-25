@@ -4,6 +4,12 @@ from pathlib import Path
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QSpinBox, QTableWidget, QTableWidgetItem, QPushButton, QCheckBox,
     QFileDialog, QListWidget)
+from ..author_full_plan_preview import (
+    AuthorFullPlanError, author_full_plan_scenes,
+    require_current_author_full_plan,
+)
+from ..project_local_handoff import LocalHandoffError, require_idle_authoring
+from .author_batch_scope_bridge import BatchScopeBridgeError, _current_author_state
 from ..author_scene_plan import (AuthorScenePlanError, save_author_scene_plan,
     revoke_author_scene_plan, read_author_scene_plans, scene_plan_fingerprint)
 
@@ -53,6 +59,52 @@ class AuthorScenePlanPanel(QGroupBox):
         self.episode.valueChanged.connect(self._changed)
         self.table.cellChanged.connect(self._changed)
         self.batch_consent.toggled.connect(self._bind_batch)
+
+    def accept_full_plan_selection(self, snapshot, episode: int, identity) -> bool:
+        """작가가 기획화면에서 별도로 클릭한 회차·장면 칸 수만 받는다."""
+        try:
+            session, current = _current_author_state(self.authoring)
+            if current != identity:
+                raise AuthorFullPlanError('작품이 변경됐습니다.')
+            require_idle_authoring(self.authoring, str(session.project_id))
+            require_current_author_full_plan(
+                snapshot, session.store, str(session.project_id))
+            slots = author_full_plan_scenes(snapshot, episode)
+            # Previously typed but unsaved scene text remains the author's.
+            # Never replace even one nonempty cell when switching episodes.
+            for row in range(self.table.rowCount()):
+                for col in range(self.table.columnCount()):
+                    item = self.table.item(row, col)
+                    if item is not None and item.text().strip():
+                        self.status.setText(
+                            '미저장 장면 입력이 있어 기존 선택을 보존했습니다. '
+                            '직접 정리한 뒤 다시 인계하세요.')
+                        return False
+            if self.folder is not None:
+                current_plans = read_author_scene_plans(
+                    self.folder, str(session.project_id))
+                if any(p.episode == episode and not p.revoked for p in current_plans):
+                    self.status.setText(
+                        '이 회차에는 이미 저장된 작가 장면 계획이 있습니다. '
+                        '새 빈 칸으로 덮어쓰지 않습니다.')
+                    return False
+            self.batch_consent.setChecked(False)
+            self.revoke_consent.setChecked(False)
+            self.save_consent.setChecked(False)
+            self.episode.setValue(episode)
+            self.scenes.setValue(len(slots))
+            self.table.setRowCount(len(slots))
+            self.status.setText(
+                f'{episode}화의 장면 {len(slots)}개 빈 칸을 준비했습니다. '
+                'Novel Bible을 읽고 실제 목표·갈등·장소·필수 사건을 '
+                '작가가 직접 입력한 뒤 별도 클릭으로 저장하세요. '
+                'AI 생성·원고 저장·출판 승인 없음.')
+            return True
+        except (AuthorFullPlanError, LocalHandoffError, BatchScopeBridgeError,
+                AuthorScenePlanError, ValueError, OSError):
+            self.status.setText(
+                '작품 설정·원고·장면 기록이 변경됐습니다. 기존 입력을 보존했습니다.')
+            return False
 
     def _changed(self, *args):
         self.save_consent.setChecked(False)

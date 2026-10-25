@@ -77,6 +77,10 @@ class AuthorArcPanel(QGroupBox):
         fill_arc.setObjectName('authorFullPlanFillArc')
         fill_arc.clicked.connect(self.prefill_full_plan_arc)
         plan_root.addWidget(fill_arc)
+        handoff_scene = QPushButton('현재 회차 계획을 기존 장면 설계표로 넘기기 (자동 저장 없음)')
+        handoff_scene.setObjectName('authorFullPlanToSceneEditor')
+        handoff_scene.clicked.connect(self.handoff_full_plan_scene)
+        plan_root.addWidget(handoff_scene)
         root.addWidget(plan_group)
         for spin in (self.full_through, self.full_arc_count, self.full_scene_count):
             spin.valueChanged.connect(self.invalidate_full_plan)
@@ -276,6 +280,38 @@ class AuthorArcPanel(QGroupBox):
             '현재 아크 범위만 수동 입력칸에 옮겼습니다. '
             '갈등·복선·해소 및 목표를 작가가 수정하고 '
             '별도 저장 승인을 눌러야 기록됩니다. SQLite/JSON 변경 없음.')
+
+    def handoff_full_plan_scene(self):
+        snapshot, identity = self._full_plan, self._full_plan_identity
+        episode = self.full_episode.value()
+        if snapshot is None or identity is None:
+            self.full_plan_status.setText('전체 회차 기획을 먼저 직접 조회하세요.')
+            return
+        try:
+            session, current = _current_author_state(self.authoring)
+            require_idle_authoring(self.authoring, str(session.project_id))
+            if current != identity:
+                raise AuthorFullPlanError('작품이 변경됐습니다.')
+            require_current_author_full_plan(
+                snapshot, session.store, str(session.project_id))
+            author_full_plan_scenes(snapshot, episode)
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            if hub is None or not hub.open_feature(
+                    'author_scene_plan_panel', project_identity=identity):
+                raise AuthorFullPlanError('기존 장면 설계표를 열 수 없습니다.')
+            panel = getattr(self.authoring, 'author_scene_plan_panel', None)
+            if panel is None or not panel.accept_full_plan_selection(
+                    snapshot, episode, identity):
+                raise AuthorFullPlanError('기존 장면 입력칸에 미저장 내용이 있습니다.')
+        except (AuthorFullPlanError, BatchScopeBridgeError,
+                LocalHandoffError, ValueError, OSError):
+            self.full_plan_status.setText(
+                '작품·원고·장면 편집 상태가 변경됐거나 기존 입력이 있습니다. '
+                '자동 덮어쓰기 없이 종료했습니다.')
+            return
+        self.full_plan_status.setText(
+            f'{episode}화와 장면 {snapshot.scene_count}개 선택을 기존 설계표에 전달했습니다. '
+            '장면 목표·갈등·장소 입력 및 별도 저장은 작가가 직접 해야 합니다.')
 
     def _project(self):
         session=self.authoring.session
