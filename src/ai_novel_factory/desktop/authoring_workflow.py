@@ -291,7 +291,10 @@ class AuthoringWorkflowWidget(AuthoringControls, QWidget):
     def is_generating(self):
         scene_active = self._draft_worker is not None and self._draft_worker.isRunning()
         planner = getattr(self, 'author_ai_planning_panel', None)
-        return scene_active or bool(planner is not None and planner.is_running())
+        episode_planner = getattr(self, 'author_ai_episode_planning_panel', None)
+        return (scene_active
+                or bool(planner is not None and planner.is_running())
+                or bool(episode_planner is not None and episode_planner.is_running()))
 
     def _generate(self):
         if self.is_generating():
