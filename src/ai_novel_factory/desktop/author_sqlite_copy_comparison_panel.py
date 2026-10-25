@@ -18,7 +18,8 @@ from ai_novel_factory.author_sqlite_chapter_delta import (
 )
 from .author_navigation_contract import select_saved_episode
 from ai_novel_factory.project_local_handoff import (
-    LocalHandoffError, require_idle_authoring,
+    LocalHandoffError, NewCopyHandoff,
+    require_idle_authoring, require_new_copy_handoff,
 )
 
 
@@ -28,6 +29,7 @@ class AuthorSqliteCopyComparisonPanel(QGroupBox):
         self.authoring = authoring
         self._copy = ''
         self._receipt = ''
+        self._new_copy_handoff = None
         self._snapshot = None
         self._identity = None
         self._chapter_delta = None
@@ -136,14 +138,40 @@ class AuthorSqliteCopyComparisonPanel(QGroupBox):
     def choose_copy(self):
         path, _ = QFileDialog.getOpenFileName(self, '새 복원 사본 선택', '', 'SQLite (*.sqlite *.db)')
         if path:
+            self._new_copy_handoff = None
             self._copy = path
             self.invalidate()
 
     def choose_receipt(self):
         path, _ = QFileDialog.getOpenFileName(self, '새 사본 SHA 기록 선택', '', 'JSON (*.json)')
         if path:
+            self._new_copy_handoff = None
             self._receipt = path
             self.invalidate()
+
+    def accept_new_copy_handoff(self, handoff: NewCopyHandoff) -> bool:
+        """복원 화면이 생성한 사본/기록만 선택한다. DB 대조·열기는 실행 안 함."""
+        try:
+            if type(handoff) is not NewCopyHandoff:
+                raise LocalHandoffError('기존 새 사본 인계 정보가 올바르지 않습니다.')
+            session = self.authoring.session
+            if (session.path is None or
+                    str(session.project_id) != handoff.project_id):
+                raise LocalHandoffError('작품 선택이 변경되었습니다.')
+            require_idle_authoring(self.authoring, handoff.project_id)
+            require_new_copy_handoff(handoff)
+        except (LocalHandoffError, ValueError, OSError):
+            self.status.setText('사본·원고·작품 정보가 달라 선택하지 않았습니다.')
+            return False
+        self.invalidate()
+        self._new_copy_handoff = handoff
+        self._copy = str(handoff.copy)
+        self._receipt = str(handoff.receipt)
+        self.status.setText(
+            '생성한 새 사본·SHA 기록만 선택했습니다. '
+            '내용 대조는 아래 첫 클릭 버튼에서 별도 실행하세요. '
+            '원본/사본을 수정하지 않았습니다.')
+        return True
 
     def compare(self):
         self.invalidate()
@@ -154,6 +182,12 @@ class AuthorSqliteCopyComparisonPanel(QGroupBox):
             project_id = str(session.project_id)
             require_idle_authoring(self.authoring, project_id)
             identity = (str(session.path), project_id)
+            if self._new_copy_handoff is not None:
+                require_new_copy_handoff(self._new_copy_handoff)
+                if (self._new_copy_handoff.project_id != project_id
+                        or str(self._new_copy_handoff.copy) != self._copy
+                        or str(self._new_copy_handoff.receipt) != self._receipt):
+                    raise LocalHandoffError('새 사본/기록 선택이 변경됐습니다.')
             snapshot = compare_author_sqlite_copy(
                 session.path, self._copy, self._receipt, project_id)
         except (AuthorCopyComparisonError, LocalHandoffError, ValueError, OSError):

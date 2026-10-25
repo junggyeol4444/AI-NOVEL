@@ -53,6 +53,11 @@ class ProjectRestorePanel(QGroupBox):
         handoff.setObjectName('restoreCopyToReopenHandoff')
         handoff.clicked.connect(self.handoff_copy_to_reopen)
         layout.addWidget(handoff)
+        compare_handoff = QPushButton(
+            '생성한 새 사본을 원본·사본 전체 내용 대조로 인계 (대조 자동 실행 없음)')
+        compare_handoff.setObjectName('restoreCopyToComparisonHandoff')
+        compare_handoff.clicked.connect(self.handoff_copy_to_comparison)
+        layout.addWidget(compare_handoff)
         self.status = QLabel('백업 파일·기록을 직접 선택하세요. 출판·자동 복원 없음.')
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
@@ -166,3 +171,30 @@ class ProjectRestorePanel(QGroupBox):
             self.status.setText('새 사본 선택만 기존 재열기 화면에 인계했습니다. 실제 열기는 별도 클릭해야 합니다.')
         except (LocalHandoffError, OSError, ValueError):
             self.status.setText('사본 SHA·작품·원고 상태가 변경됐습니다. 다시 확인하세요.')
+
+    def handoff_copy_to_comparison(self):
+        """작가가 직접 생성한 새 사본만 기존 읽기 전용 대조 화면에 전달."""
+        receipt, project_id = self._receipt, self._copy_project_id
+        if receipt is None or project_id is None:
+            self.status.setText('먼저 이번 화면에서 새 SQLite 사본을 직접 생성하세요.')
+            return
+        try:
+            require_idle_authoring(self.authoring, project_id)
+            lease = prepare_new_copy_handoff(receipt, project_id)
+            session = self.authoring.session
+            identity = (str(session.path), str(session.project_id))
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            if hub is None or not hub.open_feature(
+                    'author_sqlite_copy_comparison_panel',
+                    project_identity=identity):
+                raise LocalHandoffError('기존 원본·사본 대조 화면을 열지 못했습니다.')
+            target = getattr(
+                self.authoring, 'author_sqlite_copy_comparison_panel', None)
+            if target is None or not target.accept_new_copy_handoff(lease):
+                raise LocalHandoffError('사본 대조용 선택 인계를 보류했습니다.')
+            self.status.setText(
+                '새 사본과 생성 SHA 기록 선택만 읽기 전용 대조 화면에 전달했습니다. '
+                '원본·사본 실제 비교는 해당 화면에서 별도 클릭으로 시작하세요.')
+        except (LocalHandoffError, ProjectRestoreError, OSError, ValueError):
+            self.status.setText(
+                '작품·원고·사본 SHA 기록이 변경되어 대조 선택을 인계하지 않았습니다.')
