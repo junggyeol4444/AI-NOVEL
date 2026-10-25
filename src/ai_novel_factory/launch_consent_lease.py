@@ -11,6 +11,8 @@ from hashlib import sha256
 from pathlib import Path
 import json
 
+from .references.element_selection import FEATURE_KEYS
+
 
 class LaunchLeaseError(ValueError):
     """Errors are deliberately free of private local paths and source text."""
@@ -51,6 +53,7 @@ def _fingerprint(
     *, database_path: str, project_id: str, executable: str, arguments: str,
     through_episode: int, target_chars: int, scenes_per_episode: int,
     reference_paths: tuple[str, ...],
+    reference_metric_keys: tuple[str, ...] = (),
 ) -> str:
     if (not all(type(s) is str and s for s in
                 (database_path, project_id, executable))
@@ -58,6 +61,11 @@ def _fingerprint(
             or type(reference_paths) is not tuple
             or len(reference_paths) > 100
             or len(set(reference_paths)) != len(reference_paths)
+            or type(reference_metric_keys) is not tuple
+            or len(reference_metric_keys) > len(FEATURE_KEYS)
+            or len(reference_metric_keys) != len(set(reference_metric_keys))
+            or any(type(key) is not str or key not in FEATURE_KEYS
+                   for key in reference_metric_keys)
             or type(through_episode) is not int or not 1 <= through_episode <= 1000
             or type(target_chars) is not int or not 50 <= target_chars <= 50000
             or type(scenes_per_episode) is not int or not 1 <= scenes_per_episode <= 20):
@@ -79,7 +87,7 @@ def _fingerprint(
         refs.append((str(Path(path).resolve()), _file_fingerprint(path, max_bytes=32*1024*1024)))
     payload = (str(Path(database_path).resolve()), project_id,
                executable, arguments, through_episode, target_chars,
-               scenes_per_episode, tuple(refs))
+               scenes_per_episode, tuple(refs), reference_metric_keys)
     return sha256(json.dumps(payload, ensure_ascii=False,
                              separators=(',', ':')).encode('utf-8')).hexdigest()
 

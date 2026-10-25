@@ -347,6 +347,7 @@ def run_auto_novel(
     progress: Callable[[int, str], None] | None = None,
     should_stop: Callable[[], bool] | None = None,
     reference_paths: tuple[str, ...] = (),
+    reference_metric_keys: tuple[str, ...] | None = None,
     reference_catalog_path: str | Path | None = None,
     scene_checkpoint_root: str | Path | None = None,
     scene_checkpoint_lease: str | None = None,
@@ -392,7 +393,8 @@ def run_auto_novel(
         # Metadata/profile persistence is separate from manuscript SQLite.
         reference_batch = prepare_reference_batch(
             reference_paths, catalog_path=reference_catalog_path,
-            manuscript_database_path=database_path)
+            manuscript_database_path=database_path,
+            selected_metric_keys=reference_metric_keys)
 
     created, skipped, review = [], [], []
     style_scope_count = 0

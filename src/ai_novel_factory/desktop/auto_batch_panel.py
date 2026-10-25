@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from ai_novel_factory.auto_novel_run import run_auto_novel, AutoNovelRunError
 from ai_novel_factory.local_models import LocalExecutableProvider, LocalModelError
 from ai_novel_factory.reference_batch_context import ReferenceBatchError
+from ai_novel_factory.references.element_selection import FEATURE_KEYS, FEATURE_LABELS
 from ai_novel_factory.launch_consent_lease import (
     LaunchLeaseError, capture_launch_lease, verify_launch_lease,
 )
@@ -38,7 +39,8 @@ class AutoBatchWorker(QThread):
     failed = Signal(str)
 
     def __init__(self, database_path, project_id, provider, target, chars,
-                 scenes, parent=None, *, reference_paths=(), catalog_path=None, batch_receipt=None,
+                 scenes, parent=None, *, reference_paths=(), reference_metric_keys=None,
+                 catalog_path=None, batch_receipt=None,
                  scene_checkpoint_root=None, scene_checkpoint_lease=None,
                  context_sources=None, explicit_resume_choice=None):
         super().__init__(parent)
@@ -49,6 +51,7 @@ class AutoBatchWorker(QThread):
         self.chars = chars
         self.scenes = scenes
         self.reference_paths = tuple(reference_paths)
+        self.reference_metric_keys = reference_metric_keys
         self.catalog_path = catalog_path
         self.batch_receipt = batch_receipt
         self.scene_checkpoint_root = scene_checkpoint_root
@@ -67,6 +70,7 @@ class AutoBatchWorker(QThread):
                 progress=lambda n, step: self.progress_changed.emit(n, step),
                 should_stop=self.stop_requested.is_set,
                 reference_paths=self.reference_paths,
+                reference_metric_keys=self.reference_metric_keys,
                 reference_catalog_path=self.catalog_path,
                 scene_checkpoint_root=self.scene_checkpoint_root,
                 scene_checkpoint_lease=self.scene_checkpoint_lease,
@@ -152,11 +156,23 @@ class AutoBatchPanel(QGroupBox):
         self.reference_notice = QLabel('참고작 미선택: 전수 유사성 검사 NOT_RUN')
         self.reference_notice.setWordWrap(True)
         form.addRow(self.reference_notice)
+        self.metric_checks = {}
+        for key in FEATURE_KEYS:
+            control = QCheckBox('통계 참고: ' + FEATURE_LABELS[key])
+            control.setObjectName('autoBatchReferenceMetric_' + key)
+            control.setChecked(key in (
+                'dialogue_ratio', 'sentence_characters',
+                'event_cue_density_per_1000', 'cliffhanger_episode_rate'))
+            self.metric_checks[key] = control
+            form.addRow(control)
         self.consent = QCheckBox(
             '이번 실행에서만 지정한 로컬 모델로 순차 집필하는 것을 승인합니다')
         self.consent.setObjectName('autoBatchExplicitApproval')
         self.consent.toggled.connect(self._bind_approval)
         root.addWidget(self.consent)
+        for control in self.metric_checks.values():
+            control.toggled.connect(lambda _checked: self.consent.setChecked(False))
+            control.toggled.connect(lambda _checked: self.clear_explicit_scene_resume())
         # Approval is for the CURRENT model, its arguments, and this exact
         # chapter configuration. Editing any of them revokes the earlier
         # batch approval before a worker can launch a different executable.
@@ -258,6 +274,10 @@ class AutoBatchPanel(QGroupBox):
                 self.status.setText(
                     '승인 대상 모델·작품·참고작을 확인할 수 없습니다. 다시 선택하세요.')
 
+    def _selected_metric_keys(self) -> tuple[str, ...]:
+        """작가가 허용한 통계 항목만 실제 집필 문맥에 전달."""
+        return tuple(key for key in FEATURE_KEYS if self.metric_checks[key].isChecked())
+
     def _launch_configuration(self):
         session = self.authoring.session
         return {
@@ -269,6 +289,7 @@ class AutoBatchPanel(QGroupBox):
             'target_chars': self.target_chars.value(),
             'scenes_per_episode': self.scenes.value(),
             'reference_paths': self.reference_paths,
+            'reference_metric_keys': self._selected_metric_keys(),
         }
 
     def refresh_defaults(self):
@@ -391,6 +412,7 @@ class AutoBatchPanel(QGroupBox):
             str(session.path), str(session.project_id), provider,
             self.through.value(), self.target_chars.value(), self.scenes.value(),
             self, reference_paths=self.reference_paths,
+            reference_metric_keys=self._selected_metric_keys(),
             catalog_path=(default_local_catalog_path() if self.reference_paths else None),
             batch_receipt=receipt,
             scene_checkpoint_root=checkpoint_root,

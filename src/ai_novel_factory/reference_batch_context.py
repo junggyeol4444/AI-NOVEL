@@ -12,6 +12,8 @@ from hashlib import sha256
 from pathlib import Path
 from statistics import mean
 
+from .references.element_selection import FEATURE_KEYS, FEATURE_LABELS
+
 from .database.reference_catalog import ReferenceCatalog
 from .database.reference_profiles import ReferenceProfileStore
 from .reference_similarity_checker import (
@@ -45,6 +47,7 @@ class PreparedReferenceBatch:
     raw_text_persisted: bool = False
     model_receives_reference_prose: bool = False
     publication_approved: bool = False
+    selected_metric_keys: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -70,12 +73,22 @@ def _selected_path(value: object) -> Path:
 def prepare_reference_batch(
     selected_paths: tuple[str, ...], *, catalog_path: str | Path,
     manuscript_database_path: str | Path,
+    selected_metric_keys: tuple[str, ...] | None = None,
 ) -> PreparedReferenceBatch:
     """Preflight ALL explicitly selected formats before saving any metadata.
 
     This is invoked only from the author's approved batch-start action. The
     reference catalog is separate from the user's manuscript SQLite file.
     """
+    if selected_metric_keys is None:
+        selected_metric_keys = ('dialogue_ratio', 'sentence_characters',
+                                'event_cue_density_per_1000', 'cliffhanger_episode_rate')
+    if (type(selected_metric_keys) is not tuple
+            or len(selected_metric_keys) > len(FEATURE_KEYS)
+            or len(selected_metric_keys) != len(set(selected_metric_keys))
+            or any(type(key) is not str or key not in FEATURE_KEYS
+                   for key in selected_metric_keys)):
+        raise ReferenceBatchError('참고 통계 항목을 다시 선택하세요.')
     if (type(selected_paths) is not tuple or not 1 <= len(selected_paths) <= 100
             or len(set(selected_paths)) != len(selected_paths)):
         raise ReferenceBatchError('참고작은 중복 없이 1~100개 직접 선택해야 합니다.')
@@ -135,18 +148,31 @@ def prepare_reference_batch(
         raise
     except (OSError, ValueError):
         raise ReferenceBatchError('참고작 분석 통계를 저장하지 못했습니다.') from None
-    observed = [row[4] for row in staged]
+    observed = tuple(row[4] for row in staged)
+    numeric = {
+        'dialogue_ratio': mean(p.dialogue_ratio for p in observed),
+        'sentence_characters': mean(p.average_sentence_characters for p in observed),
+        'lexical_diversity': mean(p.lexical_diversity for p in observed),
+        'emotion_balance': mean(p.emotion_balance for p in observed),
+        'cliffhanger_episode_rate': mean(
+            p.cliffhanger_candidate_episodes / p.episode_count for p in observed),
+        'event_cue_density_per_1000': mean(
+            p.event_cue_density_per_1000 for p in observed),
+    }
+    selected_lines = tuple(
+        f'{FEATURE_LABELS[key]}: {numeric[key]:.4f}'
+        for key in FEATURE_KEYS if key in selected_metric_keys)
     aggregate = (
-        f'선택한 참고작 {len(observed)}종의 통계적 관찰(작가 Novel Bible/Style Bible 우선, '
-        '원문 문장·고유명사·고유 설정 복제 금지): '
-        f'대사 비율 평균 {mean(p.dialogue_ratio for p in observed):.3f}; '
-        f'평균 문장 길이 {mean(p.average_sentence_characters for p in observed):.1f}자; '
-        f'사건 단서 밀도 {mean(p.event_cue_density_per_1000 for p in observed):.2f}/천자; '
-        f'후킹 후보 회차 비율 '
-        f'{mean(p.cliffhanger_candidate_episodes / p.episode_count for p in observed):.3f}. '
-        '참고 통계는 미검수이며 창작물 유사성 통과·출판 승인을 뜻하지 않음.'
+        f'직접 선택한 참고작 {len(observed)}종의 익명 통계 관찰. '
+        '작가 Novel Bible·Style Bible 우선. 원문 문장·고유명사·고유 설정·'
+        '작가 문체 복제 금지. 통계는 집필 목표나 품질 기준이 아님. '
+        + ('; '.join(selected_lines) if selected_lines else
+           '참고 통계 전달 항목 미선택')
+        + '. 별도 검수 전 QC PASS·출판 승인 아님.'
     )
-    return PreparedReferenceBatch(catalog_path, tuple(references), aggregate)
+    return PreparedReferenceBatch(
+        catalog_path, tuple(references), aggregate,
+        selected_metric_keys=selected_metric_keys)
 
 
 def verify_reference_batch(batch: PreparedReferenceBatch) -> None:
