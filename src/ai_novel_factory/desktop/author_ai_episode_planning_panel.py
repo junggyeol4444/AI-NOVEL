@@ -9,7 +9,7 @@ from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QGroupBox, QVBoxLayout, QFormLayout, QSpinBox, QLabel,
     QCheckBox, QPushButton, QListWidget, QPlainTextEdit, QFileDialog,
-    QTableWidget, QTableWidgetItem,
+    QTableWidget, QTableWidgetItem, QComboBox,
 )
 from ai_novel_factory.author_ai_planning import (
     AuthorAiPlanningError, capture_author_ai_planning_source,
@@ -71,8 +71,10 @@ class AuthorAiEpisodePlanningPanel(QGroupBox):
         self._manual_beats = {}
         root = QVBoxLayout(self)
         notice = QLabel(
-            '저장된 작품 설정·인물로 연속 최대 20화의 회차별 AI 기획 후보를 '
-            '기존 승인 로컬 실행기로 생성합니다. 이 기능은 회차 원고 생성·'
+            '저장된 작품 설정·인물로 연속 최대 250화의 회차별 AI 기획 후보를 '
+            '기존 승인 로컬 실행기로 생성합니다. 30·100·250화 지원. '
+            '실제 생성량이 많을수록 승인 로컬 모델 호출도 늘어납니다. '
+            '이 기능은 회차 원고 생성·'
             'SQLite 저장·작가 검수·출판이 아닙니다. '
             '선택한 실행 파일의 외부 통신 여부는 제공자와 확인하세요.')
         notice.setWordWrap(True)
@@ -83,12 +85,20 @@ class AuthorAiEpisodePlanningPanel(QGroupBox):
         self.first.setValue(1)
         self.first.setObjectName('authorAiEpisodeFirst')
         form.addRow('첫 회차', self.first)
+        self.batch_preset = QComboBox()
+        self.batch_preset.setObjectName('authorAiEpisodeBatchPreset')
+        self.batch_preset.addItem('직접 회차 범위 설정', 0)
+        self.batch_preset.addItem('30화 범위', 30)
+        self.batch_preset.addItem('100화 범위', 100)
+        self.batch_preset.addItem('250화 범위', 250)
+        form.addRow('장편 기획 범위', self.batch_preset)
         self.last = QSpinBox()
         self.last.setRange(1, 1000)
         self.last.setValue(10)
         self.last.setObjectName('authorAiEpisodeLast')
-        form.addRow('마지막 회차 (최대 20화)', self.last)
+        form.addRow('마지막 회차 (한 번에 최대 250화)', self.last)
         root.addLayout(form)
+        self.batch_preset.currentIndexChanged.connect(self._apply_preset)
         self.consent = QCheckBox(
             '선택한 회차 기획에 대해 기존 로컬 모델을 이번 한 번만 실행하는 데 동의')
         self.consent.setObjectName('authorAiEpisodeConsent')
@@ -152,6 +162,16 @@ class AuthorAiEpisodePlanningPanel(QGroupBox):
         self.first.valueChanged.connect(self.invalidate)
         self.last.valueChanged.connect(self.invalidate)
 
+    def _apply_preset(self, *_args):
+        count = self.batch_preset.currentData()
+        if type(count) is int and count:
+            self.last.setValue(min(1000, self.first.value() + count - 1))
+            self.invalidate()
+            if self.first.value() + count - 1 > 1000:
+                self.status.setText(
+                    '저장된 회차 상한 1000화 안에서만 선택했습니다. '
+                    '현재 범위를 직접 확인하고 별도 실행 승인하세요.')
+
     def is_running(self):
         return self._worker is not None and self._worker.isRunning()
 
@@ -206,8 +226,10 @@ class AuthorAiEpisodePlanningPanel(QGroupBox):
             self.status.setText('이번 회차 기획 승인과 로컬 모델 실행 승인이 모두 필요합니다.')
             return
         first, last = self.first.value(), self.last.value()
-        if not 1 <= first <= last <= 1000 or last - first >= 20:
-            self.status.setText('연속된 1~20개 회차만 선택하세요.')
+        if not 1 <= first <= last <= 1000 or last - first >= 250:
+            self.status.setText(
+                '연속된 1~250개 회차만 선택하세요. '
+                '251~1000화는 250화 이내 구간으로 나누어 따로 승인하세요.')
             return
         try:
             session, identity = _current_author_state(self.authoring)
@@ -275,8 +297,9 @@ class AuthorAiEpisodePlanningPanel(QGroupBox):
         self.resume_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.status.setText(
-            f'기존 승인 모델로 {first}~{last}화 기획 후보 생성 중. '
-            '원고·SQLite·출판 상태는 변경하지 않습니다.')
+            f'기존 승인 모델로 {first}~{last}화 기획 후보 '
+            f'{last-first+1}회 모델 호출 범위. '
+            '장편 기획만 생성하며 원고·SQLite·출판 상태는 변경하지 않습니다.')
         worker.start()
 
     def request_stop(self):

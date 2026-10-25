@@ -1,6 +1,6 @@
 """기존 작가 설정과 승인한 실제 로컬 모델을 이용한 회차별 AI 기획 후보.
 
-1회에 연속 최대 20화. 원본 Novel Bible/인물은 읽기만 하며
+1회에 연속 최대 250화(30·100·250화 지원). 원본 Novel Bible/인물은 읽기만 하며
 참고작 원문·실제 회차 원고·SQLite·출판을 자동으로 수정하지 않는다.
 """
 from __future__ import annotations
@@ -12,6 +12,41 @@ from .author_ai_planning import AuthorAiPlanningSource, AuthorAiPlanningError
 from .local_models import (
     LocalExecutableProvider, SceneDraftRequest, draft_scene,
 )
+
+
+MAX_AUTHOR_PLAN_BATCH_EPISODES = 250
+
+
+def _bounded_episode_history(drafts: list[tuple[int, str]]) -> str:
+    """실제 AI가 만든 미검수 기획만 축약해 1화·장기 체크포인트·최근 회차를 이어준다.
+
+    원본 기획 후보 메모리는 수정하지 않으며, 장편 앞부분 앵커와 최근
+    회차를 함께 전달한다. 참고작 문장은 이 경로로 들어오지 않는다.
+    """
+    if not drafts:
+        return ''
+    anchors = [drafts[0]]
+    checkpoints = [row for row in drafts[1:-2] if row[0] % 25 == 0]
+    selected = anchors + checkpoints[-4:] + drafts[max(1, len(drafts)-2):]
+    dedup = {}
+    for number, body in selected:
+        dedup[number] = body
+    excerpts = []
+    for number, body in sorted(dedup.items()):
+        budget = 120 if number == drafts[0][0] else (
+            250 if number == drafts[-1][0] else 150)
+        excerpts.append(
+            f'{number}화 실제 AI 기획 후보(미검수·검토 전) 말미: '
+            + body[-budget:])
+    # This is bounded model-only *AI-generated* excerpts, never source canon.
+    context = '\n'.join(excerpts)
+    if len(context) > 2100:
+        context = (
+            excerpts[0][:150] +
+            '\n[중간 체크포인트 일부 생략 · 전체 후보는 메모리에 보존]\n'
+            + '\n'.join(excerpts[-5:])[-1900:])
+    return '\n[기획 장기 연속성 · 사용자 승인 사실 아님]\n' + context
+
 
 
 @dataclass(frozen=True)
@@ -45,9 +80,11 @@ def _require_episode_scope(
     if (type(source) is not AuthorAiPlanningSource
             or type(first) is not int or type(last) is not int
             or not 1 <= first <= last <= source.planning.through_episode
-            or last - first >= 20
+            or last - first + 1 > MAX_AUTHOR_PLAN_BATCH_EPISODES
             or len(source.planning.episodes) != source.planning.through_episode):
-        raise AuthorAiPlanningError('저장 작품 안에서 연속 1~20화만 선택하세요.')
+        raise AuthorAiPlanningError(
+            '저장 작품에서 연속 1~250화만 선택하세요. '
+            '251~1000화 구간은 분리하여 별도로 승인해야 합니다.')
     if any(source.planning.episodes[number - 1].episode_number != number
            for number in range(first, last + 1)):
         raise AuthorAiPlanningError('기존 회차 뼈대가 변경되었습니다.')
@@ -93,15 +130,13 @@ def generate_author_ai_episode_plans(
                     and arc.start_episode <= number <= arc.end_episode), None)
         if arc is None:
             raise AuthorAiPlanningError('회차에 대응하는 장편 아크가 없습니다.')
-        prev = (
-            '\n[바로 앞 회차 AI 기획 후보 마지막 1200자, 미검수]\n'
-            + previous[-1][1][-1200:] if previous else '')
+        prior_episode_context = _bounded_episode_history(previous)
         canon = (
             source.canon
             + f'\n[현재 장편 구간] 아크 {arc.number}, '
               f'{arc.start_episode}~{arc.end_episode}화. '
               f'전체 목표 {source.planning.total_episodes}화.'
-            + prev)
+            + prior_episode_context)
         if len(canon) > 24000:
             raise AuthorAiPlanningError(
                 '저장된 설정과 회차 문맥이 로컬 모델 한도를 초과했습니다.')
