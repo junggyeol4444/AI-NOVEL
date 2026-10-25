@@ -49,6 +49,11 @@ class ManualRewritePanel(QGroupBox):
         save.setObjectName('manualRewriteSave')
         save.clicked.connect(self.save_current)
         root.addWidget(save)
+        self.final_handoff = QPushButton(
+            '저장된 초고를 기존 최종본 편집기로 가져오기 (미저장·검수 별도)')
+        self.final_handoff.setObjectName('manualRewriteToFinalEditor')
+        self.final_handoff.clicked.connect(self.handoff_saved_draft_to_final)
+        root.addWidget(self.final_handoff)
         self.status = QLabel('재작성 미시작')
         self.status.setObjectName('manualRewriteStatus')
         self.status.setWordWrap(True)
@@ -143,3 +148,53 @@ class ManualRewritePanel(QGroupBox):
         self.authoring._invalidate_author_review_snapshots()
         self.authoring._sync()
         self.status.setText(f'{lease.episode}화 초고 revision {revision} 저장 · 검수/검사 재실행 필요')
+
+    def handoff_saved_draft_to_final(self):
+        """작가가 별도 클릭할 때만 저장 초고를 기존 최종본 편집기에 복사한다.
+
+        이 작업은 SQLite에 쓰지 않는다. 이미 저장된 최종본이나 편집 중인
+        최종본 입력을 덮어쓰지 않으며, 작가 검수·저장·출판을 승인하지 않는다.
+        """
+        session = self.authoring.session
+        if (session.store is None or session.project_id is None
+                or session.episode_number is None):
+            self.status.setText('기존 작품과 저장된 회차를 먼저 선택하세요.')
+            return
+        if (self.authoring.is_generating()
+                or self.authoring.auto_panel.is_running()):
+            self.status.setText('로컬 AI 집필 중에는 최종본 편집기로 이동하지 않습니다.')
+            return
+        try:
+            # The currently selected saved chapter, not a stale rewrite
+            # preview, is the only source for this explicit handoff.
+            lease, draft = begin_manual_rewrite(
+                session.store, session.project_id, session.episode_number)
+            current = session.store.get_episode(lease.project_id, lease.episode)
+            if current.final_text.strip():
+                raise ValueError('기존 최종본은 덮어쓸 수 없습니다.')
+            if self.authoring._text('final_text').strip():
+                raise ValueError('최종본 편집기의 미저장 입력을 덮어쓸 수 없습니다.')
+            # A different, unsaved rewrite in this panel must be saved
+            # deliberately before it can be used as the final editor source.
+            if (self.lease is not None
+                    and (self.lease != lease
+                         or self.editor.toPlainText() != draft)):
+                raise ValueError('수동 재작성 중인 미저장 초고를 먼저 저장하세요.')
+            # Another editor could have changed the stored draft between
+            # the two reads. Do not carry a stale copy into the final field.
+            current_lease, current_draft = begin_manual_rewrite(
+                session.store, session.project_id, session.episode_number)
+            if current_lease != lease or current_draft != draft:
+                raise ValueError('원고가 변경되어 다시 불러와야 합니다.')
+        except (ValueError, OSError):
+            self.status.setText(
+                '원고 변경·기존 최종본·미저장 편집을 확인하세요. 아무것도 저장하지 않았습니다.')
+            return
+        self.authoring.final_reviewed.setChecked(False)
+        self.authoring.final_quality_ack.setChecked(False)
+        self.authoring._set('final_text', draft)
+        self.authoring.fields['final_text'].setFocus()
+        self.status.setText(
+            f'{lease.episode}화 저장 초고 {len(draft)}자를 기존 최종본 편집기로만 복사했습니다. '
+            '아직 SQLite에 저장되지 않았습니다. 작가가 직접 읽고 수정한 뒤 '
+            '기존 최종본 검수 체크와 별도 저장 버튼을 눌러야 합니다.')
