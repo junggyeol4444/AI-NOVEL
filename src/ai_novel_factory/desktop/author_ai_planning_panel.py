@@ -29,10 +29,11 @@ class AuthorAiPlanningWorker(QThread):
     completed = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, source, provider, parent=None):
+    def __init__(self, source, provider, parent=None, *, resume_from=None):
         super().__init__(parent)
         self.source = source
         self.provider = provider
+        self.resume_from = resume_from
         self.stop_requested = Event()
 
     def run(self):
@@ -40,7 +41,8 @@ class AuthorAiPlanningWorker(QThread):
             draft = generate_author_ai_planning(
                 self.source, self.provider,
                 should_stop=self.stop_requested.is_set,
-                progress=lambda index, total: self.progress_changed.emit(index, total))
+                progress=lambda index, total: self.progress_changed.emit(index, total),
+                resume_from=self.resume_from)
             self.completed.emit(draft)
         except (LocalModelError, AuthorAiPlanningError):
             self.failed.emit(
@@ -61,6 +63,8 @@ class AuthorAiPlanningPanel(QGroupBox):
         self._run_token = None
         self._pending_result = None
         self._edits = {}
+        self._provider_identity = None
+        self._resume_running = False
         root = QVBoxLayout(self)
         notice = QLabel(
             '작가가 직접 승인한 기존 로컬 EXE/GGUF만 실행합니다. '
@@ -93,6 +97,12 @@ class AuthorAiPlanningPanel(QGroupBox):
         self.start_button.setObjectName('authorAiPlanningStart')
         self.start_button.clicked.connect(self.start_planning)
         root.addWidget(self.start_button)
+        self.resume_button = QPushButton(
+            '중단된 아크 다음 번호부터 이어서 생성 (새로운 1회 승인 필요)')
+        self.resume_button.setObjectName('authorAiPlanningResume')
+        self.resume_button.setEnabled(False)
+        self.resume_button.clicked.connect(self.resume_planning)
+        root.addWidget(self.resume_button)
         self.stop_button = QPushButton('현재 AI 호출 뒤 기획 중단 요청')
         self.stop_button.setObjectName('authorAiPlanningStop')
         self.stop_button.setEnabled(False)
@@ -152,6 +162,9 @@ class AuthorAiPlanningPanel(QGroupBox):
         self._identity = None
         self._result = None
         self._edits = {}
+        self._provider_identity = None
+        self._resume_running = False
+        self.resume_button.setEnabled(False)
         self.consent.setChecked(False)
         self.choices.clear()
         self.preview.clear()
@@ -179,6 +192,9 @@ class AuthorAiPlanningPanel(QGroupBox):
         self._source = self._result = self._identity = self._run_token = None
         self._pending_result = None
         self._edits = {}
+        self._provider_identity = None
+        self._resume_running = False
+        self.resume_button.setEnabled(False)
         self.choices.clear()
         self.preview.clear()
         if not approved_here or not approved_model:
@@ -203,6 +219,8 @@ class AuthorAiPlanningPanel(QGroupBox):
         self._run_token = token
         self._source = source
         self._identity = identity
+        self._provider_identity = (
+            self.authoring._text('executable'), self.authoring._text('arguments'))
         worker = AuthorAiPlanningWorker(source, provider, self)
         self._worker = worker
         worker.progress_changed.connect(self._on_progress)
@@ -210,10 +228,66 @@ class AuthorAiPlanningPanel(QGroupBox):
         worker.failed.connect(lambda error: self._on_failed(error, token))
         worker.finished.connect(lambda: self._on_finished(token))
         self.start_button.setEnabled(False)
+        self.resume_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.status.setText(
             f'전체 줄거리 1회 + 아크 {len(source.planning.arcs)}개를 '
             '승인된 로컬 모델에서 순차 생성합니다. 자동 저장 없음.')
+        worker.start()
+
+    def resume_planning(self):
+        """중단된 메모리 후보와 같은 모델/작품에 대해서만 남은 아크를 실행."""
+        if self.is_running():
+            self.status.setText('이전 AI 호출이 종료된 뒤 재개할 수 있습니다.')
+            return
+        prior, source = self._result, self._source
+        approved_here = self.consent.isChecked()
+        approved_model = self.authoring.approved.isChecked()
+        self.consent.setChecked(False)
+        self.authoring.approved.setChecked(False)
+        if (prior is None or source is None or not prior.interrupted
+                or not prior.overview.strip()
+                or len(prior.arc_drafts) >= len(source.planning.arcs)
+                or not approved_here or not approved_model):
+            self.status.setText(
+                '중단된 아크 후보와 이번 재개 승인 및 기존 로컬 모델 승인이 필요합니다.')
+            return
+        if self._provider_identity != (
+                self.authoring._text('executable'), self.authoring._text('arguments')):
+            self.status.setText(
+                '처음 생성한 로컬 모델/인수가 변경됐습니다. 이전 후보 재개를 거부합니다.')
+            return
+        try:
+            session, identity = _current_author_state(self.authoring)
+            require_idle_authoring(self.authoring, str(session.project_id))
+            if identity != self._identity:
+                raise AuthorAiPlanningError('작품 변경')
+            require_current_author_ai_planning_source(
+                source, session.store, session.path, str(session.project_id))
+            provider = self._new_provider()
+        except (AuthorAiPlanningError, BatchScopeBridgeError,
+                LocalHandoffError, LocalModelError, ValueError, OSError):
+            self.status.setText(
+                '저장 작품 설정·인물·기존 모델 승인 상태가 바뀌어 재개하지 않습니다.')
+            return
+        token = object()
+        self._run_token = token
+        self._pending_result = None
+        self._resume_running = True
+        worker = AuthorAiPlanningWorker(
+            source, provider, self, resume_from=prior)
+        self._worker = worker
+        worker.progress_changed.connect(self._on_progress)
+        worker.completed.connect(lambda result: self._receive_generated(result, token))
+        worker.failed.connect(lambda error: self._on_failed(error, token))
+        worker.finished.connect(lambda: self._on_finished(token))
+        self.start_button.setEnabled(False)
+        self.resume_button.setEnabled(False)
+        self.stop_button.setEnabled(True)
+        self.status.setText(
+            f'이전 아크 {len(prior.arc_drafts)}개 후보를 메모리에서 유지하고 '
+            f'나머지 {len(source.planning.arcs)-len(prior.arc_drafts)}개만 '
+            '기존 승인 로컬 모델로 생성합니다. 원고/DB 자동 저장 없음.')
         worker.start()
 
     def stop_planning(self):
@@ -251,6 +325,10 @@ class AuthorAiPlanningPanel(QGroupBox):
                 '기획 생성 중 현재 작품·인물·원고가 변경되어 후보를 표시하지 않았습니다.')
             return
         self._result = result
+        self._resume_running = False
+        self.resume_button.setEnabled(
+            result.interrupted and bool(result.overview.strip())
+            and len(result.arc_drafts) < len(self._source.planning.arcs))
         self.choices.clear()
         self.choices.addItem('전체 줄거리 후보')
         for number, _text in result.arc_drafts:
@@ -266,14 +344,24 @@ class AuthorAiPlanningPanel(QGroupBox):
 
     def _on_failed(self, safe_error, token):
         if token is self._run_token:
-            self._result = None
-            self.choices.clear()
-            self.preview.clear()
-            self.status.setText(safe_error)
+            if self._resume_running and self._result is not None:
+                self.status.setText(
+                    '재개한 로컬 AI 호출에 실패했습니다. 기존 중단 후보는 '
+                    '메모리에 보존했습니다. 다시 별도 승인 후 재개하세요.')
+            else:
+                self._result = None
+                self.choices.clear()
+                self.preview.clear()
+                self.status.setText(safe_error)
+            self._resume_running = False
 
     def _on_finished(self, token):
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
+        if self._result is not None and self._source is not None:
+            self.resume_button.setEnabled(
+                self._result.interrupted and bool(self._result.overview.strip())
+                and len(self._result.arc_drafts) < len(self._source.planning.arcs))
         old_worker = self._worker
         self._worker = None
         if old_worker is not None:

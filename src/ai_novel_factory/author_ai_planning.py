@@ -139,32 +139,57 @@ def generate_author_ai_planning(
     source: AuthorAiPlanningSource, provider: LocalExecutableProvider, *,
     should_stop: Callable[[], bool] | None = None,
     progress: Callable[[int, int], None] | None = None,
+    resume_from: AuthorAiPlanningDraft | None = None,
 ) -> AuthorAiPlanningDraft:
-    """전체 줄거리 1회 + 아크별 실모델 호출, 스레드에서 실행하되 파일은 기록하지 않는다."""
+    """신규 또는 명시적으로 승인한 중단 후보에서 아크별 실모델 호출을 이어간다.
+
+    재개는 같은 작품 스냅샷의 끊기지 않은 1~N번 아크만 허용한다.
+    원고/SQLite/아크 JSON은 건드리지 않으며 기존 후보를 다시 생성하지 않는다.
+    """
     if (type(source) is not AuthorAiPlanningSource
             or type(provider) is not LocalExecutableProvider):
         raise AuthorAiPlanningError('승인한 로컬 AI와 최신 작품 기획 선택이 필요합니다.')
     arcs = source.planning.arcs
     if not 1 <= len(arcs) <= 40:
         raise AuthorAiPlanningError('이번 기획의 아크 개수를 다시 확인하세요.')
+    if resume_from is not None:
+        if (type(resume_from) is not AuthorAiPlanningDraft
+                or resume_from.source_fingerprint != source.fingerprint
+                or not resume_from.interrupted
+                or resume_from.persisted or resume_from.publication_approved
+                or not resume_from.overview.strip()
+                or len(resume_from.arc_drafts) >= len(arcs)
+                or tuple(number for number, _ in resume_from.arc_drafts)
+                   != tuple(arc.number for arc in arcs[:len(resume_from.arc_drafts)])
+                or any(type(body) is not str or not body.strip()
+                       for _, body in resume_from.arc_drafts)):
+            raise AuthorAiPlanningError(
+                '같은 작품에서 중단된 연속 아크 후보만 재개할 수 있습니다.')
+        overview = resume_from.overview
+        responses: list[tuple[int, str]] = list(resume_from.arc_drafts)
+    else:
+        overview = ''
+        responses = []
     if should_stop is not None and should_stop():
-        return AuthorAiPlanningDraft(source.fingerprint, '', (), True)
-    goal = (
+        return AuthorAiPlanningDraft(
+            source.fingerprint, overview, tuple(responses), True)
+    if resume_from is None:
+        goal = (
         f'사용자가 저장한 Novel Bible만 기준으로 독창적인 장편 '
         f'{source.planning.total_episodes}화 전체 줄거리 및 '
         f'1~{source.planning.through_episode}화 전개, 인물 동기, '
         '아크 갈등과 결말을 새로 구상. 참고작 문장/설정 복제 금지. '
         '검수 전 줄거리 후보 문장만 작성.')
-    request = SceneDraftRequest(
-        source.project_id, 1, 1, source.canon, goal,
-        '인물 목표에 기반한 장기 갈등과 그 해소',
-        '작가가 저장한 세계관 안의 장소', source.characters,
-        target_chars=1800)
-    overview = draft_scene(request, provider).draft
+        request = SceneDraftRequest(
+            source.project_id, 1, 1, source.canon, goal,
+            '인물 목표에 기반한 장기 갈등과 그 해소',
+            '작가가 저장한 세계관 안의 장소', source.characters,
+            target_chars=1800)
+        overview = draft_scene(request, provider).draft
     if should_stop is not None and should_stop():
-        return AuthorAiPlanningDraft(source.fingerprint, overview, (), True)
-    responses: list[tuple[int, str]] = []
-    for arc in arcs:
+        return AuthorAiPlanningDraft(
+            source.fingerprint, overview, tuple(responses), True)
+    for arc in arcs[len(responses):]:
         if should_stop is not None and should_stop():
             return AuthorAiPlanningDraft(source.fingerprint, overview, tuple(responses), True)
         previous_excerpt = (
