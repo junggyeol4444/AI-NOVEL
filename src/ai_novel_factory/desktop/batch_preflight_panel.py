@@ -1,13 +1,15 @@
 """Read-only, author-clicked 1~1000 episode launch scope overview."""
 from __future__ import annotations
 
-from PySide6.QtWidgets import QGroupBox, QVBoxLayout, QLabel, QPushButton, QSpinBox
+from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QLabel, QPushButton,
+                               QSpinBox, QTableWidget, QTableWidgetItem)
 
 from ai_novel_factory.batch_preflight_matrix import (
-    BatchPreflightError, build_batch_preflight,
+    BatchPreflightError, build_batch_preflight, require_current_batch_preflight,
 )
 from ai_novel_factory.local_model_integrity import ModelIntegrityError
 from ai_novel_factory.reference_intake_plan import ReferenceIntakeError
+from .author_navigation_contract import _busy, _unsaved, select_saved_episode
 from .author_batch_scope_bridge import (
     BatchScopeBridgeError, preview_author_batch_scope, handoff_author_batch_scope,
 )
@@ -20,6 +22,9 @@ class BatchPreflightPanel(QGroupBox):
         self._scope_identity = None
         self._scope_snapshot = None
         self._reference_lease = None
+        self._report = None
+        self._reference_paths = ()
+        self._model_fingerprint = None
         root = QVBoxLayout(self)
         self.through = QSpinBox()
         self.through.setRange(1, 1000)
@@ -34,6 +39,18 @@ class BatchPreflightPanel(QGroupBox):
         self.status = QLabel('NOT_RUN: 실제 모델 실행/검증/출판 승인 없음')
         self.status.setWordWrap(True)
         root.addWidget(self.status)
+        self.chapter_table = QTableWidget(0, 6)
+        self.chapter_table.setObjectName('batchPreflightChapterEvidence')
+        self.chapter_table.setHorizontalHeaderLabels((
+            '회차', '저장 상태', 'revision', '현재 QC 기록', '과거 QC 기록', '판정'))
+        self.chapter_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.chapter_table.setMaximumHeight(240)
+        root.addWidget(self.chapter_table)
+        self.open_saved_button = QPushButton('선택 저장 회차 기존 편집기로 이동 (집필·승인 없음)')
+        self.open_saved_button.setObjectName('batchPreflightOpenSavedChapter')
+        self.open_saved_button.setEnabled(False)
+        self.open_saved_button.clicked.connect(self.open_saved_chapter)
+        root.addWidget(self.open_saved_button)
         self.handoff_button = QPushButton('확인한 범위를 기존 AI 배치 설정에 입력 (실행 아님)')
         self.handoff_button.setObjectName('batchPreflightHandoff')
         self.handoff_button.setEnabled(False)
@@ -44,6 +61,11 @@ class BatchPreflightPanel(QGroupBox):
         self._scope_identity = None
         self._scope_snapshot = None
         self._reference_lease = None
+        self._report = None
+        self._reference_paths = ()
+        self._model_fingerprint = None
+        self.chapter_table.setRowCount(0)
+        self.open_saved_button.setEnabled(False)
         self.handoff_button.setEnabled(False)
         self.status.setText('작품·범위·파일 선택 변경: 새 읽기 전용 확인 필요')
 
@@ -56,11 +78,11 @@ class BatchPreflightPanel(QGroupBox):
         try:
             batch = self.authoring.auto_panel
             references = tuple(getattr(batch, 'reference_paths', ()))
-            identity = self.authoring.local_model_integrity_panel.current_identity()
+            model_identity = self.authoring.local_model_integrity_panel.current_identity()
             report = build_batch_preflight(
                 str(session.path), str(session.project_id),
                 through_episode=self.through.value(), reference_paths=references,
-                model_identity=identity,
+                model_identity=model_identity,
                 executable=self.authoring._text('executable').strip(),
                 arguments=self.authoring._text('arguments'))
             identity, scope, lease = preview_author_batch_scope(
@@ -69,6 +91,19 @@ class BatchPreflightPanel(QGroupBox):
                 raise BatchPreflightError('현재 배치 범위를 다시 선택하세요.')
             self._scope_identity, self._scope_snapshot = identity, scope
             self._reference_lease = lease
+            self._report = report
+            self._reference_paths = references
+            self._model_fingerprint = (
+                model_identity.fingerprint if model_identity is not None else None)
+            self.chapter_table.setRowCount(len(report.chapters))
+            for index, chapter in enumerate(report.chapters):
+                values = (str(chapter.episode), chapter.status,
+                          str(chapter.revision) if chapter.revision is not None else '없음',
+                          str(chapter.qc_records_current), str(chapter.qc_records_stale),
+                          '조회 전용 · 통합검증 아님')
+                for column, value in enumerate(values):
+                    self.chapter_table.setItem(index, column, QTableWidgetItem(value))
+            self.open_saved_button.setEnabled(True)
             self.handoff_button.setEnabled(
                 report.selected_references > 0 and scope.target_chars >= 5000
                 and scope.unknown_reference_count == 0)
@@ -107,3 +142,49 @@ class BatchPreflightPanel(QGroupBox):
             self.status.setText('현재 작품·원고·참고작이 변경됐습니다. 다시 조회하세요.')
             return
         self.status.setText(message)
+
+    def open_saved_chapter(self):
+        """별도 작가 클릭으로 현재 원고·QC·선택 참고작·GGUF를 다시 확인 후 이동."""
+        report, identity = self._report, self._scope_identity
+        index = self.chapter_table.currentRow()
+        if (report is None or identity is None or not 0 <= index < len(report.chapters)
+                or self.through.value() != report.through_episode):
+            self.status.setText('현재 회차별 근거를 먼저 확인한 다음 한 회차를 선택하세요.')
+            return
+        chapter = report.chapters[index]
+        if chapter.revision is None:
+            self.status.setText('저장되지 않은 회차입니다. 기존 편집기에서 직접 작성하세요.')
+            return
+        try:
+            session = self.authoring.session
+            if (session.store is None or session.path is None or session.project_id is None
+                    or (str(session.path), str(session.project_id)) != identity):
+                raise BatchPreflightError('작품이 변경됐습니다.')
+            if _busy(self.authoring) or _unsaved(self.authoring):
+                raise BatchPreflightError('미저장 원고 또는 실행 중 집필이 있습니다.')
+            paths = tuple(self.authoring.auto_panel.reference_paths)
+            if paths != self._reference_paths:
+                raise BatchPreflightError('선택 참고작이 변경됐습니다.')
+            model_identity = self.authoring.local_model_integrity_panel.current_identity()
+            current_fingerprint = (
+                model_identity.fingerprint if model_identity is not None else None)
+            if current_fingerprint != self._model_fingerprint:
+                raise BatchPreflightError('승인 모델이 변경됐습니다.')
+            require_current_batch_preflight(
+                report, str(session.path), identity[1],
+                through_episode=report.through_episode, reference_paths=paths,
+                model_identity=model_identity,
+                executable=self.authoring._text('executable').strip(),
+                arguments=self.authoring._text('arguments'))
+            decision = select_saved_episode(
+                self.authoring, project_identity=identity, episode=chapter.episode)
+            if not decision.allowed:
+                raise BatchPreflightError(decision.message)
+        except (BatchPreflightError, BatchScopeBridgeError, ModelIntegrityError,
+                ReferenceIntakeError, ValueError, OSError, LookupError):
+            self.invalidate()
+            self.status.setText('작품·QC·참고작·로컬 GGUF가 변경됐거나 이동할 수 없습니다. 다시 조회하세요.')
+            return
+        self.invalidate()
+        self.status.setText(
+            decision.message + ' 집필·QC PASS·출판은 실행하지 않았습니다.')
