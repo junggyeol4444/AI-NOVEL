@@ -9,6 +9,7 @@ from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QGroupBox, QVBoxLayout, QFormLayout, QSpinBox, QLabel,
     QCheckBox, QPushButton, QListWidget, QPlainTextEdit, QFileDialog,
+    QTableWidget, QTableWidgetItem,
 )
 from ai_novel_factory.author_ai_planning import (
     AuthorAiPlanningError, capture_author_ai_planning_source,
@@ -67,6 +68,7 @@ class AuthorAiEpisodePlanningPanel(QGroupBox):
         self._provider_identity = None
         self._pending = None
         self._resuming = False
+        self._manual_beats = {}
         root = QVBoxLayout(self)
         notice = QLabel(
             '저장된 작품 설정·인물로 연속 최대 20화의 회차별 AI 기획 후보를 '
@@ -117,6 +119,32 @@ class AuthorAiEpisodePlanningPanel(QGroupBox):
         self.preview.setObjectName('authorAiEpisodePreview')
         self.preview.setReadOnly(True)
         root.addWidget(self.preview)
+        manual = QGroupBox('작가 직접 작성하는 회차별 장면 계획 · 미승인')
+        manual_layout = QVBoxLayout(manual)
+        manual_note = QLabel(
+            'AI 회차 기획은 참고 후보입니다. 장면별 목표·갈등·장소·필수 사건·'
+            '제외 요소는 작가가 직접 입력해야 하며, 기존 장면 기록을 자동 변경하지 않습니다.')
+        manual_note.setWordWrap(True)
+        manual_layout.addWidget(manual_note)
+        self.manual_count = QSpinBox()
+        self.manual_count.setRange(1, 20)
+        self.manual_count.setValue(3)
+        self.manual_count.setObjectName('authorAiEpisodeManualSceneCount')
+        manual_layout.addWidget(self.manual_count)
+        self.manual_table = QTableWidget(3, 5)
+        self.manual_table.setObjectName('authorAiEpisodeManualSceneTable')
+        self.manual_table.setHorizontalHeaderLabels(
+            ('장면 목표', '갈등', '장소', '반드시 포함', '포함하지 말 것'))
+        self.manual_table.setMinimumHeight(180)
+        manual_layout.addWidget(self.manual_table)
+        self.manual_handoff = QPushButton(
+            '작가가 직접 작성한 장면 계획을 기존 장면 설계표에 전달 (저장하지 않음)')
+        self.manual_handoff.setObjectName('authorAiEpisodeManualHandoff')
+        self.manual_handoff.clicked.connect(self.handoff_manual_scenes)
+        manual_layout.addWidget(self.manual_handoff)
+        root.addWidget(manual)
+        self.manual_count.valueChanged.connect(self._resize_manual)
+        self.manual_table.cellChanged.connect(self._remember_manual)
         export = QPushButton('선택한 AI 회차 기획 후보를 새 비공개 TXT로 별도 저장')
         export.setObjectName('authorAiEpisodeExport')
         export.clicked.connect(self.export_private)
@@ -135,6 +163,8 @@ class AuthorAiEpisodePlanningPanel(QGroupBox):
         self._provider_identity = None
         self._pending = None
         self._resuming = False
+        self._manual_beats.clear()
+        self._load_manual(None)
         self.consent.setChecked(False)
         self.resume_button.setEnabled(False)
         self.choices.clear()
@@ -167,6 +197,8 @@ class AuthorAiEpisodePlanningPanel(QGroupBox):
         self._token = None
         self._pending = None
         self._resuming = False
+        self._manual_beats.clear()
+        self._load_manual(None)
         self.resume_button.setEnabled(False)
         self.choices.clear()
         self.preview.clear()
@@ -320,12 +352,90 @@ class AuthorAiEpisodePlanningPanel(QGroupBox):
             + ('중단됨 · 재개 가능. ' if result.interrupted else '호출 완료. ')
             + '실제 검수·원고 저장·출판 없음.')
 
+    def _current_number(self):
+        result = self._result
+        row = self.choices.currentRow()
+        if result is None or row < 0 or row >= len(result.episode_drafts):
+            return None
+        return result.episode_drafts[row][0]
+
+    def _manual_rows(self):
+        return tuple(tuple(
+            self.manual_table.item(row, col).text()
+            if self.manual_table.item(row, col) is not None else ''
+            for col in range(5)) for row in range(self.manual_count.value()))
+
+    def _remember_manual(self, *_args):
+        number = self._current_number()
+        if number is not None:
+            self._manual_beats[number] = self._manual_rows()
+
+    def _resize_manual(self, count):
+        self.manual_table.setRowCount(count)
+        self._remember_manual()
+
+    def _load_manual(self, number):
+        rows = self._manual_beats.get(number, (('', '', '', '', ''),) * 3)
+        self.manual_table.blockSignals(True)
+        self.manual_count.blockSignals(True)
+        self.manual_count.setValue(len(rows))
+        self.manual_table.setRowCount(len(rows))
+        for row in range(len(rows)):
+            for col in range(5):
+                self.manual_table.setItem(
+                    row, col, QTableWidgetItem(rows[row][col]))
+        self.manual_count.blockSignals(False)
+        self.manual_table.blockSignals(False)
+
     def show_choice(self, row):
         result = self._result
         if result is None or row < 0 or row >= len(result.episode_drafts):
             self.preview.clear()
+            self._load_manual(None)
         else:
             self.preview.setPlainText(result.episode_drafts[row][1])
+            self._load_manual(result.episode_drafts[row][0])
+
+    def handoff_manual_scenes(self):
+        source, result = self._source, self._result
+        number = self._current_number()
+        if source is None or result is None or number is None:
+            self.status.setText('AI 기획 후보의 회차를 선택한 뒤 직접 장면별 내용을 입력하세요.')
+            return
+        beats = self._manual_rows()
+        if (not 1 <= len(beats) <= 20
+                or any(not value.strip() or len(value) > 400
+                       or any(ord(ch) < 32 or ord(ch) == 127 for ch in value)
+                       for row in beats for value in row)):
+            self.status.setText(
+                '모든 장면의 5개 항목을 직접 작성하세요. '
+                '각 항목은 한 줄 400자 이하이며 빈 칸은 전달하지 않습니다.')
+            return
+        try:
+            session, identity = _current_author_state(self.authoring)
+            require_idle_authoring(self.authoring, str(session.project_id))
+            if identity != self._identity or result.source_fingerprint != source.fingerprint:
+                raise AuthorAiPlanningError('작품이 변경됐습니다.')
+            require_current_author_ai_planning_source(
+                source, session.store, session.path, str(session.project_id))
+            hub = getattr(self.authoring, 'feature_workspace_hub', None)
+            if hub is None or not hub.open_feature(
+                    'author_scene_plan_panel', project_identity=identity):
+                raise AuthorAiPlanningError('기존 장면 계획 화면을 열 수 없습니다.')
+            target = getattr(self.authoring, 'author_scene_plan_panel', None)
+            if target is None or not target.accept_ai_episode_manual_beats(
+                    source, number, beats, identity):
+                raise AuthorAiPlanningError('기존 장면 입력 또는 저장 계획을 보호했습니다.')
+        except (AuthorAiPlanningError, BatchScopeBridgeError,
+                LocalHandoffError, ValueError, OSError):
+            self.status.setText(
+                '작품·원고·장면 계획이 변경됐거나 기존 입력이 있습니다. '
+                '기존 장면/원고를 변경하지 않았습니다.')
+            return
+        self.status.setText(
+            f'{number}화의 작가 직접 작성 장면 {len(beats)}개를 '
+            '기존 수동 설계표에 전달했습니다. 실제 JSON 저장은 '
+            '해당 화면의 별도 1회 승인과 저장 버튼이 필요합니다.')
 
     def export_private(self):
         source, result = self._source, self._result

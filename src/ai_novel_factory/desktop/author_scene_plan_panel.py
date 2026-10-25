@@ -4,6 +4,9 @@ from pathlib import Path
 from PySide6.QtWidgets import (QGroupBox, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLabel, QSpinBox, QTableWidget, QTableWidgetItem, QPushButton, QCheckBox,
     QFileDialog, QListWidget)
+from ..author_ai_planning import (
+    AuthorAiPlanningError, require_current_author_ai_planning_source,
+)
 from ..author_full_plan_preview import (
     AuthorFullPlanError, author_full_plan_scenes,
     require_current_author_full_plan,
@@ -104,6 +107,69 @@ class AuthorScenePlanPanel(QGroupBox):
                 AuthorScenePlanError, ValueError, OSError):
             self.status.setText(
                 '작품 설정·원고·장면 기록이 변경됐습니다. 기존 입력을 보존했습니다.')
+            return False
+
+    def accept_ai_episode_manual_beats(self, source, episode, beats, identity) -> bool:
+        """작가가 직접 작성한 AI 기획 기반 장면표를 입력칸에만 전달.
+
+        기존 저장 JSON·원고·SQLite는 쓰지 않는다. 저장은 기존 별도 승인 필요.
+        """
+        try:
+            session, current = _current_author_state(self.authoring)
+            require_idle_authoring(self.authoring, str(session.project_id))
+            if identity != current or source.project_id != str(session.project_id):
+                raise AuthorAiPlanningError('작품이 변경됐습니다.')
+            require_current_author_ai_planning_source(
+                source, session.store, session.path, str(session.project_id))
+            if (type(episode) is not int or episode < 1
+                    or episode > source.planning.through_episode
+                    or type(beats) is not tuple or not 1 <= len(beats) <= 20):
+                raise AuthorAiPlanningError('작가 장면 계획의 회차 범위가 올바르지 않습니다.')
+            if any(type(row) is not tuple or len(row) != 5
+                   or any(type(value) is not str or not value.strip()
+                          or len(value) > 400
+                          or any(ord(ch) < 32 or ord(ch) == 127 for ch in value)
+                          for value in row) for row in beats):
+                raise AuthorAiPlanningError('작가 장면 계획의 입력을 다시 확인하세요.')
+            if self.folder is None:
+                self.status.setText(
+                    '기존 장면 기록 폴더를 직접 선택한 후 다시 전달하세요.')
+                return False
+            # Never overwrite typed unsaved content, even when the episode changes.
+            for row in range(self.table.rowCount()):
+                for col in range(self.table.columnCount()):
+                    item = self.table.item(row, col)
+                    if item is not None and item.text().strip():
+                        self.status.setText(
+                            '기존 장면 입력 내용이 있으므로 덮어쓰지 않았습니다.')
+                        return False
+            saved = read_author_scene_plans(
+                self.folder, str(session.project_id))
+            if any(plan.episode == episode and not plan.revoked for plan in saved):
+                self.status.setText(
+                    '해당 회차에 저장된 활성 장면 계획이 있어 덮어쓰지 않았습니다.')
+                return False
+            self.batch_consent.setChecked(False)
+            self.revoke_consent.setChecked(False)
+            self.save_consent.setChecked(False)
+            self.episode.setValue(episode)
+            self.scenes.setValue(len(beats))
+            self.table.blockSignals(True)
+            self.table.setRowCount(len(beats))
+            for row, values in enumerate(beats):
+                for col, value in enumerate(values):
+                    self.table.setItem(row, col, QTableWidgetItem(value))
+            self.table.blockSignals(False)
+            self.save_consent.setChecked(False)
+            self.status.setText(
+                f'작가가 직접 작성한 {episode}화 장면 {len(beats)}개를 '
+                '수동 입력칸에 전달했습니다. JSON 저장·AI 원고 집필·'
+                '검수·출판은 자동 실행하지 않았습니다.')
+            return True
+        except (AuthorAiPlanningError, AuthorScenePlanError, BatchScopeBridgeError,
+                LocalHandoffError, ValueError, OSError):
+            self.status.setText(
+                '현재 작품·원고·장면 기록을 확인할 수 없어 인계하지 않았습니다.')
             return False
 
     def _changed(self, *args):
