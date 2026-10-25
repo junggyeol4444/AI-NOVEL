@@ -16,7 +16,9 @@ from typing import Callable
 from .database.episodes import EpisodeStore
 from .database.style_bible import StyleBibleStore
 from .style_checker import StyleCheckerError, check_style
-from .continuity_memory_window import extend_scene_context
+from .continuity_memory_window import (
+    extend_scene_context, retrieve_relevant_saved_events, build_real_scene_chain,
+)
 from .scene_resume_binding import SceneResumeScope, require_explicit_scene_resume
 from .author_scene_checkpoint_integrity import SceneStageChoice
 from .scene_checkpoint_store import SceneCheckpointError
@@ -704,10 +706,13 @@ def run_auto_novel(
                             '(미검수, Novel Bible보다 우선 금지; 일부 발췌): '
                             + _plot_endpoints(chosen_episode_outline, 1050)
                             + '\n' + plot_goal)
+                    past_event_evidence = retrieve_relevant_saved_events(
+                        existing, n, chosen_episode_outline or subject,
+                        max_chars=1050)
                     outline = model(
                         n, 1, context,
                         plot_goal,
-                        f'{mood} 분위기의 갈등과 연속성 유지',
+                        (past_event_evidence + '\n' + f'{mood} 분위기의 갈등과 연속성 유지')[:2000],
                         f'작품 세계관 ({genre})')
                     record_unapproved_stage(0, outline)
                 else:
@@ -743,8 +748,12 @@ def run_auto_novel(
                         if len(scene_context) > 22000:
                             raise AutoNovelRunError(
                                 '승인된 작가 장면 지시가 모델 문맥 한도를 초과했습니다.')
+                    scene_evidence = build_real_scene_chain(
+                        existing, n, slot.scene_number, tuple(drafts),
+                        chosen_episode_outline or outline,
+                        next_plan=episode_guide.get(n + 1, ''))
                     scene = model(n, slot.scene_number, scene_context,
-                                  scene_goal, '새로운 갈등과 해결의 인과관계',
+                                  scene_goal, scene_evidence,
                                   f'{genre} 작품의 장면',
                                   allocated_scene_chars=per_scene)
                     scene_screen = screen_korean_draft(
@@ -761,7 +770,7 @@ def run_auto_novel(
                             n, slot.scene_number,
                             _scene_revision_context(scene_context, scene),
                             _native_scene_revision_goal(per_scene),
-                            '반복 표현을 줄이고 사건·동기·행동을 구체화',
+                            (scene_evidence + '\n반복 표현을 줄이고 사건·동기·행동을 구체화')[:2000],
                             f'{genre} 작품의 장면',
                             allocated_scene_chars=per_scene)
                         revised_screen = screen_korean_draft(
@@ -804,7 +813,7 @@ def run_auto_novel(
                             f'목표 분량 {min(10000, max(50, remaining))}자 내외의 '
                             '독창적인 새 소설 문장만 이어서 작성. 앞 문장 재출력 금지. '
                             '작가 Novel Bible 및 이전 사건의 인과관계를 유지.',
-                            '앞 장면에 이어지는 실제 사건·행동·감정',
+                            (scene_evidence + '\n앞 장면에 이어지는 실제 사건·행동·감정')[:2000],
                             f'{genre} 작품의 이어지는 장면',
                             allocated_scene_chars=min(10000, max(50, remaining)))
                         continuation_calls += 1
@@ -862,7 +871,10 @@ def run_auto_novel(
                         '소설 후속 본문만 작성. 앞선 문단·대사 재출력 금지. '
                         '마지막 장면에서 벌어진 선택의 직접적 결과와 '
                         '앞서 쌓은 복선에 따른 새 행동을 이어 서술.',
-                        '이번 장면 마지막 실제 결과에 이어지는 인과적 갈등',
+                        build_real_scene_chain(
+                             existing, n, slots[-1].scene_number,
+                             tuple(drafts), chosen_episode_outline or outline,
+                             next_plan=episode_guide.get(n + 1, '')),
                         f'{genre} 작품 세계관의 마지막 장면',
                         allocated_scene_chars=requested)
                     continuation_calls += 1
