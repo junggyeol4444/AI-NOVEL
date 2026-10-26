@@ -42,6 +42,7 @@ from .repetition_checker import check_repetition
 from .korean_draft_quality import screen_korean_draft, has_foreign_script_corruption
 from .episode_crosscheck import screen_cross_episode_reuse
 from .narrative_scene_beats import allocate_model_plot_beats
+from .narrative_cast_focus import focus_saved_cast
 from .author_ai_novel_guidance import (
     AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
     require_current_author_ai_novel_guidance,
@@ -509,9 +510,9 @@ def run_auto_novel(
         # Author-owned character facts must be visible inside the FIRST
         # 12k native-context characters, rather than only the names list.
         with CharacterStore(database_path) as chars:
-            characters = chars.list_characters(project_id)[:8]
-        character_names = tuple(c.name for c in characters) or ('주인공',)
-        character_bible = _character_bible_context(characters)
+            characters = chars.list_characters(project_id)
+        character_names = tuple(c.name for c in characters[:8]) or ('주인공',)
+        character_bible = _character_bible_context(characters[:8])
         # The preview is explicitly UNAPPROVED and will be appended once
         # below. Do not accidentally duplicate it as a saved canon rule.
         canon_rules = ['%s: %s' % (k, v) for k, v in rules.items()
@@ -534,6 +535,9 @@ def run_auto_novel(
             if progress is not None:
                 progress(number, stage)
 
+        # Relevant saved character details are bound to each actual model call.
+        active_cast_context = ''
+
         def model(episode_num: int, scene_num: int, context: str,
                   goal: str, conflict: str, place: str, *,
                   allocated_scene_chars: int | None = None) -> str:
@@ -542,8 +546,10 @@ def run_auto_novel(
                 raise InterruptedError()
             if context_sources is not None:
                 require_unchanged_author_sources(db, project_id, context_sources)
+            focused_context = (active_cast_context + '\n' + context
+                               if active_cast_context else context)
             request = SceneDraftRequest(
-                project_id, episode_num, scene_num, context[:22000],
+                project_id, episode_num, scene_num, focused_context[:12000],
                 goal[:2000], conflict[:2000], place[:1000], character_names,
                 style_bible=active_style_bible,
                 target_chars=allocated_scene_chars)
@@ -695,6 +701,11 @@ def run_auto_novel(
                     raise AutoNovelRunError(
                         '통합 작가 문맥이 실제 모델 입력 길이를 초과했습니다. 임의 축약하지 않습니다.')
                 context = merged
+            # Select actual saved cast for the approved GGUF plot call.
+            plot_cast = focus_saved_cast(
+                characters, (chosen_episode_outline, subject, story_preview))
+            character_names = plot_cast.names
+            active_cast_context = plot_cast.context
             emit(n, '회차 플롯 로컬 AI 생성')
             try:
                 outline = checkpoint.load_stage(0) if checkpoint is not None else None
@@ -738,6 +749,16 @@ def run_auto_novel(
                     if chosen_episode_outline else ())
                 drafts = []
                 for scene_index, slot in enumerate(slots):
+                    # Re-select from ALL saved author characters for each
+                    # actual scene, including checkpoint-restored scenes.
+                    assigned = scene_beats[scene_index]
+                    guide_beat = (selected_guide_beats[scene_index].assigned_plot
+                                  if selected_guide_beats else '')
+                    scene_cast = focus_saved_cast(
+                        characters, (assigned.assigned_plot, guide_beat,
+                                     drafts[-1] if drafts else '', outline))
+                    character_names = scene_cast.names
+                    active_cast_context = scene_cast.context
                     cached = checkpoint.load_stage(slot.scene_number) if checkpoint else None
                     if cached is not None:
                         drafts.append(cached)
@@ -745,7 +766,6 @@ def run_auto_novel(
                         continue
                     per_scene = scene_targets[scene_index]
                     emit(n, f'장면 {slot.scene_number}/{scenes_per_episode} 로컬 AI 집필')
-                    assigned = scene_beats[scene_index]
                     scene_goal = _native_scene_generation_goal(
                         n, slot.scene_number, scenes_per_episode,
                         outline, per_scene,
