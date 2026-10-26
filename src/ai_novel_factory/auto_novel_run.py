@@ -49,6 +49,7 @@ from .narrative_character_history import (
     build_saved_character_history, focus_saved_character_history,
 )
 from .narrative_viewpoint_scope import select_saved_viewpoint
+from .narrative_chapter_bridge import build_saved_chapter_bridge
 from .author_ai_novel_guidance import (
     AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
     require_current_author_ai_novel_guidance,
@@ -552,6 +553,7 @@ def run_auto_novel(
         active_canon_focus = ''
         active_character_history = ''
         active_viewpoint_context = ''
+        active_previous_chapter_bridge = ''
 
         def model(episode_num: int, scene_num: int, context: str,
                   goal: str, conflict: str, place: str, *,
@@ -565,7 +567,8 @@ def run_auto_novel(
             # model input window. This is not a claim that the model obeyed.
             focused_context = '\n'.join(part for part in (
                 active_viewpoint_context, active_cast_context,
-                active_canon_focus, active_character_history, context) if part)
+                active_canon_focus, active_previous_chapter_bridge,
+                active_character_history, context) if part)
             request = SceneDraftRequest(
                 project_id, episode_num, scene_num, focused_context[:12000],
                 goal[:2000], conflict[:2000], place[:1000], character_names,
@@ -708,6 +711,9 @@ def run_auto_novel(
             chapter_canon = (canon_base + '\n' + saved_context.memory + '\n' +
                              reference_statistics).strip()
             chosen_episode_outline = episode_guide.get(n, '')
+            # From actual SAVED N-1 prose, not synthetic summary or model
+            # guesses. This bridge applies to this chapter's plot + scene 1.
+            chapter_bridge = build_saved_chapter_bridge(existing, n)
             if story_preview.strip():
                 chapter_canon += ('\n전체 스토리 AI 계획 초안(미확정·검수 전): '
                                   + story_preview[:1500])
@@ -747,6 +753,7 @@ def run_auto_novel(
                 ((plot_viewpoint.focal_character,) if plot_viewpoint.focal_character
                  else plot_cast.names),
                 (chosen_episode_outline, subject))
+            active_previous_chapter_bridge = chapter_bridge.plot_context
             emit(n, '회차 플롯 로컬 AI 생성')
             try:
                 outline = checkpoint.load_stage(0) if checkpoint is not None else None
@@ -797,6 +804,11 @@ def run_auto_novel(
                         viewpoint_rules, n, slot.scene_number,
                         tuple(person.name for person in characters))
                     active_viewpoint_context = scene_viewpoint.prompt
+                    # Only the opening scene receives the chapter-boundary
+                    # handoff. Later scenes follow actual written scene prose.
+                    active_previous_chapter_bridge = (
+                        chapter_bridge.first_scene_context
+                        if scene_index == 0 else '')
                     guide_beat = (selected_guide_beats[scene_index].assigned_plot
                                   if selected_guide_beats else '')
                     scene_cast = focus_saved_cast(
