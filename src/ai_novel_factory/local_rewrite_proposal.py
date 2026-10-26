@@ -17,6 +17,9 @@ from .database.characters import CharacterStore
 from .local_models import (
     LocalExecutableProvider, LocalModelError, SceneDraftRequest, draft_scene,
 )
+from .local_rewrite_comparison import (
+    RewriteCandidateEvidence, compare_actual_rewrite,
+)
 from .manual_rewrite_workspace import (
     RewriteLease, ManualRewritePreview, begin_manual_rewrite,
     preview_manual_rewrite, require_current_manual_rewrite_preview,
@@ -33,6 +36,7 @@ class LocalRewriteProposal:
     proposed_text: str = field(repr=False)
     preview: ManualRewritePreview = field(repr=False)
     source_qc_findings: tuple[str, ...] = ()
+    numeric_evidence: RewriteCandidateEvidence = field(repr=False, default=None)
     status: str = 'LOCAL_AI_UNREVIEWED_DRAFT_PROPOSAL'
     sqlite_saved: bool = False
     literary_quality_approved: bool = False
@@ -153,4 +157,17 @@ def propose_rewrite_of_saved_draft(
         except (ValueError, OSError, UnicodeError):
             raise LocalRewriteProposalError(
                 '모델 실행 중 저장 원고가 변경됐습니다. 후보를 폐기했습니다.') from None
-        return LocalRewriteProposal(lease, proposed, preview, flagged)
+        # Compare the original and GGUF candidate against the SAME saved
+        # previous 250 chapters. This never confers review/QC/approval.
+        try:
+            evidence = compare_actual_rewrite(
+                store, project_id, episode, original, proposed)
+        except (ValueError, OSError, UnicodeError):
+            raise LocalRewriteProposalError(
+                '수정 후보의 실제 저장 회차 비교가 완료되지 않았습니다. '
+                '초고와 최종본은 그대로 유지됩니다.') from None
+        if evidence.source_revision != lease.revision:
+            raise LocalRewriteProposalError(
+                '비교 중 원고가 변경되어 후보를 폐기했습니다.')
+        return LocalRewriteProposal(
+            lease, proposed, preview, flagged, evidence)

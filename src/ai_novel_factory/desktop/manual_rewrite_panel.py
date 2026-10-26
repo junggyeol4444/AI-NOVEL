@@ -87,6 +87,19 @@ class ManualRewritePanel(QGroupBox):
         self.preview_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.preview_table.setMaximumHeight(200)
         root.addWidget(self.preview_table)
+        self.numeric_evidence = QTableWidget(0, 3)
+        self.numeric_evidence.setObjectName('manualRewriteActualCandidateComparison')
+        self.numeric_evidence.setHorizontalHeaderLabels((
+            '실제 원고 비교 항목', '저장된 이전 초고', '새 AI 후보'))
+        self.numeric_evidence.setEditTriggers(
+            QTableWidget.EditTrigger.NoEditTriggers)
+        self.numeric_evidence.setMaximumHeight(240)
+        root.addWidget(self.numeric_evidence)
+        self.numeric_status = QLabel(
+            '미검수 AI 후보의 실제 분량·한글 형식·과거 회차 동일 문장 비교는 아직 없습니다.')
+        self.numeric_status.setWordWrap(True)
+        self.numeric_status.setObjectName('manualRewriteCandidateComparisonStatus')
+        root.addWidget(self.numeric_status)
         self.preview_status = QLabel('NOT_RUN: 작가가 직접 비교를 눌러야 합니다.')
         self.preview_status.setWordWrap(True)
         root.addWidget(self.preview_status)
@@ -112,6 +125,10 @@ class ManualRewritePanel(QGroupBox):
 
     def invalidate_preview(self, *_args):
         self.preview_snapshot = None
+        self.numeric_evidence.setRowCount(0)
+        self.numeric_status.setText(
+            '내용이 변경되어 이전 AI 후보 수치 비교 결과는 무효입니다. '
+            '새로운 모델 후보를 직접 생성해야 비교합니다.')
         self.preview_table.setRowCount(0)
         self.consent.setChecked(False)
         self.preview_status.setText('수정 초고 변경 또는 미조회: 다시 직접 비교하세요.')
@@ -348,6 +365,21 @@ class ManualRewritePanel(QGroupBox):
         self.editor.setPlainText(result.proposed_text)
         self.invalidate_preview()
         self.preview_snapshot = result.preview
+        evidence = result.numeric_evidence
+        if evidence is not None:
+            self.numeric_evidence.setRowCount(len(evidence.rows))
+            for index, metric in enumerate(evidence.rows):
+                for col, value in enumerate((
+                        metric.metric, metric.original_value,
+                        metric.proposed_value)):
+                    self.numeric_evidence.setItem(
+                        index, col, QTableWidgetItem(str(value)))
+            self.numeric_status.setText(
+                f'실제 이전 저장 회차 {evidence.previous_episodes_examined}화 대조 / '
+                f'누락 {evidence.previous_episodes_missing}화 / '
+                f'본문 미검사 {evidence.previous_episodes_unexamined}화. '
+                '수치·정확 문장 일치만 비교했고 문학 품질·의미 유사성·'
+                '참고작 표절·출판 승인 아님.')
         self.status.setText(
             f'{result.lease.episode}화 로컬 AI 미검수 수정 후보 '
             f'{result.preview.after_characters}자 편집기에 표시. '
