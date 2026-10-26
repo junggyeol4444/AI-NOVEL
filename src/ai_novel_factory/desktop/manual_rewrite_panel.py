@@ -8,6 +8,9 @@ from ai_novel_factory.local_models import LocalExecutableProvider
 from ai_novel_factory.local_rewrite_proposal import (
     LocalRewriteProposalError, propose_rewrite_of_saved_draft,
 )
+from ai_novel_factory.local_selected_rewrite import (
+    SelectedRewriteError, SelectedRewriteProposal, propose_selected_rewrite,
+)
 from .author_navigation_contract import _busy, _unsaved
 from PySide6.QtWidgets import (
     QGroupBox, QVBoxLayout, QLabel, QPushButton, QPlainTextEdit,
@@ -45,6 +48,51 @@ class LocalRewriteWorker(QThread):
         except BaseException:
             self.failed.emit(
                 '로컬 모델 실행을 마칠 수 없었습니다. 원본·최종본은 유지됩니다.')
+
+
+class SelectedRewriteWorker(QThread):
+    """Actual GGUF call for one author-selected span, never an auto-save."""
+    proposed = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, database_path, lease, provider, direction,
+                 selection_start, selection_end, parent=None):
+        super().__init__(parent)
+        self.database_path = str(database_path)
+        self.lease = lease
+        self.provider = provider
+        self.direction = direction
+        self.selection_start = selection_start
+        self.selection_end = selection_end
+
+    def run(self):
+        try:
+            result = propose_selected_rewrite(
+                self.database_path, self.lease.project_id,
+                self.lease.episode, self.provider,
+                expected_lease=self.lease,
+                selection_start=self.selection_start,
+                selection_end=self.selection_end,
+                explicit_author_model_run=True,
+                author_direction=self.direction)
+            self.proposed.emit(result)
+        except (SelectedRewriteError, ValueError, OSError, UnicodeError):
+            self.failed.emit(
+                '선택 구간 GGUF 수정 후보를 생성하지 못했습니다. '
+                '원고·최종본은 변경되지 않았습니다.')
+        except BaseException:
+            self.failed.emit(
+                '로컬 모델 작업이 중단됐습니다. 원고는 그대로 유지됩니다.')
+
+
+def _qt_cursor_to_codepoint(text: str, qt_position: int) -> int:
+    """QTextCursor counts UTF-16 units; Python slices Unicode codepoints."""
+    if type(qt_position) is not int or qt_position < 0:
+        raise ValueError('invalid cursor')
+    data = text.encode('utf-16-le')
+    if qt_position * 2 > len(data):
+        raise ValueError('cursor outside manuscript')
+    return len(data[:qt_position * 2].decode('utf-16-le'))
 
 
 class ManualRewritePanel(QGroupBox):
@@ -87,6 +135,11 @@ class ManualRewritePanel(QGroupBox):
         self.ai_button.setObjectName('manualRewriteLocalAiPropose')
         self.ai_button.clicked.connect(self.propose_ai_rewrite)
         root.addWidget(self.ai_button)
+        self.selected_ai_button = QPushButton(
+            '초고에서 드래그한 100~6000자 구간만 로컬 GGUF로 재작성')
+        self.selected_ai_button.setObjectName('manualRewriteSelectedPassageAi')
+        self.selected_ai_button.clicked.connect(self.propose_selected_ai_rewrite)
+        root.addWidget(self.selected_ai_button)
         self.preview_button = QPushButton('저장 전 원본·수정 초고 변경 위치 직접 비교')
         self.preview_button.setObjectName('manualRewritePreview')
         self.preview_button.clicked.connect(self.preview_current)
@@ -291,7 +344,7 @@ class ManualRewritePanel(QGroupBox):
                 and self._rewrite_worker.isRunning())
 
     def _ai_set_running(self, running):
-        for button in (self.load_button, self.ai_button,
+        for button in (self.load_button, self.ai_button, self.selected_ai_button,
                        self.preview_button, self.save_button, self.final_handoff):
             button.setEnabled(not running)
         self.editor.setReadOnly(running)
@@ -357,6 +410,78 @@ class ManualRewritePanel(QGroupBox):
             '원고·최종본·출판 기록은 저장하지 않습니다.')
         worker.start()
 
+    def propose_selected_ai_rewrite(self):
+        """Author selects an exact saved span; preserve the rest byte-for-byte.
+
+        This is an alternative to whole-chapter rewrite when a 5000+ character
+        chapter has only one scene needing revision. One-time local-model
+        consent is consumed before launching the worker.
+        """
+        if self.is_ai_running():
+            return
+        allowed = (self.ai_consent.isChecked()
+                   and self.authoring.approved.isChecked())
+        self.ai_consent.setChecked(False)
+        self.authoring.approved.setChecked(False)
+        session = self.authoring.session
+        lease = self.lease
+        if (not allowed or lease is None or session.store is None
+                or session.path is None
+                or str(session.project_id) != lease.project_id
+                or session.episode_number != lease.episode
+                or _busy(self.authoring) or _unsaved(self.authoring)):
+            self.status.setText(
+                '선택 구간 수정 전에 현재 저장 초고와 승인한 로컬 모델을 '
+                '각각 이번 1회 승인하세요.')
+            return
+        try:
+            latest, saved = begin_manual_rewrite(
+                session.store, lease.project_id, lease.episode)
+            if (latest != lease or self.editor.toPlainText() != saved
+                    or session.store.get_episode(
+                        lease.project_id, lease.episode).final_text.strip()):
+                raise ValueError('stale or unsaved manuscript')
+            cursor = self.editor.textCursor()
+            if not cursor.hasSelection():
+                raise ValueError('missing selected passage')
+            start = _qt_cursor_to_codepoint(saved, cursor.selectionStart())
+            end = _qt_cursor_to_codepoint(saved, cursor.selectionEnd())
+            if not 100 <= end - start <= 6000:
+                raise ValueError('selection must be 100 to 6000 chars')
+            direction = self.author_direction.toPlainText()
+            if (len(direction) > 2000 or '\x00' in direction
+                    or any(ord(ch) < 32 and ch not in '\n\r\t'
+                           for ch in direction)):
+                raise ValueError('invalid author direction')
+            executable = self.authoring._text('executable').strip()
+            args = tuple(shlex.split(self.authoring._text('arguments')))
+            special = (Path(executable).name.casefold() == 'anf_local_model.exe'
+                       and args[:1] == ('--gguf',))
+            provider = LocalExecutableProvider(
+                executable, arguments=args,
+                timeout_seconds=1500 if special else 450 if args[:1] == ('--gguf',)
+                else 120, explicitly_allowed=True)
+        except (ValueError, OSError, UnicodeError):
+            self.status.setText(
+                '저장 초고의 100~6000자 구간을 드래그 선택하고 '
+                '모델·지시·원고 상태를 확인하세요. 아무것도 실행하지 않았습니다.')
+            return
+        self._model_identity = (
+            str(session.path), lease.project_id, lease.episode, lease)
+        self._saved_before_model = saved
+        self._saved_author_direction = direction
+        self._ai_set_running(True)
+        worker = SelectedRewriteWorker(
+            str(session.path), lease, provider, direction, start, end, self)
+        self._rewrite_worker = worker
+        worker.proposed.connect(self._receive_ai_proposal)
+        worker.failed.connect(self._ai_failed)
+        worker.finished.connect(self._ai_finished)
+        self.status.setText(
+            f'{lease.episode}화 {start+1}~{end}자 선택 구간만 실제 로컬 '
+            'GGUF 재작성 중. 구간 밖 저장 원고와 최종본은 변경하지 않습니다.')
+        worker.start()
+
     def _receive_ai_proposal(self, result):
         session = self.authoring.session
         key = self._model_identity
@@ -403,16 +528,24 @@ class ManualRewritePanel(QGroupBox):
                 f'본문 미검사 {evidence.previous_episodes_unexamined}화. '
                 '수치·정확 문장 일치만 비교했고 문학 품질·의미 유사성·'
                 '참고작 표절·출판 승인 아님.')
+        if isinstance(result, SelectedRewriteProposal):
+            detail = (
+                f'실제 선택 구간 {result.selected_start+1}~'
+                f'{result.selected_end}자만 GGUF {result.actual_model_calls}회 '
+                '재작성; 구간 밖 원문은 그대로 유지. ')
+        else:
+            detail = (
+                f'실제 QC 주의 {len(result.source_qc_findings)}종 참고. '
+                f'실제 GGUF 호출 {result.continuation.total_model_calls}회 / '
+                f'실제 글자 부족 {result.continuation.remaining_nonspace_chars}자 '
+                f'({result.continuation.stop_reason}). ')
         self.status.setText(
             f'{result.lease.episode}화 로컬 AI 미검수 수정 후보 '
             f'{result.preview.after_characters}자 편집기에 표시. '
-            f'실제 QC 주의 {len(result.source_qc_findings)}종 참고. '
-            f'저장 Novel Bible·인물 설정 {result.saved_canon.author_sections}개 범위, '
+            + detail
+            + f'저장 Novel Bible·인물 설정 {result.saved_canon.author_sections}개 범위, '
             f'인접 실제 저장 원고 {len(result.saved_canon.neighbor_chapters)}화 '
             f'(누락 {len(result.saved_canon.missing_neighbor_chapters)}화) 참고. '
-            f'실제 GGUF 호출 {result.continuation.total_model_calls}회 / '
-            f'실제 글자 부족 {result.continuation.remaining_nonspace_chars}자 '
-            f'({result.continuation.stop_reason}). '
             '원문/최종본 미변경. 직접 읽고 수정·비교한 후 별도 저장하세요.')
 
     def _ai_failed(self, message):
