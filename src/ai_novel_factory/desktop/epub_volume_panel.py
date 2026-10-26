@@ -7,7 +7,8 @@ from PySide6.QtWidgets import (
 )
 
 from ai_novel_factory.epub_volume_workflow import (
-    EpubVolumeError, create_private_epub_volume, plan_epub_volumes,
+    EpubVolumeError, create_private_epub_volume, create_private_epub_series,
+    plan_epub_volumes,
 )
 
 
@@ -34,7 +35,7 @@ class EpubVolumePanel(QGroupBox):
         self.toc = self._file_row(root, '작가 목차 JSON (선택)', 'JSON (*.json)', 'toc')
         self.cover = self._file_row(root, 'JPEG 표지 (선택)', 'JPEG (*.jpg *.jpeg)', 'cover')
         row = QHBoxLayout()
-        row.addWidget(QLabel('현재 권 전용 기존 출력 폴더'))
+        row.addWidget(QLabel('권별 폴더 또는 전체 권 출력용 기존 상위 폴더'))
         self.output = QLineEdit()
         self.output.setReadOnly(True)
         row.addWidget(self.output)
@@ -48,6 +49,14 @@ class EpubVolumePanel(QGroupBox):
         self.create.setObjectName('epubVolumeCreate')
         self.create.clicked.connect(self.create_volume)
         root.addWidget(self.create)
+        self.series_consent = QCheckBox(
+            '현재 최종본 1~N화의 모든 권을 새 하위 폴더에 비공개 생성하는 이번 1회를 승인')
+        self.series_consent.setObjectName('epubSeriesConsent')
+        root.addWidget(self.series_consent)
+        self.create_series_button = QPushButton('모든 권 EPUB3 일괄 생성 (로컬 비공개 / 덮어쓰기 없음)')
+        self.create_series_button.setObjectName('epubSeriesCreate')
+        self.create_series_button.clicked.connect(self.create_series)
+        root.addWidget(self.create_series_button)
         self.status = QLabel('먼저 현재 작품과 권별 분할 계획을 조회하세요.')
         self.status.setWordWrap(True)
         root.addWidget(self.status)
@@ -80,6 +89,7 @@ class EpubVolumePanel(QGroupBox):
 
     def _revoke_consent(self, *_args):
         self.consent.setChecked(False)
+        self.series_consent.setChecked(False)
 
     def invalidate(self, *_args):
         self._stamp = None
@@ -166,3 +176,41 @@ class EpubVolumePanel(QGroupBox):
             f'{result.volume.index}권 ({result.volume.first_episode}~'
             f'{result.volume.last_episode}화) 비공개 EPUB3 새 파일 생성. '
             '기존 로컬 Reader에서 직접 열어 확인하세요. 출판 승인·업로드 없음.')
+
+
+    def create_series(self):
+        """One explicitly authorized local run; never publish or overwrite."""
+        from .author_navigation_contract import _busy, _unsaved
+        session = self.authoring.session
+        stamp = self._stamp
+        approved = self.series_consent.isChecked()
+        self._revoke_consent()
+        if (not approved or stamp is None or session.store is None
+                or str(session.project_id) != stamp[0] or _busy(self.authoring)
+                or _unsaved(self.authoring)):
+            self.status.setText('현재 저장 원고 계획, 미저장 원고 확인, 전체 권 승인 필요.')
+            return
+        self.create_series_button.setEnabled(False)
+        try:
+            result = create_private_epub_series(
+                session.store, stamp[0],
+                through_episode=stamp[1],
+                expected_source_sha256=stamp[2],
+                metadata_file=self.metadata.text(),
+                output_root=self.output.text(),
+                cover_file=self.cover.text() or None,
+                toc_manifest_file=self.toc.text() or None,
+                explicit_private_series=True)
+        except (EpubVolumeError, ValueError, OSError):
+            self._stamp = None
+            self.status.setText('전체 권 생성이 중단되었습니다. 기존 파일은 삭제·덮어쓰지 '
+                                '않았습니다. 출력 폴더에 이미 생성된 권이 있는지 확인하세요.')
+            return
+        finally:
+            self.create_series_button.setEnabled(True)
+        self._stamp = None
+        self.status.setText(
+            f'전체 {len(result.volumes)}권을 기존 상위 폴더의 각각 새 하위 폴더에 생성. '
+            + ('모든 권이 같은 원고 SHA 기준입니다. ' if result.source_current
+               else '생성 중 원고가 변경되어 결과는 오래된 사본입니다. ')
+            + '비공개 EPUB이며 출판·업로드 승인 아님.')

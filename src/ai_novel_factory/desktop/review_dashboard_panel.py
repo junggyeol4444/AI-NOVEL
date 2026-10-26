@@ -7,6 +7,9 @@ from PySide6.QtWidgets import (
 )
 
 from ..episode_review_dashboard import build_review_dashboard, export_review_dashboard_csv
+from ..full_manuscript_screen import (
+    scan_saved_full_manuscript, export_full_manuscript_screen_csv,
+)
 from .author_navigation_contract import _busy, _unsaved
 
 
@@ -16,6 +19,7 @@ class ReviewDashboardPanel(QGroupBox):
         self.authoring = authoring
         self._report = None
         self._identity = None
+        self._full_screen = None
         root = QVBoxLayout(self)
         top = QHBoxLayout()
         top.addWidget(QLabel('마지막 회차'))
@@ -54,12 +58,47 @@ class ReviewDashboardPanel(QGroupBox):
         self.export_button.setEnabled(False)
         self.export_button.clicked.connect(self.export_current)
         root.addWidget(self.export_button)
+        screen_title = QLabel('실제 원고 1~N화 형식·한글 분량·직전 250화 동일 문장 검사 (별도 읽기 전용)')
+        screen_title.setWordWrap(True)
+        root.addWidget(screen_title)
+        controls = QHBoxLayout()
+        self.screen_target = QSpinBox()
+        self.screen_target.setRange(100, 50000)
+        self.screen_target.setValue(5000)
+        self.screen_target.valueChanged.connect(self.invalidate_export)
+        controls.addWidget(QLabel('회차당 목표 글자'))
+        controls.addWidget(self.screen_target)
+        self.scan_button = QPushButton('1~N화 실제 저장 본문 범위 검사')
+        self.scan_button.setObjectName('novelFullManuscriptScan')
+        self.scan_button.clicked.connect(self.scan_full_text)
+        controls.addWidget(self.scan_button)
+        root.addLayout(controls)
+        self.screen_status = QLabel('실제 본문 범위 검사를 별도로 실행하지 않았습니다.')
+        self.screen_status.setWordWrap(True)
+        root.addWidget(self.screen_status)
+        self.screen_table = QTableWidget(0, 5)
+        self.screen_table.setObjectName('novelFullManuscriptTable')
+        self.screen_table.setHorizontalHeaderLabels((
+            '회차', '본문 출처', '실제 글자', '이전 화 동일 문장', '형식 범위'))
+        self.screen_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.screen_table.setMaximumHeight(220)
+        root.addWidget(self.screen_table)
+        self.screen_export_consent = QCheckBox('현재 저장 본문 1~N화 범위 결과 CSV 새 파일 내보내기 1회 승인')
+        root.addWidget(self.screen_export_consent)
+        self.screen_export_button = QPushButton('저장 원고 수치·중복 근거만 새 CSV로 저장')
+        self.screen_export_button.setEnabled(False)
+        self.screen_export_button.setObjectName('novelFullManuscriptExport')
+        self.screen_export_button.clicked.connect(self.export_full_text)
+        root.addWidget(self.screen_export_button)
 
     def invalidate_export(self, *_args):
         self._report = None
         self._identity = None
+        self._full_screen = None
         self.export_consent.setChecked(False)
         self.export_button.setEnabled(False)
+        self.screen_export_consent.setChecked(False)
+        self.screen_export_button.setEnabled(False)
 
     def refresh(self):
         self.invalidate_export()
@@ -142,3 +181,71 @@ class ReviewDashboardPanel(QGroupBox):
         self.status.setText(
             f'{receipt.chapter_count}화의 검수 작업표를 {receipt.file.name} 새 파일로 저장했습니다. '
             '원고·QC 원문·참고작은 포함하지 않았으며, 합격·출판 승인이 아닙니다.')
+
+
+    def scan_full_text(self):
+        """Read locally saved original chapters, never promote flags to PASS."""
+        self.invalidate_export()
+        session = self.authoring.session
+        if (session.store is None or session.project_id is None
+                or _busy(self.authoring) or _unsaved(self.authoring)):
+            self.screen_status.setText(
+                '먼저 작품을 열고 현재 편집 중인 원고를 저장해야 합니다.')
+            return
+        self.scan_button.setEnabled(False)
+        try:
+            report = scan_saved_full_manuscript(
+                session.store, str(session.project_id),
+                through_episode=self.through.value(),
+                target_chars=self.screen_target.value())
+        except (ValueError, OSError):
+            self.screen_status.setText('실제 저장 원고의 범위 검사를 완료하지 못했습니다.')
+            return
+        finally:
+            self.scan_button.setEnabled(True)
+        self._full_screen = report
+        self._identity = (str(session.path), str(session.project_id))
+        self.screen_export_button.setEnabled(True)
+        self.screen_status.setText(
+            f'{report.through_episode}화 실제 저장 원고: '
+            f'본문 누락 {report.missing_saved_text}화 / '
+            f'형식·분량 검토 {report.format_warnings}화 / '
+            f'직전 최대 250화 동일 문장 검토 {report.exact_reuse_warnings}화. '
+            '이는 어휘·형식 한정 검사이며 문학 품질·인과·저작권·출판 승인 아님.')
+        self.screen_table.setRowCount(len(report.chapters))
+        for index, chapter in enumerate(report.chapters):
+            for col, value in enumerate((
+                chapter.episode, chapter.source, chapter.nonspace_chars,
+                chapter.exact_prior_reuse, chapter.status)):
+                self.screen_table.setItem(index, col, QTableWidgetItem(str(value)))
+
+    def export_full_text(self):
+        report, identity = self._full_screen, self._identity
+        approved = self.screen_export_consent.isChecked()
+        self.screen_export_consent.setChecked(False)
+        session = self.authoring.session
+        if (not approved or report is None or identity is None
+                or session.store is None or session.project_id is None
+                or session.path is None
+                or identity != (str(session.path), str(session.project_id))
+                or report.through_episode != self.through.value()
+                or report.target_chars != self.screen_target.value()
+                or _busy(self.authoring) or _unsaved(self.authoring)):
+            self.invalidate_export()
+            self.screen_status.setText('현재 작품·검사 범위를 새로 확인하고 저장 승인을 해주세요.')
+            return
+        folder = QFileDialog.getExistingDirectory(
+            self, '원고 수치 검사 결과를 저장할 기존 로컬 폴더')
+        if not folder:
+            return
+        try:
+            receipt = export_full_manuscript_screen_csv(
+                session.store, report, folder, explicit_author_export=True)
+        except (ValueError, OSError):
+            self.invalidate_export()
+            self.screen_status.setText('원고가 변경됐거나 CSV 저장에 실패했습니다. 다시 검사하세요.')
+            return
+        self.invalidate_export()
+        self.screen_status.setText(
+            f'{receipt.chapter_count}화 실제 원고 범위 검사 CSV를 새 파일 '
+            f'{receipt.path.name}에 기록. 원고 문장은 포함하지 않았으며 검수·출판 승인이 아닙니다.')

@@ -149,3 +149,103 @@ def create_private_epub_volume(
     return EpubVolumeResult(result, volume, current,
                             'PRIVATE_PREVIEW_ONLY' if current
                             else 'STALE_SOURCE_AFTER_EXPORT_NOT_APPROVED')
+
+
+
+@dataclass(frozen=True)
+class PrivateEpubSeriesResult:
+    """Only local files created with this user's explicit one-time approval."""
+    volumes: tuple[EpubVolumeResult, ...]
+    root: Path
+    source_sha256: str
+    source_current: bool
+    status: str = 'PRIVATE_SERIES_PREVIEW_NOT_PUBLISHED'
+    publication_approved: bool = False
+
+
+def create_private_epub_series(
+    store: EpisodeStore, project_id: str, *, through_episode: int,
+    expected_source_sha256: str, metadata_file: str | Path,
+    output_root: str | Path, cover_file: str | Path | None = None,
+    toc_manifest_file: str | Path | None = None,
+    explicit_private_series: bool,
+) -> PrivateEpubSeriesResult:
+    """Create every volume of one saved 1..N manuscript into NEW local dirs.
+
+    One explicit user consent covers the entire planned series. The function
+    never publishes, uploads, overwrites a file, creates an account or modifies
+    SQLite. Preflight blocks incomplete/stale manuscripts and occupied child
+    paths *before* writing volume 1. A mid-series failure stops immediately;
+    previously created private EPUBs are preserved, never deleted.
+    """
+    if explicit_private_series is not True:
+        raise EpubVolumeError('전체 권 비공개 EPUB 생성은 이번 실행에 별도 승인이 필요합니다.')
+    plan = plan_epub_volumes(store, project_id,
+                             through_episode=through_episode)
+    if plan.missing_final or plan.oversized_final:
+        raise EpubVolumeError('원고 최종본 누락 또는 권별 용량 초과가 있어 전체 권 생성을 중단합니다.')
+    if (type(expected_source_sha256) is not str
+            or expected_source_sha256 != plan.source_sha256):
+        raise EpubVolumeError('원고 내용이 변경되어 전체 권 생성 승인이 무효입니다.')
+    root = Path(output_root)
+    if (not root.is_absolute() or root.is_symlink() or not root.is_dir()
+            or str(root).startswith(('\\\\', '//'))):
+        raise EpubVolumeError('기존의 로컬 전체 EPUB 출력 폴더가 필요합니다.')
+    root = root.resolve(strict=True)
+    volume_dirs = [
+        root / f'anf-private-volume-{volume.index:03d}'
+        for volume in plan.volumes]
+    if any(path.exists() or path.is_symlink() for path in volume_dirs):
+        raise EpubVolumeError('기존 권별 폴더와 이름이 충돌합니다. 다른 출력 폴더를 선택하세요.')
+    # Validate shared inputs BEFORE volume 1, so later volumes do not
+    # unexpectedly depend on a missing metadata/TOC file.
+    metadata = load_metadata(metadata_file)
+    if metadata.project_id != project_id:
+        raise EpubVolumeError('EPUB 메타데이터가 다른 작품에 속합니다.')
+    if toc_manifest_file is not None:
+        load_current_epub_toc_manifest(
+            toc_manifest_file, store, project_id, through_episode=through_episode)
+    if cover_file is not None:
+        cover = Path(cover_file)
+        if not cover.is_file() or cover.is_symlink():
+            raise EpubVolumeError('선택한 EPUB 표지 파일을 확인할 수 없습니다.')
+    results: list[EpubVolumeResult] = []
+    for planned, destination in zip(plan.volumes, volume_dirs):
+        now = plan_epub_volumes(
+            store, project_id, through_episode=through_episode)
+        if now.source_sha256 != plan.source_sha256:
+            raise EpubVolumeError(
+                f'전체 EPUB 작업 중 저장 원고가 변경되었습니다. '
+                f'이미 생성된 {len(results)}권은 비공개 파일로 보존합니다.')
+        try:
+            destination.mkdir(mode=0o700, parents=False, exist_ok=False)
+        except OSError:
+            raise EpubVolumeError(
+                f'권별 새 폴더를 만들 수 없습니다. '
+                f'이미 생성된 {len(results)}권은 비공개 파일로 보존합니다.') from None
+        try:
+            generated = create_private_epub_volume(
+                store, project_id, through_episode=through_episode,
+                volume_index=planned.index,
+                expected_source_sha256=plan.source_sha256,
+                metadata_file=metadata_file, output_directory=destination,
+                cover_file=cover_file, toc_manifest_file=toc_manifest_file,
+                explicit_private_preview=True)
+        except (OSError, ValueError):
+            # Never delete a generated author's EPUB, even when this specific
+            # operation may have written a partial/complete file before error.
+            raise EpubVolumeError(
+                f'{planned.index}권 생성에 실패했습니다. '
+                f'이전에 생성된 {len(results)}권과 기존 파일은 삭제하지 않았습니다.') from None
+        results.append(generated)
+        if not generated.source_current_after_export:
+            raise EpubVolumeError(
+                f'원고 변경으로 {planned.index}권 이후 생성을 중단했습니다. '
+                '생성된 파일은 비공개이며 현재 원고 버전 인증이 아닙니다.')
+    current = (plan_epub_volumes(
+        store, project_id, through_episode=through_episode
+    ).source_sha256 == plan.source_sha256)
+    return PrivateEpubSeriesResult(
+        tuple(results), root, plan.source_sha256, current,
+        'PRIVATE_SERIES_PREVIEW_NOT_PUBLISHED' if current
+        else 'STALE_SOURCE_AFTER_EXPORT_NOT_APPROVED')
