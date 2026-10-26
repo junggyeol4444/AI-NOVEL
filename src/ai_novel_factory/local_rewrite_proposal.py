@@ -17,6 +17,9 @@ from .database.characters import CharacterStore
 from .local_models import (
     LocalExecutableProvider, LocalModelError, SceneDraftRequest, draft_scene,
 )
+from .local_rewrite_canon_bridge import (
+    SavedRewriteCanon, build_saved_rewrite_canon,
+)
 from .local_rewrite_continuation import (
     RewriteContinuationResult, continue_actual_rewrite,
 )
@@ -42,6 +45,7 @@ class LocalRewriteProposal:
     numeric_evidence: RewriteCandidateEvidence = field(repr=False, default=None)
     continuation: RewriteContinuationResult = field(repr=False, default=None)
     author_direction_applied: bool = False
+    saved_canon: SavedRewriteCanon = field(repr=False, default=None)
     status: str = 'LOCAL_AI_UNREVIEWED_DRAFT_PROPOSAL'
     sqlite_saved: bool = False
     literary_quality_approved: bool = False
@@ -124,6 +128,17 @@ def propose_rewrite_of_saved_draft(
         if len(cast) > 40:
             raise LocalRewriteProposalError(
                 '원고의 등장인물이 많아 단일 모델 요청에 담을 수 없습니다.')
+        # Unlike the previous name-only GGUF rewrite request, connect
+        # ACTUAL saved author Novel Bible/personality/voice/temporal events,
+        # plus real prior/next saved chapter continuity evidence.
+        # This is read-only and explicitly labeled as excerpted information.
+        try:
+            canon_bridge = build_saved_rewrite_canon(
+                store, path, project_id, episode)
+        except (ValueError, OSError, UnicodeError):
+            raise LocalRewriteProposalError(
+                '현재 Novel Bible·저장 원고의 시간선 문맥을 읽지 못했습니다. '
+                '원본 변경 없이 AI 재작성을 보류합니다.') from None
         check_note = ('실제 저장 현재 revision의 검토 필요 검사 종류: '
                       + (', '.join(flagged) if flagged else '기록 없음')
                       + '\n이번 revision에 누락된 검사: '
@@ -137,6 +152,7 @@ def propose_rewrite_of_saved_draft(
             + (('[작가 저장 회차 플롯 원문]\n' + plot + '\n')
                if plot.strip() else '')
             + check_note
+            + '\n' + canon_bridge.text + '\n'
             + ('\n[작가가 이번 재작성에 직접 입력한 수정 방향]\n'
                + author_direction + '\n' if author_direction.strip() else ''))
         if len(source) > 24500:
@@ -201,4 +217,4 @@ def propose_rewrite_of_saved_draft(
                 '비교 중 원고가 변경되어 후보를 폐기했습니다.')
         return LocalRewriteProposal(
             lease, proposed, preview, flagged, evidence,
-            expanded, bool(author_direction.strip()))
+            expanded, bool(author_direction.strip()), canon_bridge)
