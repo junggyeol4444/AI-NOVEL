@@ -24,6 +24,7 @@ from .author_scene_checkpoint_integrity import SceneStageChoice
 from .scene_checkpoint_store import (
     SceneCheckpointError, FINAL_EPISODE_TAIL_STAGE,
     FIRST_EPISODE_TAIL_PASS_STAGE, MAX_EPISODE_TAIL_PASSES,
+    MAX_SCENE_CONTINUATION_PASSES,
 )
 from .author_context_envelope import (
     AuthorContextSources, compose_author_context, require_unchanged_author_sources,
@@ -773,10 +774,19 @@ def run_auto_novel(
                         chapter_canon_focus, scene_cast.names,
                         (assigned.assigned_plot, guide_beat,
                          drafts[-1] if drafts else ''))
-                    cached = checkpoint.load_stage(slot.scene_number) if checkpoint else None
-                    if cached is not None:
+                    # Recover the ACTUAL already-written scene before asking
+                    # the user-approved GGUF for another continuation. A
+                    # completed legacy 1..20 checkpoint remains readable.
+                    if checkpoint is not None:
+                        (cached, completed_scene_passes,
+                         completed_scene) = checkpoint.recover_scene_progress(
+                            slot.scene_number)
+                    else:
+                        cached, completed_scene_passes, completed_scene = (
+                            None, 0, False)
+                    if completed_scene:
                         drafts.append(cached)
-                        emit(n, f'장면 {slot.scene_number} 미검수 임시 기록 재사용')
+                        emit(n, f'장면 {slot.scene_number} 미검수 완료 기록 재사용')
                         continue
                     per_scene = scene_targets[scene_index]
                     emit(n, f'장면 {slot.scene_number}/{scenes_per_episode} 로컬 AI 집필')
@@ -813,51 +823,63 @@ def run_auto_novel(
                         existing, n, slot.scene_number, tuple(drafts),
                         assigned.assigned_plot,
                         next_plan=episode_guide.get(n + 1, ''))
-                    scene = model(n, slot.scene_number, scene_context,
-                                  scene_goal, scene_evidence,
-                                  f'{genre} 작품의 장면',
-                                  allocated_scene_chars=per_scene)
-                    scene_screen = screen_korean_draft(
-                        scene, target_chars=per_scene)
-                    original_repeat = check_repetition(project_id, n, scene)
-                    # The previous <120-character test let a 300-char scene
-                    # pass a 1600-char target. Evaluate the actual scene
-                    # target, Korean script, repeated prose and formatting,
-                    # and allow just one REAL model revision per scene.
-                    if (not scene_screen.format_gate_pass
-                            or original_repeat.findings):
-                        emit(n, f'장면 {slot.scene_number} 재작성')
-                        revised = model(
-                            n, slot.scene_number,
-                            _scene_revision_context(scene_context, scene),
-                            _native_scene_revision_goal(per_scene),
-                            (scene_evidence + '\n반복 표현을 줄이고 사건·동기·행동을 구체화')[:2000],
-                            f'{genre} 작품의 장면',
-                            allocated_scene_chars=per_scene)
-                        revised_screen = screen_korean_draft(
-                            revised, target_chars=per_scene)
-                        revised_repeat = check_repetition(project_id, n, revised)
-                        better_format = (revised_screen.format_gate_pass
-                                         and not scene_screen.format_gate_pass
-                                         and not revised_repeat.findings)
-                        better_partial = (
-                            revised_screen.nonspace_chars > scene_screen.nonspace_chars
-                            and revised_screen.hangul_share >= scene_screen.hangul_share
-                            and revised_screen.repeated_sentence_share <=
-                                scene_screen.repeated_sentence_share
-                            and revised_screen.repeated_chunk_share <=
-                                scene_screen.repeated_chunk_share
-                            and revised_screen.non_prose_markers == 0
-                            and not has_foreign_script_corruption(revised)
-                            and not revised_repeat.findings)
-                        if better_format or better_partial:
-                            scene = revised
+                    if cached is None:
+                        scene = model(n, slot.scene_number, scene_context,
+                                      scene_goal, scene_evidence,
+                                      f'{genre} 작품의 장면',
+                                      allocated_scene_chars=per_scene)
+                        scene_screen = screen_korean_draft(
+                            scene, target_chars=per_scene)
+                        original_repeat = check_repetition(project_id, n, scene)
+                        # The previous <120-character test let a 300-char scene
+                        # pass a 1600-char target. Evaluate the actual scene
+                        # target, Korean script, repeated prose and formatting,
+                        # and allow just one REAL model revision per scene.
+                        if (not scene_screen.format_gate_pass
+                                or original_repeat.findings):
+                            emit(n, f'장면 {slot.scene_number} 재작성')
+                            revised = model(
+                                n, slot.scene_number,
+                                _scene_revision_context(scene_context, scene),
+                                _native_scene_revision_goal(per_scene),
+                                (scene_evidence + '\n반복 표현을 줄이고 사건·동기·행동을 구체화')[:2000],
+                                f'{genre} 작품의 장면',
+                                allocated_scene_chars=per_scene)
+                            revised_screen = screen_korean_draft(
+                                revised, target_chars=per_scene)
+                            revised_repeat = check_repetition(project_id, n, revised)
+                            better_format = (revised_screen.format_gate_pass
+                                             and not scene_screen.format_gate_pass
+                                             and not revised_repeat.findings)
+                            better_partial = (
+                                revised_screen.nonspace_chars > scene_screen.nonspace_chars
+                                and revised_screen.hangul_share >= scene_screen.hangul_share
+                                and revised_screen.repeated_sentence_share <=
+                                    scene_screen.repeated_sentence_share
+                                and revised_screen.repeated_chunk_share <=
+                                    scene_screen.repeated_chunk_share
+                                and revised_screen.non_prose_markers == 0
+                                and not has_foreign_script_corruption(revised)
+                                and not revised_repeat.findings)
+                            if better_format or better_partial:
+                                scene = revised
+                        # Cache the accepted base local-GGUF draft before
+                        # spending another model call on continuation.
+                        if checkpoint is not None:
+                            record_unapproved_stage(
+                                checkpoint.scene_progress_stage(
+                                    slot.scene_number, 0), scene)
+                    else:
+                        scene = cached
+                        emit(n, f'장면 {slot.scene_number} 실제 AI 이어쓰기 '
+                             f'{completed_scene_passes}/{MAX_SCENE_CONTINUATION_PASSES}회 복원')
                     # A single native generation can be shorter than the
                     # author's per-scene target. Request bounded, REAL
                     # continuations from the same approved local model.
                     # Never pad with templates, lower the target, or mark
                     # a short scene as quality-approved.
-                    for continuation_index in range(4):
+                    for continuation_index in range(
+                            completed_scene_passes, MAX_SCENE_CONTINUATION_PASSES):
                         current_screen = screen_korean_draft(
                             scene, target_chars=per_scene)
                         remaining = per_scene - current_screen.nonspace_chars
@@ -894,6 +916,13 @@ def run_auto_novel(
                                 or check_repetition(project_id, n, candidate).findings):
                             break
                         scene = candidate
+                        if checkpoint is not None:
+                            record_unapproved_stage(
+                                checkpoint.scene_progress_stage(
+                                    slot.scene_number, continuation_index + 1),
+                                scene)
+                    # The scene-final marker is separate from unapproved
+                    # in-progress drafts and must match the last snapshot.
                     record_unapproved_stage(slot.scene_number, scene)
                     drafts.append(scene)
 

@@ -29,6 +29,14 @@ MAX_EPISODE_TAIL_PASSES = 6
 FIRST_EPISODE_TAIL_PASS_STAGE = FINAL_EPISODE_TAIL_STAGE + 1
 LAST_EPISODE_TAIL_PASS_STAGE = (
     FINAL_EPISODE_TAIL_STAGE + MAX_EPISODE_TAIL_PASSES)
+# Each scene owns one accepted base and four immutable GGUF continuation
+# snapshots. These are *not* final chapter or author-approved manuscript data.
+# Keep all previous 0..27 stage IDs unchanged for legacy checkpoints.
+MAX_SCENE_CONTINUATION_PASSES = 4
+FIRST_SCENE_PROGRESS_STAGE = LAST_EPISODE_TAIL_PASS_STAGE + 1
+SCENE_PROGRESS_STRIDE = MAX_SCENE_CONTINUATION_PASSES + 1
+LAST_SCENE_PROGRESS_STAGE = (
+    FIRST_SCENE_PROGRESS_STAGE + MAX_SCENES * SCENE_PROGRESS_STRIDE - 1)
 
 
 class SceneCheckpointError(ValueError):
@@ -105,7 +113,7 @@ class SceneCheckpointStore:
                             + f'_{self.episode:04d}_' + self._key[:32])
 
     def _stage_path(self, stage: int) -> Path:
-        if type(stage) is not int or not 0 <= stage <= LAST_EPISODE_TAIL_PASS_STAGE:
+        if type(stage) is not int or not 0 <= stage <= LAST_SCENE_PROGRESS_STAGE:
             raise SceneCheckpointError('장면 번호가 올바르지 않습니다.')
         return self.directory / f'{stage:02d}.json'
 
@@ -136,6 +144,61 @@ class SceneCheckpointStore:
             return text
         except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
             raise SceneCheckpointError('임시 장면을 확인할 수 없어 자동 재개를 차단했습니다.') from None
+
+    @staticmethod
+    def scene_progress_stage(scene: int, pass_index: int = 0) -> int:
+        """Get the new per-scene stage without changing old 0..27 IDs.
+
+        Pass zero is the selected local-model base draft after one revision;
+        passes 1..4 are accepted consecutive local GGUF continuations.
+        """
+        if (type(scene) is not int or not 1 <= scene <= MAX_SCENES
+                or type(pass_index) is not int
+                or not 0 <= pass_index <= MAX_SCENE_CONTINUATION_PASSES):
+            raise SceneCheckpointError('장면 이어쓰기 단계 범위가 올바르지 않습니다.')
+        return (FIRST_SCENE_PROGRESS_STAGE
+                + (scene - 1) * SCENE_PROGRESS_STRIDE + pass_index)
+
+    def recover_scene_progress(self, scene: int) -> tuple[str | None, int, bool]:
+        """Return exact accepted draft, completed tail count, final-stage flag.
+
+        An ordinary completed stage 1..20 from older checkpoints remains
+        valid. For new work, every 28..127 snapshot must retain the exact
+        previous Korean prose as its prefix. Missing middle passes, orphaned
+        passes, or a disagreeing final stage require explicit author review;
+        do not replay/replace already generated prose or promote to approval.
+        """
+        start = self.scene_progress_stage(scene, 0)
+        base = self.load_stage(start)
+        final = self.load_stage(scene)
+        if base is None:
+            for pass_index in range(1, MAX_SCENE_CONTINUATION_PASSES + 1):
+                if self.load_stage(self.scene_progress_stage(scene, pass_index)):
+                    raise SceneCheckpointError(
+                        '장면 시작 기록 없이 이어쓰기 중간 기록만 있습니다.')
+            return final, 0, final is not None
+        latest = base
+        completed = 0
+        missing_seen = False
+        for pass_index in range(1, MAX_SCENE_CONTINUATION_PASSES + 1):
+            recovered = self.load_stage(self.scene_progress_stage(scene, pass_index))
+            if recovered is None:
+                missing_seen = True
+                continue
+            if missing_seen:
+                raise SceneCheckpointError(
+                    '장면 이어쓰기 중간 기록이 누락되어 재개하지 않습니다.')
+            if not recovered.startswith(latest.rstrip() + '\n\n'):
+                raise SceneCheckpointError(
+                    '장면 이어쓰기의 저장 원문이 이전 문장과 불일치합니다.')
+            latest = recovered
+            completed += 1
+        if final is not None:
+            if final != latest:
+                raise SceneCheckpointError(
+                    '장면 최종 기록과 이어쓰기 중간 원문이 일치하지 않습니다.')
+            return final, completed, True
+        return latest, completed, False
 
     def recover_episode_tail(self, original_scene: str) -> tuple[str, int, bool]:
         """Recover every accepted REAL GGUF tail without replaying its calls.
@@ -241,8 +304,12 @@ def list_checkpoint_overviews(root: str | Path, *, database_path: str | Path,
                 continue
             rows = counts.setdefault(episode, [0, 0])
             rows[0] += 1
-            rows[1] += sum(1 for file in folder.glob('[0-2][0-9].json')
-                           if file.is_file() and not file.is_symlink())
+            rows[1] += sum(
+                1 for file in folder.glob('*.json')
+                if (file.is_file() and not file.is_symlink()
+                    and file.stem.isdecimal()
+                    and 0 <= int(file.stem) <= LAST_SCENE_PROGRESS_STAGE)
+            )
         return tuple(SceneCheckpointOverview(n, *counts[n]) for n in sorted(counts))
     except OSError:
         raise SceneCheckpointError('임시 장면 목록을 확인하지 못했습니다.') from None
