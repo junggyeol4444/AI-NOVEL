@@ -48,6 +48,7 @@ from .narrative_scene_canon import load_episode_canon_focus, focus_episode_canon
 from .narrative_character_history import (
     build_saved_character_history, focus_saved_character_history,
 )
+from .narrative_viewpoint_scope import select_saved_viewpoint
 from .author_ai_novel_guidance import (
     AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
     require_current_author_ai_novel_guidance,
@@ -456,6 +457,12 @@ def run_auto_novel(
         if context_sources is not None:
             require_unchanged_author_sources(db, project_id, context_sources)
         rules = {r.key: r.value for r in db.list_rules(project_id)}
+        # Read existing, author-owned Style Bible only. No new database
+        # schema, implicit viewpoint guess or source-novel content.
+        with StyleBibleStore(database_path) as viewpoint_store:
+            viewpoint_rules = {
+                r.key: r.directive for r in viewpoint_store.list_style_rules(project_id)
+            }
         genre, subject, mood = (rules.get(k, '').strip() for k in
                                 ('genre', 'subject', 'mood'))
         if not genre or not subject or not mood:
@@ -544,6 +551,7 @@ def run_auto_novel(
         active_cast_context = ''
         active_canon_focus = ''
         active_character_history = ''
+        active_viewpoint_context = ''
 
         def model(episode_num: int, scene_num: int, context: str,
                   goal: str, conflict: str, place: str, *,
@@ -553,9 +561,11 @@ def run_auto_novel(
                 raise InterruptedError()
             if context_sources is not None:
                 require_unchanged_author_sources(db, project_id, context_sources)
+            # Narrator constraints have first claim in the 12k native
+            # model input window. This is not a claim that the model obeyed.
             focused_context = '\n'.join(part for part in (
-                active_cast_context, active_canon_focus,
-                active_character_history, context) if part)
+                active_viewpoint_context, active_cast_context,
+                active_canon_focus, active_character_history, context) if part)
             request = SceneDraftRequest(
                 project_id, episode_num, scene_num, focused_context[:12000],
                 goal[:2000], conflict[:2000], place[:1000], character_names,
@@ -718,16 +728,24 @@ def run_auto_novel(
                     raise AutoNovelRunError(
                         '통합 작가 문맥이 실제 모델 입력 길이를 초과했습니다. 임의 축약하지 않습니다.')
                 context = merged
+            # Episode-wide explicit author viewpoint applies to the actual
+            # local GGUF plot, without pulling in future scene rules.
+            plot_viewpoint = select_saved_viewpoint(
+                viewpoint_rules, n, 0, tuple(person.name for person in characters))
+            active_viewpoint_context = plot_viewpoint.prompt
             # Select actual saved cast for the approved GGUF plot call.
             plot_cast = focus_saved_cast(
-                characters, (chosen_episode_outline, subject, story_preview))
+                characters, (plot_viewpoint.focal_character,
+                             chosen_episode_outline, subject, story_preview))
             character_names = plot_cast.names
             active_cast_context = plot_cast.context
             active_canon_focus = focus_episode_canon(
                 chapter_canon_focus, plot_cast.names,
                 (chosen_episode_outline, subject))
             active_character_history = focus_saved_character_history(
-                chapter_character_history, plot_cast.names,
+                chapter_character_history,
+                ((plot_viewpoint.focal_character,) if plot_viewpoint.focal_character
+                 else plot_cast.names),
                 (chosen_episode_outline, subject))
             emit(n, '회차 플롯 로컬 AI 생성')
             try:
@@ -775,10 +793,15 @@ def run_auto_novel(
                     # Re-select from ALL saved author characters for each
                     # actual scene, including checkpoint-restored scenes.
                     assigned = scene_beats[scene_index]
+                    scene_viewpoint = select_saved_viewpoint(
+                        viewpoint_rules, n, slot.scene_number,
+                        tuple(person.name for person in characters))
+                    active_viewpoint_context = scene_viewpoint.prompt
                     guide_beat = (selected_guide_beats[scene_index].assigned_plot
                                   if selected_guide_beats else '')
                     scene_cast = focus_saved_cast(
-                        characters, (assigned.assigned_plot, guide_beat,
+                        characters, (scene_viewpoint.focal_character,
+                                     assigned.assigned_plot, guide_beat,
                                      drafts[-1] if drafts else '', outline))
                     character_names = scene_cast.names
                     active_cast_context = scene_cast.context
@@ -787,7 +810,9 @@ def run_auto_novel(
                         (assigned.assigned_plot, guide_beat,
                          drafts[-1] if drafts else ''))
                     active_character_history = focus_saved_character_history(
-                        chapter_character_history, scene_cast.names,
+                        chapter_character_history,
+                        ((scene_viewpoint.focal_character,) if scene_viewpoint.focal_character
+                         else scene_cast.names),
                         (assigned.assigned_plot, guide_beat))
                     # Recover the ACTUAL already-written scene before asking
                     # the user-approved GGUF for another continuation. A
