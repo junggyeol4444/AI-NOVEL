@@ -113,3 +113,45 @@ def read_selected_volume_chapter(catalog: PrivateVolumeCatalog, *,
         raise PrivateVolumeReaderError('EPUB3 파일이 열람 중 변경되었습니다.')
     chapter = chapters[chapter_index - 1]
     return chapter.title, chapter.text
+
+
+
+def load_explicit_private_epub_series(
+    selected_root: str | Path,
+) -> PrivateVolumeCatalog:
+    """Load an author-picked folder created by create_private_epub_series.
+
+    The generated names are an explicit local output contract, NOT guesses
+    about untrusted arbitrary EPUB files. Never crawl subtrees or open
+    non-author-selected roots. A missing intermediate volume blocks loading.
+    """
+    root = Path(selected_root)
+    if (not root.is_absolute() or root.is_symlink() or not root.is_dir()
+            or str(root).startswith(('\\\\', '//'))):
+        raise PrivateVolumeReaderError(
+            '일괄 생성한 EPUB3의 기존 로컬 상위 폴더를 직접 선택해야 합니다.')
+    found: list[tuple[int, Path]] = []
+    for child in root.iterdir():
+        if not child.name.startswith('anf-private-volume-'):
+            continue
+        suffix = child.name.removeprefix('anf-private-volume-')
+        if not (len(suffix) == 3 and suffix.isascii()
+                and suffix.isdecimal()
+                and 1 <= int(suffix) <= 16
+                and child.is_dir() and not child.is_symlink()):
+            raise PrivateVolumeReaderError(
+                'EPUB 일괄 생성 폴더 이름 또는 로컬 경로가 올바르지 않습니다.')
+        number = int(suffix)
+        epub = child / 'book.epub'
+        if not epub.is_file() or epub.is_symlink():
+            raise PrivateVolumeReaderError(
+                '일괄 EPUB 세트 중 일부 권의 파일이 없습니다.')
+        found.append((number, epub))
+    found.sort(key=lambda pair: pair[0])
+    if not found or len(found) > 16:
+        raise PrivateVolumeReaderError(
+            '선택한 폴더에서 일괄 생성한 EPUB3 권을 찾지 못했습니다.')
+    if [number for number, _ in found] != list(range(1, len(found) + 1)):
+        raise PrivateVolumeReaderError(
+            '권별 순서가 빠져 있거나 중복된 파일이 있습니다.')
+    return build_private_volume_catalog(tuple(str(path) for _, path in found))

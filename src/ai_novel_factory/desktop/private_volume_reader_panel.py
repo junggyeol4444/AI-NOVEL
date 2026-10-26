@@ -17,6 +17,7 @@ from ai_novel_factory.private_volume_navigation import (
 
 from ai_novel_factory.private_volume_reader import (
     build_private_volume_catalog, read_selected_volume_chapter,
+    load_explicit_private_epub_series,
 )
 from ai_novel_factory.epub_reader_selection_handoff import (
     ReaderSelectionHandoffError, preview_reader_selection,
@@ -44,6 +45,10 @@ class PrivateVolumeReaderPanel(QGroupBox):
         select.setObjectName('privateVolumeReaderSelect')
         select.clicked.connect(self.choose_volumes)
         layout.addWidget(select)
+        select_series = QPushButton('일괄 생성한 EPUB3 전체 권 상위 폴더 선택')
+        select_series.setObjectName('privateVolumeReaderSelectSeriesFolder')
+        select_series.clicked.connect(self.choose_generated_series)
+        layout.addWidget(select_series)
         self.volumes = QListWidget()
         self.volumes.setObjectName('privateVolumeReaderVolumes')
         self.volumes.currentRowChanged.connect(self._volume_changed)
@@ -122,6 +127,25 @@ class PrivateVolumeReaderPanel(QGroupBox):
             self, '읽을 EPUB3 권들을 순서대로 선택', '', 'EPUB3 (*.epub)')
         if paths:
             self.load_selected_volumes(tuple(paths))
+
+    def choose_generated_series(self):
+        """Open only the root selected on this click, never scan user drives."""
+        directory = QFileDialog.getExistingDirectory(
+            self, '일괄 생성한 EPUB3 전체 권의 상위 로컬 폴더 선택')
+        if not directory:
+            return
+        self.invalidate()
+        try:
+            catalog = load_explicit_private_epub_series(directory)
+        except (OSError, ValueError):
+            self.status.setText(
+                '이 폴더의 일괄 EPUB 세트를 불러올 수 없습니다. '
+                '모든 권의 파일·순서·구조를 확인하세요.')
+            return
+        # Reuse the existing chapter-list and navigation UI; no new reader
+        # or duplicate manuscript DB is created.
+        self.load_selected_volumes(
+            tuple(str(entry.file_path) for entry in catalog.volumes))
 
     def load_selected_volumes(self, paths: tuple[str, ...]) -> bool:
         """기존 대조 화면의 명시적 인계 또는 직접 파일 선택만 허용."""
