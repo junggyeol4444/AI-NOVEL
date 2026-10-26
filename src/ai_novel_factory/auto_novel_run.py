@@ -24,6 +24,7 @@ from .author_scene_checkpoint_integrity import SceneStageChoice
 from .scene_checkpoint_store import (
     SceneCheckpointError, FINAL_EPISODE_TAIL_STAGE,
     FIRST_EPISODE_TAIL_PASS_STAGE, MAX_EPISODE_TAIL_PASSES,
+    episode_tail_pass_stage,
     MAX_SCENE_CONTINUATION_PASSES,
 )
 from .author_context_envelope import (
@@ -1005,7 +1006,7 @@ def run_auto_novel(
                 # episode, not a collection of undersized scene summaries.
                 # Per-scene native calls and four continuations may still
                 # underfill an actual episode. Continue the FINAL real scene,
-                # bounded to six EXTRA calls per episode, before persisting.
+                # bounded to twelve EXTRA calls per episode, before persisting.
                 # No template filler, quality-PASS, new source novel, or
                 # alteration of the author's saved prior manuscript is allowed.
                 # A persistently short output remains WARN and human-review.
@@ -1023,7 +1024,7 @@ def run_auto_novel(
                         raise InterruptedError()
                     requested = min(10_000, max(50, deficit))
                     emit(n, f'회차 {n}화 실제 AI 본문 분량 이어쓰기 '
-                         f'{chapter_tail_pass + 1}/6 '
+                         f'{chapter_tail_pass + 1}/{MAX_EPISODE_TAIL_PASSES} '
                          f'(현재 {actual_screen.nonspace_chars}/{target_chars}자)')
                     ending_context = (
                         '이미 집필한 해당 회차 마지막 장면(미검수, 되풀이 금지):\n'
@@ -1066,7 +1067,7 @@ def run_auto_novel(
                     # for ordinary scene snapshots are rechecked here.
                     if checkpoint is not None:
                         record_unapproved_stage(
-                            FIRST_EPISODE_TAIL_PASS_STAGE + chapter_tail_pass,
+                            episode_tail_pass_stage(chapter_tail_pass),
                             last_scene)
                     drafts[-1] = last_scene
 

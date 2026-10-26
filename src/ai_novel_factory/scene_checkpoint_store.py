@@ -22,13 +22,13 @@ MAX_SCENES = 20
 # scene checkpoints. It captures real local-GGUF chapter-tail continuations
 # before the complete unapproved chapter is atomically saved in SQLite.
 FINAL_EPISODE_TAIL_STAGE = MAX_SCENES + 1
-# Six immutable snapshots of ACTUALLY ACCEPTED GGUF continuation prose.
-# Stage 21 remains the 133회차 final marker for backward compatibility.
-# Stage 22..27 are append-only intermediate checkpoints, not final approval.
-MAX_EPISODE_TAIL_PASSES = 6
+# Preserve legacy stage 21 (final) and stages 22..27 (first six passes).
+# New accepted model continuations use stages after 28..127 scene snapshots.
+LEGACY_EPISODE_TAIL_PASSES = 6
+MAX_EPISODE_TAIL_PASSES = 12
 FIRST_EPISODE_TAIL_PASS_STAGE = FINAL_EPISODE_TAIL_STAGE + 1
 LAST_EPISODE_TAIL_PASS_STAGE = (
-    FINAL_EPISODE_TAIL_STAGE + MAX_EPISODE_TAIL_PASSES)
+    FINAL_EPISODE_TAIL_STAGE + LEGACY_EPISODE_TAIL_PASSES)
 # Each scene owns one accepted base and four immutable GGUF continuation
 # snapshots. These are *not* final chapter or author-approved manuscript data.
 # Keep all previous 0..27 stage IDs unchanged for legacy checkpoints.
@@ -37,6 +37,21 @@ FIRST_SCENE_PROGRESS_STAGE = LAST_EPISODE_TAIL_PASS_STAGE + 1
 SCENE_PROGRESS_STRIDE = MAX_SCENE_CONTINUATION_PASSES + 1
 LAST_SCENE_PROGRESS_STAGE = (
     FIRST_SCENE_PROGRESS_STAGE + MAX_SCENES * SCENE_PROGRESS_STRIDE - 1)
+
+FIRST_EXTRA_EPISODE_TAIL_STAGE = LAST_SCENE_PROGRESS_STAGE + 1
+LAST_EXTRA_EPISODE_TAIL_STAGE = (
+    FIRST_EXTRA_EPISODE_TAIL_STAGE
+    + MAX_EPISODE_TAIL_PASSES - LEGACY_EPISODE_TAIL_PASSES - 1)
+
+
+def episode_tail_pass_stage(index: int) -> int:
+    """Append-only chapter tail ID: prior issued stages 0..127 never move."""
+    if type(index) is not int or not 0 <= index < MAX_EPISODE_TAIL_PASSES:
+        raise SceneCheckpointError('회차 이어쓰기 기록 범위가 올바르지 않습니다.')
+    if index < LEGACY_EPISODE_TAIL_PASSES:
+        return FIRST_EPISODE_TAIL_PASS_STAGE + index
+    return FIRST_EXTRA_EPISODE_TAIL_STAGE + index - LEGACY_EPISODE_TAIL_PASSES
+
 
 
 class SceneCheckpointError(ValueError):
@@ -113,7 +128,7 @@ class SceneCheckpointStore:
                             + f'_{self.episode:04d}_' + self._key[:32])
 
     def _stage_path(self, stage: int) -> Path:
-        if type(stage) is not int or not 0 <= stage <= LAST_SCENE_PROGRESS_STAGE:
+        if type(stage) is not int or not 0 <= stage <= LAST_EXTRA_EPISODE_TAIL_STAGE:
             raise SceneCheckpointError('장면 번호가 올바르지 않습니다.')
         return self.directory / f'{stage:02d}.json'
 
@@ -216,9 +231,8 @@ class SceneCheckpointStore:
         latest = original_scene
         count = 0
         missing_seen = False
-        for stage in range(
-                FIRST_EPISODE_TAIL_PASS_STAGE,
-                LAST_EPISODE_TAIL_PASS_STAGE + 1):
+        for index in range(MAX_EPISODE_TAIL_PASSES):
+            stage = episode_tail_pass_stage(index)
             recovered = self.load_stage(stage)
             if recovered is None:
                 missing_seen = True
@@ -308,7 +322,7 @@ def list_checkpoint_overviews(root: str | Path, *, database_path: str | Path,
                 1 for file in folder.glob('*.json')
                 if (file.is_file() and not file.is_symlink()
                     and file.stem.isdecimal()
-                    and 0 <= int(file.stem) <= LAST_SCENE_PROGRESS_STAGE)
+                    and 0 <= int(file.stem) <= LAST_EXTRA_EPISODE_TAIL_STAGE)
             )
         return tuple(SceneCheckpointOverview(n, *counts[n]) for n in sorted(counts))
     except OSError:
