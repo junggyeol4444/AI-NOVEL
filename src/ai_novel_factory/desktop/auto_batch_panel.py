@@ -42,6 +42,7 @@ from ai_novel_factory.project_local_handoff import require_idle_authoring, Local
 class AutoBatchWorker(QThread):
     progress_changed = Signal(int, str)
     finished_report = Signal(object)
+    full_text_screen_finished = Signal(object)
     failed = Signal(str)
 
     def __init__(self, database_path, project_id, provider, target, chars,
@@ -49,7 +50,7 @@ class AutoBatchWorker(QThread):
                  catalog_path=None, batch_receipt=None,
                  scene_checkpoint_root=None, scene_checkpoint_lease=None,
                  context_sources=None, explicit_resume_choice=None,
-                 episode_writing_guidance=None):
+                 episode_writing_guidance=None, full_text_screen=False):
         super().__init__(parent)
         self.database_path = Path(database_path)
         self.project_id = project_id
@@ -66,6 +67,7 @@ class AutoBatchWorker(QThread):
         self.context_sources = context_sources
         self.explicit_resume_choice = explicit_resume_choice
         self.episode_writing_guidance = episode_writing_guidance
+        self.full_text_screen = full_text_screen is True
         self.stop_requested = Event()
 
     def run(self):
@@ -86,6 +88,22 @@ class AutoBatchWorker(QThread):
                 explicit_resume_choice=self.explicit_resume_choice,
                 episode_writing_guidance=self.episode_writing_guidance)
             journal_state = 'STOPPED' if result.stopped else 'FINISHED'
+            # The author opted into a read-only saved manuscript evidence
+            # screen. It is not an all-content literary quality certificate.
+            if self.full_text_screen and not result.stopped:
+                try:
+                    from ai_novel_factory.database.episodes import EpisodeStore
+                    from ai_novel_factory.full_manuscript_screen import (
+                        scan_saved_full_manuscript,
+                    )
+                    with EpisodeStore(self.database_path) as persisted:
+                        evidence = scan_saved_full_manuscript(
+                            persisted, self.project_id,
+                            through_episode=self.target,
+                            target_chars=self.chars)
+                    self.full_text_screen_finished.emit(evidence)
+                except (OSError, ValueError):
+                    self.full_text_screen_finished.emit(None)
             self.finished_report.emit(result)
         except (AutoNovelRunError, LocalModelError, ReferenceBatchError) as exc:
             # These are explicitly sanitized, finite application messages.
@@ -116,6 +134,7 @@ class AutoBatchPanel(QGroupBox):
         self._explicit_resume_choice = None
         self._resume_project_identity = None
         self._approved_ai_writing_guidance = None
+        self._screen_summary = None
         root = QVBoxLayout(self)
         notice = QLabel(
             '작품의 장르·소재·분위기·목표 회차를 먼저 저장하세요. '
@@ -159,6 +178,11 @@ class AutoBatchPanel(QGroupBox):
         self.scenes.setRange(1, 20)
         self.scenes.setValue(3)
         form.addRow('회차별 장면 수', self.scenes)
+        self.scan_after_batch = QCheckBox(
+            '집필 종료 후 1~N화 저장 본문의 한글 분량·형식·동일 문장 범위를 확인')
+        self.scan_after_batch.setObjectName('autoBatchFullTextEvidenceOptIn')
+        self.scan_after_batch.setChecked(True)
+        form.addRow(self.scan_after_batch)
         self.scene_checkpoint_opt_in = QCheckBox(
             '이번 실행의 AI 미검수 장면을 로컬에 임시 저장하고 동일 승인 설정에서만 재개')
         self.scene_checkpoint_opt_in.setObjectName('autoBatchSceneCheckpointOptIn')
@@ -226,6 +250,8 @@ class AutoBatchPanel(QGroupBox):
         for field in ('executable', 'arguments'):
             self.authoring.fields[field].textChanged.connect(
                 lambda _text: self.clear_explicit_scene_resume())
+        self.scan_after_batch.toggled.connect(
+            lambda _value: self.consent.setChecked(False))
         for spin in (self.through, self.target_chars, self.scenes):
             spin.valueChanged.connect(
                 lambda _value: self.consent.setChecked(False))
@@ -447,6 +473,7 @@ class AutoBatchPanel(QGroupBox):
     def start_batch(self):
         if self.is_running():
             return
+        self._screen_summary = None
         session = self.authoring.session
         if session.project_id is None or session.path is None:
             self.status.setText('작품 메뉴에서 먼저 작품을 생성하거나 열어 주세요.')
@@ -570,9 +597,11 @@ class AutoBatchPanel(QGroupBox):
             scene_checkpoint_lease=checkpoint_fingerprint,
             context_sources=selected_context_sources,
             explicit_resume_choice=explicit_choice,
-            episode_writing_guidance=new_guidance)
+            episode_writing_guidance=new_guidance,
+            full_text_screen=self.scan_after_batch.isChecked())
         self.worker.progress_changed.connect(
             lambda num, stage: self.status.setText(f'{num}화: {stage}'))
+        self.worker.full_text_screen_finished.connect(self._record_full_text_screen)
         self.worker.finished_report.connect(self._finished)
         self.worker.failed.connect(self._failed)
         self.worker.finished.connect(self._cleanup)
@@ -580,6 +609,12 @@ class AutoBatchPanel(QGroupBox):
         self.stop_button.setEnabled(True)
         self.status.setText('로컬 모델 연속 집필 시작. 저장된 회차는 건너뜁니다.')
         self.worker.start()
+
+    def _record_full_text_screen(self, report):
+        self._screen_summary = (
+            None if report is None else (
+                report.through_episode, report.missing_saved_text,
+                report.format_warnings, report.exact_reuse_warnings))
 
     def _finished(self, result):
         self.status.setText(
@@ -590,7 +625,15 @@ class AutoBatchPanel(QGroupBox):
             f'저장 초고의 문체 규칙 범위 검사 {result.style_scope_checked_episodes}화'
             '(WARN/FAIL 기록, 품질 합격 아님). '
             f'실제 로컬 모델 장면 이어쓰기 {result.continuation_model_calls}회. '
-            + ('중단 요청 반영됨.' if result.stopped else '비공개 초고만 저장됨.'))
+            + ('중단 요청 반영됨.' if result.stopped else '비공개 초고만 저장됨.')
+            + (f' 저장된 본문 {self._screen_summary[0]}화 범위: '
+               f'누락 {self._screen_summary[1]}화, '
+               f'형식·분량 검토 {self._screen_summary[2]}화, '
+               f'이전 회차 동일 문장 검토 {self._screen_summary[3]}화. '
+               '(문학 품질·저작권 합격 아님).'
+               if self._screen_summary is not None else
+               (' 후속 본문 근거 검사 미선택 또는 미완료.'
+                if not result.stopped else '')))
         # Keep existing form edits untouched, but show the newly generated
         # saved episodes in the selector immediately. Preserve selection.
         session = self.authoring.session
