@@ -53,6 +53,7 @@ from .narrative_viewpoint_scope import select_saved_viewpoint
 from .narrative_chapter_bridge import build_saved_chapter_bridge
 from .narrative_native_context import pack_native_gguf_context
 from .narrative_intra_chapter_handoff import build_intra_chapter_handoff
+from .narrative_serial_pacing import plan_local_serial_pacing
 from .author_ai_novel_guidance import (
     AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
     require_current_author_ai_novel_guidance,
@@ -677,6 +678,13 @@ def run_auto_novel(
                     '작가가 저장한 설정/인물/세계관/문체/사건이 변경되어 자동 집필을 중단했습니다.')
             plan = plans[n]
             arc = by_arc[plan.arc_number]
+            # Connect the real 30/100/250/1000-episode Arc POSITION to
+            # actual GGUF prose jobs; the previous scaffold passed only
+            # Arc number and its range, without serial pacing.
+            serial_pacing = plan_local_serial_pacing(
+                n, total_episodes=total,
+                arc_number=arc.number, arc_start=arc.start_episode,
+                arc_end=arc.end_episode)
             slots = plan_scenes(plan, scenes_per_episode)
             if not validate_scene_plans(plan, slots):
                 raise AutoNovelRunError('장면 계획 연속성이 깨졌습니다.')
@@ -780,7 +788,8 @@ def run_auto_novel(
                         f'{project.title}: {subject}. {n}/{total}화의 구체적인 '
                         '독창적 사건과 갈등을 설계. '
                         f'현재 ARC {arc.number} ({arc.start_episode}~{arc.end_episode}화). '
-                        'Novel Bible을 지키고 전 회차의 결과를 이어 새로운 회차 플롯을 작성.')
+                        'Novel Bible을 지키고 전 회차의 결과를 이어 새로운 회차 플롯을 작성.'
+                        + '\n' + serial_pacing.plot_guidance)
                     if chosen_episode_outline:
                         plot_goal = (
                             '이번 실행에 작가가 별도 선택한 AI 회차 기획 후보 '
@@ -862,6 +871,10 @@ def run_auto_novel(
                         n, slot.scene_number, scenes_per_episode,
                         outline, per_scene,
                         assigned_beat=assigned.assigned_plot)
+                    # The scene goal retains the native bridge's first
+                    # explicit requested-length token. Never replace author
+                    # scene beats or claim the pacing instruction is canon.
+                    scene_goal += '\n' + serial_pacing.scene_guidance
                     scene_context = _scene_generation_context(
                         context, assigned.assigned_plot,
                         drafts[-1] if drafts else '')
@@ -1056,7 +1069,8 @@ def run_auto_novel(
                         f'목표 분량 {requested}자 내외의 독창적인 한국어 '
                         '소설 후속 본문만 작성. 앞선 문단·대사 재출력 금지. '
                         '마지막 장면에서 벌어진 선택의 직접적 결과와 '
-                        '앞서 쌓은 복선에 따른 새 행동을 이어 서술.',
+                        '앞서 쌓은 복선에 따른 새 행동을 이어 서술. '
+                        + serial_pacing.ending_guidance,
                         build_real_scene_chain(
                              existing, n, slots[-1].scene_number,
                              tuple(drafts), chosen_episode_outline or outline,
