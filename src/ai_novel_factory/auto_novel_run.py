@@ -54,6 +54,7 @@ from .narrative_chapter_bridge import build_saved_chapter_bridge
 from .narrative_native_context import pack_native_gguf_context
 from .narrative_intra_chapter_handoff import build_intra_chapter_handoff
 from .narrative_serial_pacing import plan_local_serial_pacing
+from .narrative_saved_arc_bridge import build_saved_arc_bridge
 from .narrative_secret_scope import (
     select_focal_secret_scope, omit_unrevealed_secrets,
     focal_secret_instruction,
@@ -563,6 +564,7 @@ def run_auto_novel(
         active_viewpoint_context = ''
         active_previous_chapter_bridge = ''
         active_intra_chapter_memory = ''
+        active_saved_arc_bridge = ''
         active_selected_author_sections: tuple[str, ...] = ()
         active_focal_name = ''
         active_current_canon = None
@@ -602,7 +604,8 @@ def run_auto_novel(
                 previous_chapter=safe_text(active_previous_chapter_bridge),
                 character_history=safe_text(active_character_history),
                 scene_context=safe_text(selected_source_context),
-                previous_scenes=safe_text(active_intra_chapter_memory))
+                previous_scenes=safe_text(active_intra_chapter_memory),
+                previous_arc=safe_text(active_saved_arc_bridge))
             request = SceneDraftRequest(
                 project_id, episode_num, scene_num, focused_context.text,
                 safe_text(goal)[:2000], safe_text(conflict)[:2000],
@@ -757,6 +760,11 @@ def run_auto_novel(
             # From actual SAVED N-1 prose, not synthetic summary or model
             # guesses. This bridge applies to this chapter's plot + scene 1.
             chapter_bridge = build_saved_chapter_bridge(existing, n)
+            # Actual saved prose at earlier Arc endpoints, not AI-generated
+            # structural pacing text or future Arc events. Refresh for every
+            # saved chapter that this run actually generated earlier.
+            saved_arc_bridge = build_saved_arc_bridge(existing, arcs, n)
+            active_saved_arc_bridge = saved_arc_bridge.context
             if story_preview.strip():
                 chapter_canon += ('\n전체 스토리 AI 계획 초안(미확정·검수 전): '
                                   + story_preview[:1500])
