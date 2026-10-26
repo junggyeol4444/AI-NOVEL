@@ -51,6 +51,7 @@ from .narrative_character_history import (
 )
 from .narrative_viewpoint_scope import select_saved_viewpoint
 from .narrative_chapter_bridge import build_saved_chapter_bridge
+from .narrative_native_context import pack_native_gguf_context
 from .author_ai_novel_guidance import (
     AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
     require_current_author_ai_novel_guidance,
@@ -555,6 +556,7 @@ def run_auto_novel(
         active_character_history = ''
         active_viewpoint_context = ''
         active_previous_chapter_bridge = ''
+        active_selected_author_sections: tuple[str, ...] = ()
 
         def model(episode_num: int, scene_num: int, context: str,
                   goal: str, conflict: str, place: str, *,
@@ -564,14 +566,19 @@ def run_auto_novel(
                 raise InterruptedError()
             if context_sources is not None:
                 require_unchanged_author_sources(db, project_id, context_sources)
-            # Narrator constraints have first claim in the 12k native
-            # model input window. This is not a claim that the model obeyed.
-            focused_context = '\n'.join(part for part in (
-                active_viewpoint_context, active_cast_context,
-                active_canon_focus, active_previous_chapter_bridge,
-                active_character_history, context) if part)
+            # Preserve user-selected author text and episode-scoped Novel
+            # Bible without the former silent 12k prefix truncation. Only
+            # unreviewed plot/prose reference material may be excerpted.
+            focused_context = pack_native_gguf_context(
+                selected_author_sections=active_selected_author_sections,
+                viewpoint=active_viewpoint_context,
+                saved_canon=active_canon_focus,
+                cast=active_cast_context,
+                previous_chapter=active_previous_chapter_bridge,
+                character_history=active_character_history,
+                scene_context=context)
             request = SceneDraftRequest(
-                project_id, episode_num, scene_num, focused_context[:12000],
+                project_id, episode_num, scene_num, focused_context.text,
                 goal[:2000], conflict[:2000], place[:1000], character_names,
                 style_bible=active_style_bible,
                 target_chars=allocated_scene_chars)
@@ -726,10 +733,12 @@ def run_auto_novel(
             # Four author-selected local ledgers form ONE optional envelope.
             # Do not auto-load unselected sources or trim author-written facts.
             approved_context = None
+            active_selected_author_sections = ()
             if context_sources is not None:
                 approved_context = compose_author_context(
                     db, project_id, episode=n,
                     scene_count=scenes_per_episode, sources=context_sources)
+                active_selected_author_sections = (approved_context.outline,)
                 merged = approved_context.outline + '\n' + context
                 if len(merged) > 22000:
                     raise AutoNovelRunError(
@@ -867,6 +876,8 @@ def run_auto_novel(
                             + '\n' + scene_context)[:12000]
                     if approved_context is not None:
                         extra_scene = approved_context.scenes[scene_index]
+                        active_selected_author_sections = (
+                            approved_context.outline, extra_scene)
                         scene_context = (extra_scene + '\n' + scene_context
                                          if extra_scene else scene_context)
                         if len(scene_context) > 22000:
