@@ -15,10 +15,14 @@ from ai_novel_factory.local_selected_rewrite import (
 from ai_novel_factory.local_draft_expansion import (
     DraftExpansionError, DraftExpansionProposal, propose_saved_draft_expansion,
 )
+from ai_novel_factory.local_rewrite_recovery import (
+    LocalRewriteRecoveryError, export_unsaved_rewrite, import_unsaved_rewrite,
+)
 from .author_navigation_contract import _busy, _unsaved
 from PySide6.QtWidgets import (
     QGroupBox, QVBoxLayout, QLabel, QPushButton, QPlainTextEdit,
     QCheckBox, QTableWidget, QTableWidgetItem, QSpinBox, QFormLayout,
+    QFileDialog,
 )
 from ai_novel_factory.manual_rewrite_workspace import (
     begin_manual_rewrite, commit_manual_rewrite,
@@ -208,6 +212,27 @@ class ManualRewritePanel(QGroupBox):
         self.stop_expand_button.setEnabled(False)
         self.stop_expand_button.clicked.connect(self.stop_ai_expand)
         root.addWidget(self.stop_expand_button)
+        self.recovery_save_consent = QCheckBox(
+            '현재 미저장 재작성·이어쓰기 후보를 새 로컬 복구 파일에 보관하는 이번 1회 승인')
+        self.recovery_save_consent.setObjectName('manualRewriteRecoveryExportConsent')
+        root.addWidget(self.recovery_save_consent)
+        self.recovery_save_button = QPushButton(
+            '미저장 후보 복구 파일로 저장 (SQLite·최종본 미변경)')
+        self.recovery_save_button.setObjectName('manualRewriteRecoveryExport')
+        self.recovery_save_button.clicked.connect(self.export_unsaved_candidate)
+        root.addWidget(self.recovery_save_button)
+        self.recovery_load_consent = QCheckBox(
+            '기존 복구 파일의 후보를 현재 편집기로만 불러오는 이번 1회 승인')
+        self.recovery_load_consent.setObjectName('manualRewriteRecoveryImportConsent')
+        root.addWidget(self.recovery_load_consent)
+        self.recovery_load_button = QPushButton(
+            '미저장 후보 복구 파일 불러오기 (원본 revision 일치 시에만)')
+        self.recovery_load_button.setObjectName('manualRewriteRecoveryImport')
+        self.recovery_load_button.clicked.connect(self.restore_unsaved_candidate)
+        root.addWidget(self.recovery_load_button)
+        root.addWidget(QLabel(
+            '복구 JSON에는 개인 원고 전체가 들어갑니다. 신뢰하는 로컬 폴더에만 보관하세요. '
+            '복구는 편집기 입력일 뿐 저장·검수·출판 승인이 아닙니다.'))
         self.preview_button = QPushButton('저장 전 원본·수정 초고 변경 위치 직접 비교')
         self.preview_button.setObjectName('manualRewritePreview')
         self.preview_button.clicked.connect(self.preview_current)
@@ -303,6 +328,8 @@ class ManualRewritePanel(QGroupBox):
 
     def invalidate(self, *_args):
         self.ai_consent.setChecked(False)
+        self.recovery_save_consent.setChecked(False)
+        self.recovery_load_consent.setChecked(False)
         self.lease = None
         self.invalidate_preview()
         self.editor.clear()
@@ -327,6 +354,93 @@ class ManualRewritePanel(QGroupBox):
         self.editor.setPlainText(draft)
         self.lease = lease
         self.status.setText(f'{lease.episode}화 저장 초고를 편집 중 · 미저장')
+
+    def export_unsaved_candidate(self):
+        """Explicit new-file backup of an unsaved candidate; never SQLite."""
+        if self.is_ai_running():
+            self.status.setText('로컬 AI 작업 중에는 후보를 내보내지 않습니다.')
+            return
+        approved = self.recovery_save_consent.isChecked()
+        self.recovery_save_consent.setChecked(False)
+        session, lease = self.authoring.session, self.lease
+        if (not approved or lease is None or session.store is None
+                or session.project_id != lease.project_id
+                or session.episode_number != lease.episode
+                or _busy(self.authoring) or _unsaved(self.authoring)):
+            self.status.setText('현재 회차를 열고 이번 복구 파일 저장을 직접 승인하세요.')
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, '미저장 초고 후보 복구 JSON 새 파일',
+            f'AI_NOVEL_{lease.episode:04d}_unsaved_rewrite.json',
+            'AI NOVEL 복구 JSON (*.json)')
+        if not path:
+            self.status.setText('복구 파일 저장을 취소했습니다. 원본은 유지됩니다.')
+            return
+        try:
+            receipt = export_unsaved_rewrite(
+                session.store, lease, self.editor.toPlainText(),
+                path, explicit_author_export=True)
+        except (LocalRewriteRecoveryError, ValueError, OSError, UnicodeError):
+            self.status.setText(
+                '복구 파일을 새로 저장하지 못했습니다. 기존 파일 덮어쓰기·'
+                'SQLite 저장은 수행하지 않았습니다.')
+            return
+        self.status.setText(
+            f'{receipt.episode}화 미저장 수정 후보 {receipt.candidate_chars}자 '
+            '로컬 JSON 새 파일로 별도 보관. SQLite·최종본 변경 없음. '
+            '복구 JSON은 개인 원고이므로 외부에 공유하지 마세요.')
+
+    def restore_unsaved_candidate(self):
+        """Load only if the current editor has no unsaved conflicting edits."""
+        if self.is_ai_running():
+            self.status.setText('로컬 AI 작업 중에는 복구 후보를 불러오지 않습니다.')
+            return
+        approved = self.recovery_load_consent.isChecked()
+        self.recovery_load_consent.setChecked(False)
+        session, lease = self.authoring.session, self.lease
+        if (not approved or lease is None or session.store is None
+                or session.project_id != lease.project_id
+                or session.episode_number != lease.episode
+                or _busy(self.authoring) or _unsaved(self.authoring)):
+            self.status.setText('현재 저장 초고와 이번 복구 파일 불러오기를 승인하세요.')
+            return
+        try:
+            latest, saved = begin_manual_rewrite(
+                session.store, lease.project_id, lease.episode)
+            if latest != lease or self.editor.toPlainText() != saved:
+                raise ValueError('unsaved editor content or stale lease')
+        except (ValueError, OSError):
+            self.status.setText(
+                '현재 편집기에 다른 미저장 내용이 있거나 저장 원고가 변경됐습니다. '
+                '후보를 덮어쓰지 않습니다.')
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, '기존 미저장 원고 복구 JSON 선택', '',
+            'AI NOVEL 복구 JSON (*.json)')
+        if not path:
+            self.status.setText('복구 파일 불러오기를 취소했습니다.')
+            return
+        try:
+            recovered = import_unsaved_rewrite(
+                session.store, lease, path, explicit_author_import=True)
+            # A second check prevents a changed project from receiving stale
+            # text after the file dialog. The actual save will check again.
+            latest, now_saved = begin_manual_rewrite(
+                session.store, lease.project_id, lease.episode)
+            if (latest != lease or now_saved != saved
+                    or self.editor.toPlainText() != saved):
+                raise ValueError('source changed during import')
+        except (LocalRewriteRecoveryError, ValueError, OSError, UnicodeError):
+            self.status.setText(
+                '복구 파일 무결성·작품·회차·revision이 일치하지 않아 '
+                '편집기를 변경하지 않았습니다.')
+            return
+        self.editor.setPlainText(recovered.candidate_text)
+        self.invalidate_preview()
+        self.status.setText(
+            f'{recovered.episode}화 미저장 후보 '
+            f'{len(recovered.candidate_text)}자 편집기에만 복구. '
+            '원본·최종본·SQLite는 그대로입니다. 직접 검수·비교 후 별도 저장하세요.')
 
     def save_current(self):
         if self.is_ai_running():
@@ -414,6 +528,7 @@ class ManualRewritePanel(QGroupBox):
     def _ai_set_running(self, running):
         for button in (self.load_button, self.ai_button, self.selected_ai_button,
                        self.expand_ai_button, self.preview_button,
+                       self.recovery_save_button, self.recovery_load_button,
                        self.save_button, self.final_handoff):
             button.setEnabled(not running)
         self.expansion_target.setEnabled(not running)
