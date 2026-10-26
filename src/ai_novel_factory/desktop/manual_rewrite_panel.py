@@ -23,18 +23,20 @@ class LocalRewriteWorker(QThread):
     proposed = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, database_path, lease, provider, parent=None):
+    def __init__(self, database_path, lease, provider, direction, parent=None):
         super().__init__(parent)
         self.database_path = str(database_path)
         self.lease = lease
         self.provider = provider
+        self.direction = direction
 
     def run(self):
         try:
             proposal = propose_rewrite_of_saved_draft(
                 self.database_path, self.lease.project_id,
                 self.lease.episode, self.provider,
-                expected_lease=self.lease, explicit_author_model_run=True)
+                expected_lease=self.lease, explicit_author_model_run=True,
+                author_direction=self.direction)
             self.proposed.emit(proposal)
         except (LocalRewriteProposalError, ValueError, OSError, UnicodeError):
             self.failed.emit(
@@ -54,6 +56,7 @@ class ManualRewritePanel(QGroupBox):
         self._rewrite_worker = None
         self._model_identity = None
         self._saved_before_model = None
+        self._saved_author_direction = None
         root = QVBoxLayout(self)
         label = QLabel('현재 회차 저장 초고를 별도 편집합니다. 직접 저장 버튼 전에는 SQLite 변경 없음. '
                        '최종 원고는 덮어쓰지 않으며 재작성 후 검수/품질 판정은 다시 필요합니다.')
@@ -68,9 +71,16 @@ class ManualRewritePanel(QGroupBox):
         self.editor.setObjectName('manualRewriteEditor')
         self.editor.setPlaceholderText('작가가 직접 수정한 초고를 입력합니다.')
         root.addWidget(self.editor)
+        self.author_direction = QPlainTextEdit()
+        self.author_direction.setObjectName('manualRewriteAuthorDirection')
+        self.author_direction.setMaximumHeight(95)
+        self.author_direction.setPlaceholderText(
+            '작가가 직접 지정할 수정 방향·유지할 장면과 인물·말투 (최대 2000자)')
+        root.addWidget(QLabel('현재 AI 재작성 요청에만 적용할 작가 직접 지시'))
+        root.addWidget(self.author_direction)
         self.ai_consent = QCheckBox(
             '현재 저장 초고를 이번 1회 신뢰한 로컬 GGUF로만 수정 제안하도록 승인 '
-            '(모델 출력 자동 저장·자동 합격 없음)')
+            '(최초 1회 + 부족 시 최대 3회 실제 이어쓰기, 자동 저장·합격 없음)')
         self.ai_consent.setObjectName('manualRewriteLocalAiConsent')
         root.addWidget(self.ai_consent)
         self.ai_button = QPushButton('현재 회차 AI 재작성 미검수 후보 생성 (로컬)')
@@ -122,6 +132,8 @@ class ManualRewritePanel(QGroupBox):
         root.addWidget(self.status)
         self.editor.textChanged.connect(self.invalidate_preview)
         self.editor.textChanged.connect(lambda: self.ai_consent.setChecked(False))
+        self.author_direction.textChanged.connect(
+            lambda: self.ai_consent.setChecked(False))
 
     def invalidate_preview(self, *_args):
         self.preview_snapshot = None
@@ -283,6 +295,7 @@ class ManualRewritePanel(QGroupBox):
                        self.preview_button, self.save_button, self.final_handoff):
             button.setEnabled(not running)
         self.editor.setReadOnly(running)
+        self.author_direction.setReadOnly(running)
 
     def propose_ai_rewrite(self):
         """One local model invocation; no source or final SQLite write."""
@@ -310,6 +323,11 @@ class ManualRewritePanel(QGroupBox):
                     or session.store.get_episode(lease.project_id,
                                                  lease.episode).final_text.strip()):
                 raise ValueError('unsaved/stale')
+            direction = self.author_direction.toPlainText()
+            if (len(direction) > 2000 or '\x00' in direction
+                    or any(ord(ch) < 32 and ch not in '\n\r\t'
+                           for ch in direction)):
+                raise ValueError('invalid direction')
             executable = self.authoring._text('executable').strip()
             args = tuple(shlex.split(self.authoring._text('arguments')))
             special = (Path(executable).name.casefold() == 'anf_local_model.exe'
@@ -326,8 +344,10 @@ class ManualRewritePanel(QGroupBox):
         self._model_identity = (
             str(session.path), lease.project_id, lease.episode, lease)
         self._saved_before_model = saved
+        self._saved_author_direction = direction
         self._ai_set_running(True)
-        worker = LocalRewriteWorker(str(session.path), lease, provider, self)
+        worker = LocalRewriteWorker(
+            str(session.path), lease, provider, direction, self)
         self._rewrite_worker = worker
         worker.proposed.connect(self._receive_ai_proposal)
         worker.failed.connect(self._ai_failed)
@@ -343,11 +363,14 @@ class ManualRewritePanel(QGroupBox):
         self._model_identity = None
         before = self._saved_before_model
         self._saved_before_model = None
+        direction_at_start = self._saved_author_direction
+        self._saved_author_direction = None
         if (key is None or before is None or session.store is None
                 or session.path is None
                 or (str(session.path), str(session.project_id),
                     session.episode_number, self.lease) != key
                 or self.editor.toPlainText() != before
+                or self.author_direction.toPlainText() != direction_at_start
                 or _busy(self.authoring) or _unsaved(self.authoring)):
             self.status.setText(
                 '작품·원고·편집 내용이 변경되어 AI 후보를 편집기에 넣지 않았습니다.')
@@ -384,11 +407,15 @@ class ManualRewritePanel(QGroupBox):
             f'{result.lease.episode}화 로컬 AI 미검수 수정 후보 '
             f'{result.preview.after_characters}자 편집기에 표시. '
             f'실제 QC 주의 {len(result.source_qc_findings)}종 참고. '
+            f'실제 GGUF 호출 {result.continuation.total_model_calls}회 / '
+            f'실제 글자 부족 {result.continuation.remaining_nonspace_chars}자 '
+            f'({result.continuation.stop_reason}). '
             '원문/최종본 미변경. 직접 읽고 수정·비교한 후 별도 저장하세요.')
 
     def _ai_failed(self, message):
         self._model_identity = None
         self._saved_before_model = None
+        self._saved_author_direction = None
         self.status.setText(message)
 
     def _ai_finished(self):

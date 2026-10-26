@@ -17,6 +17,9 @@ from .database.characters import CharacterStore
 from .local_models import (
     LocalExecutableProvider, LocalModelError, SceneDraftRequest, draft_scene,
 )
+from .local_rewrite_continuation import (
+    RewriteContinuationResult, continue_actual_rewrite,
+)
 from .local_rewrite_comparison import (
     RewriteCandidateEvidence, compare_actual_rewrite,
 )
@@ -37,6 +40,8 @@ class LocalRewriteProposal:
     preview: ManualRewritePreview = field(repr=False)
     source_qc_findings: tuple[str, ...] = ()
     numeric_evidence: RewriteCandidateEvidence = field(repr=False, default=None)
+    continuation: RewriteContinuationResult = field(repr=False, default=None)
+    author_direction_applied: bool = False
     status: str = 'LOCAL_AI_UNREVIEWED_DRAFT_PROPOSAL'
     sqlite_saved: bool = False
     literary_quality_approved: bool = False
@@ -48,6 +53,7 @@ def propose_rewrite_of_saved_draft(
     provider: LocalExecutableProvider, *,
     expected_lease: RewriteLease,
     explicit_author_model_run: bool,
+    author_direction: str = '',
 ) -> LocalRewriteProposal:
     """One model call, with full saved draft and content-revision lease.
 
@@ -61,7 +67,12 @@ def propose_rewrite_of_saved_draft(
             or type(project_id) is not str
             or project_id != expected_lease.project_id
             or type(episode) is not int or episode != expected_lease.episode
-            or not 1 <= episode <= 1000):
+            or not 1 <= episode <= 1000
+            or type(author_direction) is not str
+            or len(author_direction) > 2000
+            or '\x00' in author_direction
+            or any(ord(ch) < 32 and ch not in '\n\r\t'
+                   for ch in author_direction)):
         raise LocalRewriteProposalError('원고·로컬 실행 파일의 이번 1회 별도 승인이 필요합니다.')
     path = Path(database_path)
     if not path.is_absolute() or not path.is_file() or path.is_symlink():
@@ -125,7 +136,9 @@ def propose_rewrite_of_saved_draft(
             + original + '\n[초고 끝]\n'
             + (('[작가 저장 회차 플롯 원문]\n' + plot + '\n')
                if plot.strip() else '')
-            + check_note)
+            + check_note
+            + ('\n[작가가 이번 재작성에 직접 입력한 수정 방향]\n'
+               + author_direction + '\n' if author_direction.strip() else ''))
         if len(source) > 24500:
             raise LocalRewriteProposalError('초고·플롯 전체가 모델 입력 제한을 초과했습니다.')
         scene_goal = (
@@ -134,7 +147,9 @@ def propose_rewrite_of_saved_draft(
             '위 원본 초고와 작가 회차 플롯의 사건·인물·시점·인과를 '
             '보존하면서 문제 표현과 중복을 교정하는 미검수 수정 후보를 '
             '작성하라. 설명·표지·검사 통과 주장·편집 노트 금지. '
-            '원본 내용을 임의로 생략/요약하지 말 것.')
+            '원본 내용을 임의로 생략/요약하지 말 것.'
+            + ('\n작가 직접 수정 방향: ' + author_direction.strip()[:1000]
+               if author_direction.strip() else ''))
         request = SceneDraftRequest(
             project_id, episode, 1, source,
             scene_goal, '저장된 원문과 실제 검토 필요 검사만 적용. '
@@ -149,6 +164,21 @@ def propose_rewrite_of_saved_draft(
         if type(proposed) is not str or not proposed.strip() or proposed == original:
             raise LocalRewriteProposalError(
                 '새로운 수정 후보를 받지 못했습니다. 기존 원고는 유지됩니다.')
+        # One explicitly approved revision session: up to three further
+        # ACTUAL native calls if 5k-ish chapter prose is still underfilled.
+        # Every accepted byte is model-written, never padded or published.
+        try:
+            expanded = continue_actual_rewrite(
+                provider, first_candidate=proposed, source_context=source,
+                project_id=project_id, episode=episode, characters=cast,
+                target_nonspace_chars=min(
+                    20000, max(100, len(''.join(original.split())))),
+                author_direction=author_direction, max_extra_calls=3)
+            proposed = expanded.text
+        except (ValueError, OSError, UnicodeError):
+            raise LocalRewriteProposalError(
+                '실제 모델 이어쓰기 문맥 생성에 실패했습니다. '
+                '원본과 최종본은 변경되지 않았습니다.') from None
         # The original saved row, project and checks can change while the
         # trusted offline process runs. Do not present a stale result as current.
         try:
@@ -170,4 +200,5 @@ def propose_rewrite_of_saved_draft(
             raise LocalRewriteProposalError(
                 '비교 중 원고가 변경되어 후보를 폐기했습니다.')
         return LocalRewriteProposal(
-            lease, proposed, preview, flagged, evidence)
+            lease, proposed, preview, flagged, evidence,
+            expanded, bool(author_direction.strip()))
