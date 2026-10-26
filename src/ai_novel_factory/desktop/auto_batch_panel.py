@@ -12,9 +12,14 @@ from threading import Event
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QFormLayout, QGroupBox, QLabel, QPushButton, QSpinBox, QVBoxLayout,
-    QFileDialog, QListWidget, QComboBox,
+    QFileDialog, QListWidget, QComboBox, QPlainTextEdit,
 )
 from ai_novel_factory.auto_novel_run import run_auto_novel, AutoNovelRunError
+from ai_novel_factory.local_plot_only_draft import (
+    PlotOnlyDraftError, begin_plot_only_draft, require_current_plot_only_lease,
+    propose_plot_only_draft, save_plot_only_draft,
+)
+from ai_novel_factory.database.episodes import EpisodeStore
 from ai_novel_factory.author_ai_novel_guidance import (
     AuthorAiNovelGuidanceError, prepare_author_ai_novel_guidance,
     require_current_author_ai_novel_guidance,
@@ -124,11 +129,49 @@ class AutoBatchWorker(QThread):
                     self.failed.emit('로컬 집필 종료 기록에 문제가 있습니다. 현재 SQLite 원고를 확인하세요.')
 
 
+class PlotOnlyDraftWorker(QThread):
+    """One selected existing plot-only chapter, real local model, no DB writes."""
+    proposed = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, database_path, project_id, episode, lease,
+                 provider, target, max_calls, parent=None):
+        super().__init__(parent)
+        self.database_path = str(database_path)
+        self.project_id = project_id
+        self.episode = episode
+        self.lease = lease
+        self.provider = provider
+        self.target = target
+        self.max_calls = max_calls
+        self.stop_requested = Event()
+
+    def run(self):
+        try:
+            result = propose_plot_only_draft(
+                self.database_path, self.project_id, self.episode,
+                self.provider, expected_lease=self.lease,
+                target_nonspace_chars=self.target,
+                max_model_calls=self.max_calls,
+                explicit_author_model_run=True,
+                should_stop=self.stop_requested.is_set)
+            self.proposed.emit(result)
+        except (PlotOnlyDraftError, LocalModelError) as exc:
+            self.failed.emit(str(exc)[:160])
+        except (OSError, ValueError, UnicodeError):
+            self.failed.emit('저장 플롯·작가 문맥·로컬 모델 입력이 변경되어 후보를 보류했습니다.')
+        except BaseException:
+            self.failed.emit('로컬 모델 집필 중단: 저장된 플롯 회차는 변경하지 않았습니다.')
+
+
 class AutoBatchPanel(QGroupBox):
     def __init__(self, authoring, parent=None):
         super().__init__('6. 여러 회차 로컬 AI 집필 (검토 전 초고)', parent)
         self.authoring = authoring
         self.worker = None
+        self.plot_worker = None
+        self._plot_lease = None
+        self._plot_identity = None
         self._approved_project = None
         self._launch_lease = None
         self._explicit_resume_choice = None
@@ -272,6 +315,217 @@ class AutoBatchPanel(QGroupBox):
         root.addWidget(self.status)
         self.start_button.clicked.connect(self.start_batch)
         self.stop_button.clicked.connect(self.request_stop)
+
+        # Real missing chapter operation: the batch engine deliberately
+        # SKIPS an already-saved plot-only chapter, so let its author
+        # generate/review/save that one unfinished chapter separately.
+        root.addWidget(QLabel(
+            '기존 저장 플롯만 있는 미완성 회차의 실제 초고 복구 '
+            '(자동 배치가 건너뛴 회차 · 최종본/장면 보호)'))
+        recovery_form = QFormLayout()
+        self.plot_episode = QSpinBox()
+        self.plot_episode.setRange(1, 1000)
+        self.plot_episode.setValue(1)
+        self.plot_episode.setObjectName('autoBatchPlotOnlyEpisode')
+        recovery_form.addRow('복구할 기존 플롯 회차', self.plot_episode)
+        self.plot_target = QSpinBox()
+        self.plot_target.setRange(1000, 50000)
+        self.plot_target.setValue(5000)
+        self.plot_target.setObjectName('autoBatchPlotOnlyTarget')
+        recovery_form.addRow('공백 제외 목표 글자 수', self.plot_target)
+        self.plot_calls = QSpinBox()
+        self.plot_calls.setRange(1, 12)
+        self.plot_calls.setValue(8)
+        self.plot_calls.setObjectName('autoBatchPlotOnlyMaxCalls')
+        recovery_form.addRow('이번 실행 최대 GGUF 호출', self.plot_calls)
+        root.addLayout(recovery_form)
+        self.plot_consent = QCheckBox(
+            '기존 플롯만 있는 선택 회차에 한해 실제 로컬 GGUF 본문 생성을 이번 1회 승인')
+        self.plot_consent.setObjectName('autoBatchPlotOnlyModelConsent')
+        root.addWidget(self.plot_consent)
+        self.plot_start_button = QPushButton(
+            '저장 플롯만 있는 회차의 미검수 AI 초고 생성')
+        self.plot_start_button.setObjectName('autoBatchPlotOnlyStart')
+        self.plot_start_button.clicked.connect(self.start_plot_only)
+        root.addWidget(self.plot_start_button)
+        self.plot_stop_button = QPushButton('플롯 초고 생성 중단 요청')
+        self.plot_stop_button.setObjectName('autoBatchPlotOnlyStop')
+        self.plot_stop_button.setEnabled(False)
+        self.plot_stop_button.clicked.connect(self.stop_plot_only)
+        root.addWidget(self.plot_stop_button)
+        self.plot_editor = QPlainTextEdit()
+        self.plot_editor.setObjectName('autoBatchPlotOnlyCandidate')
+        self.plot_editor.setPlaceholderText(
+            '실제 GGUF가 생성한 미검수 초고를 작가가 직접 읽고 수정합니다. '
+            '별도 저장 승인 전에는 SQLite에 기록하지 않습니다.')
+        root.addWidget(self.plot_editor)
+        self.plot_save_consent = QCheckBox(
+            '현재 후보를 직접 검토했으며 기존 플롯 회차의 미검수 초고로만 저장 승인')
+        self.plot_save_consent.setObjectName('autoBatchPlotOnlySaveConsent')
+        root.addWidget(self.plot_save_consent)
+        self.plot_save_button = QPushButton('작가 직접 검토한 플롯 회차 초고 저장')
+        self.plot_save_button.setObjectName('autoBatchPlotOnlySave')
+        self.plot_save_button.clicked.connect(self.save_plot_only)
+        root.addWidget(self.plot_save_button)
+        self.plot_discard_button = QPushButton('이 화면의 미저장 후보 직접 폐기')
+        self.plot_discard_button.setObjectName('autoBatchPlotOnlyDiscard')
+        self.plot_discard_button.clicked.connect(self.discard_plot_only)
+        root.addWidget(self.plot_discard_button)
+        self.plot_status = QLabel(
+            '미완성 플롯 회차를 직접 선택하고 모델·분량을 승인하세요. '
+            '기존 회차/장면/최종본은 자동 덮어쓰지 않습니다.')
+        self.plot_status.setObjectName('autoBatchPlotOnlyStatus')
+        self.plot_status.setWordWrap(True)
+        root.addWidget(self.plot_status)
+        for spin in (self.plot_episode, self.plot_target, self.plot_calls):
+            spin.valueChanged.connect(
+                lambda _value: self.plot_consent.setChecked(False))
+        for field in ('executable', 'arguments'):
+            self.authoring.fields[field].textChanged.connect(
+                lambda _value: self.plot_consent.setChecked(False))
+        self.plot_editor.textChanged.connect(
+            lambda: self.plot_save_consent.setChecked(False))
+
+    def start_plot_only(self):
+        if self.is_running():
+            self.plot_status.setText('현재 진행 중인 실제 로컬 모델 호출이 끝나야 합니다.')
+            return
+        if self._plot_lease is not None and self.plot_editor.toPlainText().strip():
+            self.plot_status.setText(
+                '이전 미저장 초고가 있습니다. 먼저 직접 저장하거나 폐기하세요.')
+            return
+        approved = (self.plot_consent.isChecked()
+                    and self.authoring.approved.isChecked())
+        self.plot_consent.setChecked(False)
+        self.authoring.approved.setChecked(False)
+        session = self.authoring.session
+        if (not approved or session.path is None or session.store is None
+                or session.project_id is None):
+            self.plot_status.setText('현재 작품·승인 로컬 모델을 각각 이번 1회 승인하세요.')
+            return
+        episode = self.plot_episode.value()
+        try:
+            lease = begin_plot_only_draft(
+                session.store, str(session.project_id), episode)
+            executable = self.authoring._text('executable').strip()
+            arguments = tuple(shlex.split(self.authoring._text('arguments')))
+            special = (Path(executable).name.casefold() == 'anf_local_model.exe'
+                       and arguments[:1] == ('--gguf',))
+            provider = LocalExecutableProvider(
+                executable, arguments=arguments,
+                timeout_seconds=1500 if special else
+                450 if arguments[:1] == ('--gguf',) else 120,
+                explicitly_allowed=True)
+        except (PlotOnlyDraftError, LocalModelError, OSError, ValueError):
+            self.plot_status.setText(
+                '기존 플롯만 있는 회차·저장 원본·승인 모델을 다시 확인하세요.')
+            return
+        self._plot_lease = None
+        self._plot_identity = (
+            str(session.path), str(session.project_id), episode, lease)
+        self.plot_editor.clear()
+        self.plot_save_consent.setChecked(False)
+        worker = PlotOnlyDraftWorker(
+            session.path, str(session.project_id), episode, lease,
+            provider, self.plot_target.value(), self.plot_calls.value(), self)
+        self.plot_worker = worker
+        worker.proposed.connect(self._plot_received)
+        worker.failed.connect(self._plot_failed)
+        worker.finished.connect(self._plot_finished)
+        self.plot_start_button.setEnabled(False)
+        self.plot_stop_button.setEnabled(True)
+        self.start_button.setEnabled(False)
+        self.plot_status.setText(
+            f'{episode}화 기존 저장 플롯을 실제 로컬 GGUF로 집필 중. '
+            'SQLite/기존 최종본/장면은 변경하지 않습니다.')
+        worker.start()
+
+    def stop_plot_only(self):
+        if self.plot_worker is not None and self.plot_worker.isRunning():
+            self.plot_worker.stop_requested.set()
+            self.plot_status.setText(
+                '중단 요청됨: 현재 GGUF 호출 종료 후 이미 작성된 미검수 후보를 표시합니다.')
+
+    def _plot_received(self, proposal):
+        session = self.authoring.session
+        identity = self._plot_identity
+        self._plot_identity = None
+        if (identity is None or session.store is None or session.path is None
+                or (str(session.path), str(session.project_id),
+                    self.plot_episode.value(), proposal.lease) != identity
+                or self.plot_editor.toPlainText().strip()):
+            self.plot_status.setText(
+                '작품·회차·편집 내용이 바뀌어 AI 후보를 표시하지 않았습니다.')
+            return
+        try:
+            require_current_plot_only_lease(session.store, proposal.lease)
+        except (PlotOnlyDraftError, OSError, ValueError):
+            self.plot_status.setText(
+                '모델 호출 중 원본 플롯이 변경되어 후보를 표시하지 않았습니다.')
+            return
+        self._plot_lease = proposal.lease
+        self.plot_editor.setPlainText(proposal.candidate)
+        self.plot_status.setText(
+            f'{proposal.lease.episode}화 실제 GGUF {proposal.model_calls}회 호출, '
+            f'새 문단 {proposal.accepted_passages}개, '
+            f'공백 제외 {proposal.resulting_nonspace_chars}자, '
+            f'목표 부족 {proposal.remaining_nonspace_chars}자. '
+            + ('작가 중단 요청 반영. ' if proposal.stopped_by_author else '')
+            + '미검수 후보입니다. 직접 읽고 수정한 후 별도 저장 승인하세요. '
+              '글자 수 도달은 품질/출판 합격이 아닙니다.')
+
+    def _plot_failed(self, message):
+        self._plot_identity = None
+        self.plot_status.setText('플롯 회차 초고 생성 보류: ' + message)
+
+    def _plot_finished(self):
+        self.plot_start_button.setEnabled(True)
+        self.plot_stop_button.setEnabled(False)
+        self.start_button.setEnabled(self.worker is None)
+        if self.plot_worker is not None:
+            self.plot_worker.deleteLater()
+            self.plot_worker = None
+
+    def save_plot_only(self):
+        if self.is_running():
+            self.plot_status.setText('로컬 모델 호출 종료 후 직접 저장하세요.')
+            return
+        approved = self.plot_save_consent.isChecked()
+        self.plot_save_consent.setChecked(False)
+        session = self.authoring.session
+        lease = self._plot_lease
+        if (not approved or lease is None or session.store is None
+                or session.path is None or session.project_id is None
+                or str(session.project_id) != lease.project_id
+                or self.plot_episode.value() != lease.episode):
+            self.plot_status.setText(
+                '현재 작품·회차의 미검수 후보를 직접 검토하고 저장 승인하세요.')
+            return
+        try:
+            new_revision = save_plot_only_draft(
+                session.store, lease, self.plot_editor.toPlainText(),
+                explicit_author_save=True)
+        except (PlotOnlyDraftError, OSError, ValueError, UnicodeError):
+            self.plot_status.setText(
+                '플롯·원고가 변경되었거나 초고 형식이 올바르지 않아 저장하지 않았습니다.')
+            return
+        self._plot_lease = None
+        self.plot_status.setText(
+            f'{lease.episode}화 작가 직접 승인으로 초고 저장 완료 '
+            f'(revision {new_revision}). 기존 플롯·최종본 유지. '
+            '문학 품질·출판 승인 아님. 다른 회차를 선택할 수 있습니다.')
+        if hasattr(self.authoring, 'feature_workspace_hub'):
+            self.authoring.feature_workspace_hub.refresh_visible()
+
+    def discard_plot_only(self):
+        if self.is_running():
+            self.plot_status.setText('로컬 모델 호출 중에는 후보를 폐기하지 않습니다.')
+            return
+        self._plot_lease = None
+        self._plot_identity = None
+        self.plot_save_consent.setChecked(False)
+        self.plot_editor.clear()
+        self.plot_status.setText('이 화면의 미저장 후보를 직접 폐기했습니다. SQLite 변경 없음.')
 
     def _apply_actual_novel_preset(self, *_args):
         """Actual episode WRITING, not the separate AI planning preview."""
@@ -463,10 +717,11 @@ class AutoBatchPanel(QGroupBox):
                 spin.setValue(int(value))
 
     def is_running(self):
-        return self.worker is not None and self.worker.isRunning()
+        return ((self.worker is not None and self.worker.isRunning())
+                or (self.plot_worker is not None and self.plot_worker.isRunning()))
 
     def request_stop(self):
-        if self.is_running():
+        if self.worker is not None and self.worker.isRunning():
             self.worker.stop_requested.set()
             self.status.setText('중단 요청: 실행 중인 로컬 모델 호출이 완료되면 중단합니다.')
 
@@ -606,6 +861,7 @@ class AutoBatchPanel(QGroupBox):
         self.worker.failed.connect(self._failed)
         self.worker.finished.connect(self._cleanup)
         self.start_button.setEnabled(False)
+        self.plot_start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
         self.status.setText('로컬 모델 연속 집필 시작. 저장된 회차는 건너뜁니다.')
         self.worker.start()
@@ -664,6 +920,7 @@ class AutoBatchPanel(QGroupBox):
 
     def _cleanup(self):
         self.start_button.setEnabled(True)
+        self.plot_start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         if self.worker is not None:
             self.worker.deleteLater()
