@@ -45,6 +45,9 @@ from .episode_crosscheck import screen_cross_episode_reuse
 from .narrative_scene_beats import allocate_model_plot_beats
 from .narrative_cast_focus import focus_saved_cast
 from .narrative_scene_canon import load_episode_canon_focus, focus_episode_canon
+from .narrative_character_history import (
+    build_saved_character_history, focus_saved_character_history,
+)
 from .author_ai_novel_guidance import (
     AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
     require_current_author_ai_novel_guidance,
@@ -540,6 +543,7 @@ def run_auto_novel(
         # Relevant saved character details are bound to each actual model call.
         active_cast_context = ''
         active_canon_focus = ''
+        active_character_history = ''
 
         def model(episode_num: int, scene_num: int, context: str,
                   goal: str, conflict: str, place: str, *,
@@ -550,7 +554,8 @@ def run_auto_novel(
             if context_sources is not None:
                 require_unchanged_author_sources(db, project_id, context_sources)
             focused_context = '\n'.join(part for part in (
-                active_cast_context, active_canon_focus, context) if part)
+                active_cast_context, active_canon_focus,
+                active_character_history, context) if part)
             request = SceneDraftRequest(
                 project_id, episode_num, scene_num, focused_context[:12000],
                 goal[:2000], conflict[:2000], place[:1000], character_names,
@@ -685,6 +690,10 @@ def run_auto_novel(
             # Later-chapter author facts are never read into this snapshot.
             chapter_canon_focus = load_episode_canon_focus(
                 database_path, project_id, n)
+            # Indexed once per chapter from genuine earlier saved prose.
+            # No uncommitted current scene or future chapter is indexed.
+            chapter_character_history = build_saved_character_history(
+                existing, n, tuple(person.name for person in characters))
             active_style_bible = (saved_context.style + '\n' + saved_context.memory)[:5000]
             chapter_canon = (canon_base + '\n' + saved_context.memory + '\n' +
                              reference_statistics).strip()
@@ -716,6 +725,9 @@ def run_auto_novel(
             active_cast_context = plot_cast.context
             active_canon_focus = focus_episode_canon(
                 chapter_canon_focus, plot_cast.names,
+                (chosen_episode_outline, subject))
+            active_character_history = focus_saved_character_history(
+                chapter_character_history, plot_cast.names,
                 (chosen_episode_outline, subject))
             emit(n, '회차 플롯 로컬 AI 생성')
             try:
@@ -774,6 +786,9 @@ def run_auto_novel(
                         chapter_canon_focus, scene_cast.names,
                         (assigned.assigned_plot, guide_beat,
                          drafts[-1] if drafts else ''))
+                    active_character_history = focus_saved_character_history(
+                        chapter_character_history, scene_cast.names,
+                        (assigned.assigned_plot, guide_beat))
                     # Recover the ACTUAL already-written scene before asking
                     # the user-approved GGUF for another continuation. A
                     # completed legacy 1..20 checkpoint remains readable.
