@@ -2,6 +2,7 @@
 from __future__ import annotations
 import shlex
 from pathlib import Path
+from threading import Event
 from PySide6.QtCore import QThread, Signal
 from ai_novel_factory.database.episodes import EpisodeStore
 from ai_novel_factory.local_models import LocalExecutableProvider
@@ -11,10 +12,13 @@ from ai_novel_factory.local_rewrite_proposal import (
 from ai_novel_factory.local_selected_rewrite import (
     SelectedRewriteError, SelectedRewriteProposal, propose_selected_rewrite,
 )
+from ai_novel_factory.local_draft_expansion import (
+    DraftExpansionError, DraftExpansionProposal, propose_saved_draft_expansion,
+)
 from .author_navigation_contract import _busy, _unsaved
 from PySide6.QtWidgets import (
     QGroupBox, QVBoxLayout, QLabel, QPushButton, QPlainTextEdit,
-    QCheckBox, QTableWidget, QTableWidgetItem,
+    QCheckBox, QTableWidget, QTableWidgetItem, QSpinBox, QFormLayout,
 )
 from ai_novel_factory.manual_rewrite_workspace import (
     begin_manual_rewrite, commit_manual_rewrite,
@@ -85,6 +89,46 @@ class SelectedRewriteWorker(QThread):
                 '로컬 모델 작업이 중단됐습니다. 원고는 그대로 유지됩니다.')
 
 
+class DraftExpansionWorker(QThread):
+    """Bounded local-GGUF continuation; stop applies between model calls."""
+    proposed = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, database_path, lease, provider, direction,
+                 target, max_calls, parent=None):
+        super().__init__(parent)
+        self.database_path = str(database_path)
+        self.lease = lease
+        self.provider = provider
+        self.direction = direction
+        self.target = target
+        self.max_calls = max_calls
+        self._stop_event = Event()
+
+    def request_stop(self):
+        self._stop_event.set()
+
+    def run(self):
+        try:
+            result = propose_saved_draft_expansion(
+                self.database_path, self.lease.project_id,
+                self.lease.episode, self.provider,
+                expected_lease=self.lease,
+                target_nonspace_chars=self.target,
+                max_model_calls=self.max_calls,
+                explicit_author_model_run=True,
+                author_direction=self.direction,
+                should_stop=self._stop_event.is_set)
+            self.proposed.emit(result)
+        except (DraftExpansionError, ValueError, OSError, UnicodeError):
+            self.failed.emit(
+                '저장 초고를 이어 쓸 새 GGUF 본문이 없거나 원고가 변경됐습니다. '
+                '기존 원고·최종본은 그대로 유지됩니다.')
+        except BaseException:
+            self.failed.emit(
+                '로컬 모델 이어쓰기를 마치지 못했습니다. 원고는 유지됩니다.')
+
+
 def _qt_cursor_to_codepoint(text: str, qt_position: int) -> int:
     """QTextCursor counts UTF-16 units; Python slices Unicode codepoints."""
     if type(qt_position) is not int or qt_position < 0:
@@ -128,7 +172,7 @@ class ManualRewritePanel(QGroupBox):
         root.addWidget(self.author_direction)
         self.ai_consent = QCheckBox(
             '현재 저장 초고를 이번 1회 신뢰한 로컬 GGUF로만 수정 제안하도록 승인 '
-            '(최초 1회 + 부족 시 최대 3회 실제 이어쓰기, 자동 저장·합격 없음)')
+            '(작업별 최대 호출은 별도 표시, 자동 저장·품질 합격 없음)')
         self.ai_consent.setObjectName('manualRewriteLocalAiConsent')
         root.addWidget(self.ai_consent)
         self.ai_button = QPushButton('현재 회차 AI 재작성 미검수 후보 생성 (로컬)')
@@ -140,6 +184,30 @@ class ManualRewritePanel(QGroupBox):
         self.selected_ai_button.setObjectName('manualRewriteSelectedPassageAi')
         self.selected_ai_button.clicked.connect(self.propose_selected_ai_rewrite)
         root.addWidget(self.selected_ai_button)
+        expansion_controls = QFormLayout()
+        self.expansion_target = QSpinBox()
+        self.expansion_target.setRange(1000, 50000)
+        self.expansion_target.setSingleStep(500)
+        self.expansion_target.setValue(5000)
+        self.expansion_target.setObjectName('manualRewriteExpansionTarget')
+        expansion_controls.addRow('회차 목표 공백 제외 글자 수', self.expansion_target)
+        self.expansion_calls = QSpinBox()
+        self.expansion_calls.setRange(1, 12)
+        self.expansion_calls.setValue(8)
+        self.expansion_calls.setObjectName('manualRewriteExpansionCalls')
+        expansion_controls.addRow('이번 승인 최대 실제 GGUF 호출', self.expansion_calls)
+        root.addLayout(expansion_controls)
+        self.expand_ai_button = QPushButton(
+            '현재 저장 초고의 마지막부터 실제 GGUF 소설 이어쓰기 (원문 유지)')
+        self.expand_ai_button.setObjectName('manualRewriteExpandDraftAi')
+        self.expand_ai_button.clicked.connect(self.propose_ai_expand)
+        root.addWidget(self.expand_ai_button)
+        self.stop_expand_button = QPushButton(
+            '이어쓰기 중단 요청 (현재 로컬 모델 호출 종료 후 중단)')
+        self.stop_expand_button.setObjectName('manualRewriteStopExpansion')
+        self.stop_expand_button.setEnabled(False)
+        self.stop_expand_button.clicked.connect(self.stop_ai_expand)
+        root.addWidget(self.stop_expand_button)
         self.preview_button = QPushButton('저장 전 원본·수정 초고 변경 위치 직접 비교')
         self.preview_button.setObjectName('manualRewritePreview')
         self.preview_button.clicked.connect(self.preview_current)
@@ -345,8 +413,13 @@ class ManualRewritePanel(QGroupBox):
 
     def _ai_set_running(self, running):
         for button in (self.load_button, self.ai_button, self.selected_ai_button,
-                       self.preview_button, self.save_button, self.final_handoff):
+                       self.expand_ai_button, self.preview_button,
+                       self.save_button, self.final_handoff):
             button.setEnabled(not running)
+        self.expansion_target.setEnabled(not running)
+        self.expansion_calls.setEnabled(not running)
+        self.stop_expand_button.setEnabled(
+            running and isinstance(self._rewrite_worker, DraftExpansionWorker))
         self.editor.setReadOnly(running)
         self.author_direction.setReadOnly(running)
 
@@ -482,6 +555,75 @@ class ManualRewritePanel(QGroupBox):
             'GGUF 재작성 중. 구간 밖 저장 원고와 최종본은 변경하지 않습니다.')
         worker.start()
 
+    def stop_ai_expand(self):
+        worker = self._rewrite_worker
+        if isinstance(worker, DraftExpansionWorker) and worker.isRunning():
+            worker.request_stop()
+            self.stop_expand_button.setEnabled(False)
+            self.status.setText(
+                '중단 요청 접수: 현재 실행 중인 GGUF 호출이 끝나면 멈춥니다. '
+                '이미 생성된 미검수 후보는 원본을 덮어쓰지 않습니다.')
+
+    def propose_ai_expand(self):
+        """Actual multi-call continuation of saved prose, no SQLite writes."""
+        if self.is_ai_running():
+            return
+        allowed = (self.ai_consent.isChecked()
+                   and self.authoring.approved.isChecked())
+        self.ai_consent.setChecked(False)
+        self.authoring.approved.setChecked(False)
+        session = self.authoring.session
+        lease = self.lease
+        if (not allowed or lease is None or session.store is None
+                or session.path is None
+                or str(session.project_id) != lease.project_id
+                or session.episode_number != lease.episode
+                or _busy(self.authoring) or _unsaved(self.authoring)):
+            self.status.setText(
+                '저장된 현재 회차 원고와 이번 1회 로컬 모델을 각각 승인하세요.')
+            return
+        try:
+            latest, saved = begin_manual_rewrite(
+                session.store, lease.project_id, lease.episode)
+            if (latest != lease or self.editor.toPlainText() != saved
+                    or session.store.get_episode(
+                        lease.project_id, lease.episode).final_text.strip()):
+                raise ValueError('stale or unsaved draft')
+            direction = self.author_direction.toPlainText()
+            if (len(direction) > 2000 or '\x00' in direction
+                    or any(ord(ch) < 32 and ch not in '\n\r\t'
+                           for ch in direction)):
+                raise ValueError('invalid author direction')
+            executable = self.authoring._text('executable').strip()
+            args = tuple(shlex.split(self.authoring._text('arguments')))
+            special = (Path(executable).name.casefold() == 'anf_local_model.exe'
+                       and args[:1] == ('--gguf',))
+            provider = LocalExecutableProvider(
+                executable, arguments=args,
+                timeout_seconds=1500 if special else 450 if args[:1] == ('--gguf',)
+                else 120, explicitly_allowed=True)
+        except (ValueError, OSError, UnicodeError):
+            self.status.setText(
+                '현재 저장 초고·최종본·목표 분량·승인 모델 설정을 확인하세요.')
+            return
+        self._model_identity = (
+            str(session.path), lease.project_id, lease.episode, lease)
+        self._saved_before_model = saved
+        self._saved_author_direction = direction
+        worker = DraftExpansionWorker(
+            str(session.path), lease, provider, direction,
+            self.expansion_target.value(), self.expansion_calls.value(), self)
+        self._rewrite_worker = worker
+        self._ai_set_running(True)
+        worker.proposed.connect(self._receive_ai_proposal)
+        worker.failed.connect(self._ai_failed)
+        worker.finished.connect(self._ai_finished)
+        self.status.setText(
+            f'{lease.episode}화 실제 저장 원고 끝부터 목표 '
+            f'{self.expansion_target.value()}자까지 로컬 GGUF 이어쓰기 시작. '
+            '기존 초고·최종본·SQLite 자동 변경 없음.')
+        worker.start()
+
     def _receive_ai_proposal(self, result):
         session = self.authoring.session
         key = self._model_identity
@@ -528,7 +670,15 @@ class ManualRewritePanel(QGroupBox):
                 f'본문 미검사 {evidence.previous_episodes_unexamined}화. '
                 '수치·정확 문장 일치만 비교했고 문학 품질·의미 유사성·'
                 '참고작 표절·출판 승인 아님.')
-        if isinstance(result, SelectedRewriteProposal):
+        if isinstance(result, DraftExpansionProposal):
+            detail = (
+                f'기존 원고 전체 보존 + 실제 GGUF 이어쓰기 '
+                f'{result.accepted_new_passages}구간/{result.actual_model_calls}회 호출. '
+                f'공백 제외 {result.resulting_nonspace_chars}자, '
+                f'목표까지 {result.remaining_nonspace_chars}자 부족. '
+                + ('작가 중단 요청 반영. ' if result.stopped_by_author else '')
+                + '목표 도달은 품질 합격이 아님. ')
+        elif isinstance(result, SelectedRewriteProposal):
             detail = (
                 f'실제 선택 구간 {result.selected_start+1}~'
                 f'{result.selected_end}자만 GGUF {result.actual_model_calls}회 '
