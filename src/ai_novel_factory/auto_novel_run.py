@@ -43,6 +43,7 @@ from .korean_draft_quality import screen_korean_draft, has_foreign_script_corrup
 from .episode_crosscheck import screen_cross_episode_reuse
 from .narrative_scene_beats import allocate_model_plot_beats
 from .narrative_cast_focus import focus_saved_cast
+from .narrative_scene_canon import load_episode_canon_focus, focus_episode_canon
 from .author_ai_novel_guidance import (
     AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
     require_current_author_ai_novel_guidance,
@@ -537,6 +538,7 @@ def run_auto_novel(
 
         # Relevant saved character details are bound to each actual model call.
         active_cast_context = ''
+        active_canon_focus = ''
 
         def model(episode_num: int, scene_num: int, context: str,
                   goal: str, conflict: str, place: str, *,
@@ -546,8 +548,8 @@ def run_auto_novel(
                 raise InterruptedError()
             if context_sources is not None:
                 require_unchanged_author_sources(db, project_id, context_sources)
-            focused_context = (active_cast_context + '\n' + context
-                               if active_cast_context else context)
+            focused_context = '\n'.join(part for part in (
+                active_cast_context, active_canon_focus, context) if part)
             request = SceneDraftRequest(
                 project_id, episode_num, scene_num, focused_context[:12000],
                 goal[:2000], conflict[:2000], place[:1000], character_names,
@@ -677,6 +679,11 @@ def run_auto_novel(
             # Only saved facts effective at this chapter enter its local
             # model context. Future relationship/knowledge changes stay hidden.
             saved_context = read_saved_author_context(database_path, project_id, n)
+            # Full saved, episode-scoped relationship/knowledge/foreshadow
+            # facts remain available for the CURRENT real plot and scenes.
+            # Later-chapter author facts are never read into this snapshot.
+            chapter_canon_focus = load_episode_canon_focus(
+                database_path, project_id, n)
             active_style_bible = (saved_context.style + '\n' + saved_context.memory)[:5000]
             chapter_canon = (canon_base + '\n' + saved_context.memory + '\n' +
                              reference_statistics).strip()
@@ -706,6 +713,9 @@ def run_auto_novel(
                 characters, (chosen_episode_outline, subject, story_preview))
             character_names = plot_cast.names
             active_cast_context = plot_cast.context
+            active_canon_focus = focus_episode_canon(
+                chapter_canon_focus, plot_cast.names,
+                (chosen_episode_outline, subject))
             emit(n, '회차 플롯 로컬 AI 생성')
             try:
                 outline = checkpoint.load_stage(0) if checkpoint is not None else None
@@ -759,6 +769,10 @@ def run_auto_novel(
                                      drafts[-1] if drafts else '', outline))
                     character_names = scene_cast.names
                     active_cast_context = scene_cast.context
+                    active_canon_focus = focus_episode_canon(
+                        chapter_canon_focus, scene_cast.names,
+                        (assigned.assigned_plot, guide_beat,
+                         drafts[-1] if drafts else ''))
                     cached = checkpoint.load_stage(slot.scene_number) if checkpoint else None
                     if cached is not None:
                         drafts.append(cached)
