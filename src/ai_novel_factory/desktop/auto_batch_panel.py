@@ -20,6 +20,9 @@ from ai_novel_factory.local_plot_only_draft import (
     propose_plot_only_draft, save_plot_only_draft,
 )
 from ai_novel_factory.database.episodes import EpisodeStore
+from ai_novel_factory.local_plot_only_recovery import (
+    PlotOnlyRecoveryError, export_unsaved_plot, import_unsaved_plot,
+)
 from ai_novel_factory.author_ai_novel_guidance import (
     AuthorAiNovelGuidanceError, prepare_author_ai_novel_guidance,
     require_current_author_ai_novel_guidance,
@@ -172,6 +175,7 @@ class AutoBatchPanel(QGroupBox):
         self.plot_worker = None
         self._plot_lease = None
         self._plot_identity = None
+        self._plot_source_database = None
         self._approved_project = None
         self._launch_lease = None
         self._explicit_resume_choice = None
@@ -359,6 +363,22 @@ class AutoBatchPanel(QGroupBox):
             '실제 GGUF가 생성한 미검수 초고를 작가가 직접 읽고 수정합니다. '
             '별도 저장 승인 전에는 SQLite에 기록하지 않습니다.')
         root.addWidget(self.plot_editor)
+        self.plot_export_consent = QCheckBox(
+            '미저장 초고 전문을 새 로컬 JSON으로 보관하는 이번 1회를 승인')
+        self.plot_export_consent.setObjectName('plotOnlyRecoveryExportConsent')
+        root.addWidget(self.plot_export_consent)
+        self.plot_export_button = QPushButton('미저장 초고 새 복구 파일로 보관')
+        self.plot_export_button.setObjectName('plotOnlyRecoveryExport')
+        self.plot_export_button.clicked.connect(self.export_plot_candidate)
+        root.addWidget(self.plot_export_button)
+        self.plot_import_consent = QCheckBox(
+            '현재 빈 편집기에만 기존 복구 파일을 불러오는 이번 1회를 승인')
+        self.plot_import_consent.setObjectName('plotOnlyRecoveryImportConsent')
+        root.addWidget(self.plot_import_consent)
+        self.plot_import_button = QPushButton('기존 복구 파일에서 미저장 초고 불러오기')
+        self.plot_import_button.setObjectName('plotOnlyRecoveryImport')
+        self.plot_import_button.clicked.connect(self.import_plot_candidate)
+        root.addWidget(self.plot_import_button)
         self.plot_save_consent = QCheckBox(
             '현재 후보를 직접 검토했으며 기존 플롯 회차의 미검수 초고로만 저장 승인')
         self.plot_save_consent.setObjectName('autoBatchPlotOnlySaveConsent')
@@ -385,6 +405,68 @@ class AutoBatchPanel(QGroupBox):
                 lambda _value: self.plot_consent.setChecked(False))
         self.plot_editor.textChanged.connect(
             lambda: self.plot_save_consent.setChecked(False))
+        self.plot_editor.textChanged.connect(
+            lambda: self.plot_export_consent.setChecked(False))
+
+    def export_plot_candidate(self):
+        if self.is_running():
+            self.plot_status.setText('모델 집필 중에는 후보 파일을 저장하지 않습니다.')
+            return
+        approved = self.plot_export_consent.isChecked()
+        self.plot_export_consent.setChecked(False)
+        session, lease = self.authoring.session, self._plot_lease
+        if (not approved or lease is None or session.store is None
+                or session.path is None or session.project_id is None
+                or self._plot_source_database != str(session.path)
+                or str(session.project_id) != lease.project_id
+                or self.plot_episode.value() != lease.episode):
+            self.plot_status.setText('현재 작품/회차의 후보 복구 파일 생성을 다시 승인하세요.')
+            return
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, '새 로컬 복구 JSON 선택', '', 'JSON (*.json)')
+        if not file_path:
+            return
+        try:
+            export_unsaved_plot(session.store, lease, self.plot_editor.toPlainText(),
+                                file_path, explicit_author_export=True)
+        except (PlotOnlyRecoveryError, OSError, ValueError):
+            self.plot_status.setText('복구 JSON 저장 불가: 원본 변경 또는 기존 파일/경로 확인 필요.')
+            return
+        self.plot_status.setText(
+            '새 로컬 JSON에 미검수 초고를 보관했습니다. 원고 전문이 담긴 파일이므로 '
+            '공유에 주의하세요. SQLite·최종본·출판 승인은 변경하지 않았습니다.')
+
+    def import_plot_candidate(self):
+        if self.is_running() or self._plot_lease is not None or self.plot_editor.toPlainText():
+            self.plot_status.setText('이미 편집 중인 후보를 덮어쓰지 않습니다. 빈 상태에서만 복구하세요.')
+            return
+        approved = self.plot_import_consent.isChecked()
+        self.plot_import_consent.setChecked(False)
+        session = self.authoring.session
+        if not approved or session.store is None or session.path is None or session.project_id is None:
+            self.plot_status.setText('현재 작품 및 복구 작업을 직접 승인하세요.')
+            return
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, '기존 미저장 초고 JSON 선택', '', 'JSON (*.json)')
+        if not file_path:
+            return
+        try:
+            lease = begin_plot_only_draft(
+                session.store, str(session.project_id), self.plot_episode.value())
+            prose = import_unsaved_plot(
+                session.store, lease, file_path, explicit_author_import=True)
+        except (PlotOnlyRecoveryError, PlotOnlyDraftError, OSError, ValueError):
+            self.plot_status.setText('복구 원고 무결성 또는 저장 플롯/원본 revision 불일치.')
+            return
+        if self.is_running() or self._plot_lease is not None or self.plot_editor.toPlainText():
+            self.plot_status.setText('이미 편집 중인 후보를 덮어쓰지 않았습니다.')
+            return
+        self._plot_lease = lease
+        self._plot_source_database = str(session.path)
+        self.plot_editor.setPlainText(prose)
+        self.plot_status.setText(
+            f'{lease.episode}화 미검수 초고를 편집기에만 복구했습니다. '
+            '검토 후 별도의 수동 저장 승인이 필요하며 출판 승인이 아닙니다.')
 
     def start_plot_only(self):
         if self.is_running():
@@ -421,6 +503,7 @@ class AutoBatchPanel(QGroupBox):
                 '기존 플롯만 있는 회차·저장 원본·승인 모델을 다시 확인하세요.')
             return
         self._plot_lease = None
+        self._plot_source_database = None
         self._plot_identity = (
             str(session.path), str(session.project_id), episode, lease)
         self.plot_editor.clear()
@@ -464,6 +547,7 @@ class AutoBatchPanel(QGroupBox):
                 '모델 호출 중 원본 플롯이 변경되어 후보를 표시하지 않았습니다.')
             return
         self._plot_lease = proposal.lease
+        self._plot_source_database = str(session.path)
         self.plot_editor.setPlainText(proposal.candidate)
         self.plot_status.setText(
             f'{proposal.lease.episode}화 실제 GGUF {proposal.model_calls}회 호출, '
@@ -510,6 +594,7 @@ class AutoBatchPanel(QGroupBox):
                 '플롯·원고가 변경되었거나 초고 형식이 올바르지 않아 저장하지 않았습니다.')
             return
         self._plot_lease = None
+        self._plot_source_database = None
         self.plot_status.setText(
             f'{lease.episode}화 작가 직접 승인으로 초고 저장 완료 '
             f'(revision {new_revision}). 기존 플롯·최종본 유지. '
@@ -523,6 +608,7 @@ class AutoBatchPanel(QGroupBox):
             return
         self._plot_lease = None
         self._plot_identity = None
+        self._plot_source_database = None
         self.plot_save_consent.setChecked(False)
         self.plot_editor.clear()
         self.plot_status.setText('이 화면의 미저장 후보를 직접 폐기했습니다. SQLite 변경 없음.')
