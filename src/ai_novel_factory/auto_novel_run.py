@@ -52,6 +52,7 @@ from .narrative_character_history import (
 from .narrative_viewpoint_scope import select_saved_viewpoint
 from .narrative_chapter_bridge import build_saved_chapter_bridge
 from .narrative_native_context import pack_native_gguf_context
+from .narrative_intra_chapter_handoff import build_intra_chapter_handoff
 from .author_ai_novel_guidance import (
     AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
     require_current_author_ai_novel_guidance,
@@ -556,6 +557,7 @@ def run_auto_novel(
         active_character_history = ''
         active_viewpoint_context = ''
         active_previous_chapter_bridge = ''
+        active_intra_chapter_memory = ''
         active_selected_author_sections: tuple[str, ...] = ()
 
         def model(episode_num: int, scene_num: int, context: str,
@@ -576,7 +578,8 @@ def run_auto_novel(
                 cast=active_cast_context,
                 previous_chapter=active_previous_chapter_bridge,
                 character_history=active_character_history,
-                scene_context=context)
+                scene_context=context,
+                previous_scenes=active_intra_chapter_memory)
             request = SceneDraftRequest(
                 project_id, episode_num, scene_num, focused_context.text,
                 goal[:2000], conflict[:2000], place[:1000], character_names,
@@ -734,6 +737,7 @@ def run_auto_novel(
             # Do not auto-load unselected sources or trim author-written facts.
             approved_context = None
             active_selected_author_sections = ()
+            active_intra_chapter_memory = ''
             if context_sources is not None:
                 approved_context = compose_author_context(
                     db, project_id, episode=n,
@@ -819,6 +823,8 @@ def run_auto_novel(
                     active_previous_chapter_bridge = (
                         chapter_bridge.first_scene_context
                         if scene_index == 0 else '')
+                    active_intra_chapter_memory = build_intra_chapter_handoff(
+                        tuple(drafts), slot.scene_number).context
                     guide_beat = (selected_guide_beats[scene_index].assigned_plot
                                   if selected_guide_beats else '')
                     scene_cast = focus_saved_cast(

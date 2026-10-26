@@ -47,6 +47,7 @@ def pack_native_gguf_context(
     previous_chapter: str,
     character_history: str,
     scene_context: str,
+    previous_scenes: str = '',
     max_chars: int = 12000,
 ) -> PackedNativeContext:
     """Build a model input that never hides selected author text by slicing.
@@ -60,7 +61,7 @@ def pack_native_gguf_context(
             or any(type(s) is not str for s in selected_author_sections)
             or any(type(s) is not str for s in (
                 viewpoint, saved_canon, cast, previous_chapter,
-                character_history, scene_context))
+                character_history, scene_context, previous_scenes))
             or type(max_chars) is not int
             or not 3000 <= max_chars <= 12000):
         raise NativeContextBudgetError('로컬 GGUF 집필 문맥 자료가 올바르지 않습니다.')
@@ -90,6 +91,7 @@ def pack_native_gguf_context(
     for section in explicit:
         supplemental = supplemental.replace(section, '', 1)
     optional = (
+        ('이번 회차 앞선 실제 장면', previous_scenes),
         ('직전 회차 실제 결말', previous_chapter),
         ('현재 인물의 저장 과거 사건', character_history),
         ('현재 플롯·장면 및 이전 실제 원고 참고', supplemental),
@@ -110,7 +112,9 @@ def pack_native_gguf_context(
         later = sum(bool(x.strip()) for _, x in optional
                     if _ != label)  # informational only, no hidden defaults
         del later
-        if label == '직전 회차 실제 결말':
+        if label == '이번 회차 앞선 실제 장면':
+            desired = min(1700, max(0, available // 2))
+        elif label == '직전 회차 실제 결말':
             desired = min(2000, max(0, available // 3))
         elif label == '현재 인물의 저장 과거 사건':
             desired = min(1400, max(0, available // 2))
