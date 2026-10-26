@@ -54,6 +54,10 @@ from .narrative_chapter_bridge import build_saved_chapter_bridge
 from .narrative_native_context import pack_native_gguf_context
 from .narrative_intra_chapter_handoff import build_intra_chapter_handoff
 from .narrative_serial_pacing import plan_local_serial_pacing
+from .narrative_secret_scope import (
+    select_focal_secret_scope, omit_unrevealed_secrets,
+    focal_secret_instruction,
+)
 from .author_ai_novel_guidance import (
     AuthorAiNovelGuidance, AuthorAiNovelGuidanceError,
     require_current_author_ai_novel_guidance,
@@ -560,6 +564,8 @@ def run_auto_novel(
         active_previous_chapter_bridge = ''
         active_intra_chapter_memory = ''
         active_selected_author_sections: tuple[str, ...] = ()
+        active_focal_name = ''
+        active_current_canon = None
 
         def model(episode_num: int, scene_num: int, context: str,
                   goal: str, conflict: str, place: str, *,
@@ -569,22 +575,39 @@ def run_auto_novel(
                 raise InterruptedError()
             if context_sources is not None:
                 require_unchanged_author_sources(db, project_id, context_sources)
-            # Preserve user-selected author text and episode-scoped Novel
-            # Bible without the former silent 12k prefix truncation. Only
-            # unreviewed plot/prose reference material may be excerpted.
+            # Focal POV is an author-saved knowledge boundary. Never feed
+            # other characters' unrevealed secrets into automatically
+            # collected GGUF context. Author-selected instruction is
+            # preserved, not silently edited or used as a disclosure event.
+            private_scope = (
+                select_focal_secret_scope(
+                    characters, active_current_canon, active_focal_name)
+                if active_current_canon is not None and active_focal_name
+                else None)
+            selected_source_context = context
+            for selected in active_selected_author_sections:
+                if selected.strip():
+                    selected_source_context = selected_source_context.replace(
+                        selected, '', 1)
+            def safe_text(text: str) -> str:
+                return (omit_unrevealed_secrets(text, private_scope)
+                        if private_scope is not None else text)
             focused_context = pack_native_gguf_context(
                 selected_author_sections=active_selected_author_sections,
                 viewpoint=active_viewpoint_context,
-                saved_canon=active_canon_focus,
-                cast=active_cast_context,
-                previous_chapter=active_previous_chapter_bridge,
-                character_history=active_character_history,
-                scene_context=context,
-                previous_scenes=active_intra_chapter_memory)
+                saved_canon=safe_text(active_canon_focus)
+                    + (('\n' + focal_secret_instruction(private_scope))
+                       if private_scope is not None else ''),
+                cast=safe_text(active_cast_context),
+                previous_chapter=safe_text(active_previous_chapter_bridge),
+                character_history=safe_text(active_character_history),
+                scene_context=safe_text(selected_source_context),
+                previous_scenes=safe_text(active_intra_chapter_memory))
             request = SceneDraftRequest(
                 project_id, episode_num, scene_num, focused_context.text,
-                goal[:2000], conflict[:2000], place[:1000], character_names,
-                style_bible=active_style_bible,
+                safe_text(goal)[:2000], safe_text(conflict)[:2000],
+                safe_text(place)[:1000], character_names,
+                style_bible=safe_text(active_style_bible),
                 target_chars=allocated_scene_chars)
             calls += 1
             draft = draft_scene(request, provider).draft
@@ -722,6 +745,7 @@ def run_auto_novel(
             # Later-chapter author facts are never read into this snapshot.
             chapter_canon_focus = load_episode_canon_focus(
                 database_path, project_id, n)
+            active_current_canon = chapter_canon_focus
             # Indexed once per chapter from genuine earlier saved prose.
             # No uncommitted current scene or future chapter is indexed.
             chapter_character_history = build_saved_character_history(
@@ -761,6 +785,7 @@ def run_auto_novel(
             plot_viewpoint = select_saved_viewpoint(
                 viewpoint_rules, n, 0, tuple(person.name for person in characters))
             active_viewpoint_context = plot_viewpoint.prompt
+            active_focal_name = plot_viewpoint.focal_character
             # Select actual saved cast for the approved GGUF plot call.
             plot_cast = focus_saved_cast(
                 characters, (plot_viewpoint.focal_character,
@@ -827,6 +852,7 @@ def run_auto_novel(
                         viewpoint_rules, n, slot.scene_number,
                         tuple(person.name for person in characters))
                     active_viewpoint_context = scene_viewpoint.prompt
+                    active_focal_name = scene_viewpoint.focal_character
                     # Only the opening scene receives the chapter-boundary
                     # handoff. Later scenes follow actual written scene prose.
                     active_previous_chapter_bridge = (
